@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sent-01",
+    "language": "pl",
+    "to": "zakupy@rolmet.example",
+    "subject": "Re: Zapytanie o pompę zębatą PZ-32",
+    "date": "2026-10-28T09:12:00+01:00",
+    "bodyText": "Dzień dobry,\n\ndziękuję za zapytanie. Pompę PZ-32 mamy na magazynie w Katowicach, dwie sztuki. Wysyłka możliwa jutro, jeśli zamówienie wpłynie dziś do 14:00.\n\nW załączniku przesyłam kartę katalogową. Proszę o potwierdzenie, czy potrzebuje Pan również zestawu uszczelnień, wtedy przygotuję jedną ofertę na całość.\n\nPozdrawiam\nTomasz Bielak\nNordpart sp. z o.o."
+  },
+  {
+    "id": "sent-02",
+    "language": "en",
+    "to": "erik@halvorsen-maskin.example",
+    "subject": "Re: Spare parts for conveyor line 3",
+    "date": "2026-10-30T14:40:00+01:00",
+    "bodyText": "Hello Erik,\n\nThank you for the list. We can supply all six positions. Four are in stock, the two gearbox seals need about ten working days from our supplier.\n\nI will send the formal offer tomorrow morning. Please let me know if you prefer one shipment when everything is ready, or two partial shipments.\n\nBest regards\nTomasz Bielak\nNordpart sp. z o.o."
+  },
+  {
+    "id": "sent-03",
+    "language": "pl",
+    "to": "serwis@drukmet.example",
+    "subject": "Re: Reklamacja - łożysko 6308",
+    "date": "2026-11-03T08:05:00+01:00",
+    "bodyText": "Dzień dobry,\n\ndziękuję za zdjęcia. Widać na nich uszkodzenie koszyka, przyjmuję reklamację. Nowe łożysko wyślemy dziś kurierem na nasz koszt.\n\nProszę odesłać uszkodzoną sztukę tym samym kurierem, etykietę zwrotną prześlę w osobnej wiadomości.\n\nPrzepraszam za kłopot.\n\nPozdrawiam\nTomasz Bielak\nNordpart sp. z o.o."
+  }
+]

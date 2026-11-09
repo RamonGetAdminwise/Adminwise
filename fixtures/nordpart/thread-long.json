@@ -1,0 +1,63 @@
+{
+  "_note": "The 8 messages that came before inbound email n20, oldest first. Used for scenario 4: the draft must answer only the latest ask.",
+  "threadKey": "conv-fjordpack-rollers",
+  "subject": "Conveyor rollers for line 2",
+  "messages": [
+    {
+      "messageId": "<t1.4401@fjordpack.example>",
+      "direction": "inbound",
+      "from": "henrik@fjordpack.example",
+      "receivedAt": "2026-11-02T09:00:00+01:00",
+      "bodyText": "Hello,\n\nWe need replacement rollers for conveyor line 2. Do you supply rollers with a 60 mm diameter and 600 mm length?\n\nHenrik Dahl\nFjordpack AS"
+    },
+    {
+      "messageId": "<t2.out@nordpart.example>",
+      "direction": "outbound",
+      "from": "biuro@nordpart.example",
+      "receivedAt": "2026-11-02T11:30:00+01:00",
+      "bodyText": "Hello Henrik,\n\nThank you for your message. Yes, we supply that size. How many do you need, and do you need them with or without bearings?\n\nBest regards\nTomasz Bielak"
+    },
+    {
+      "messageId": "<t3.4402@fjordpack.example>",
+      "direction": "inbound",
+      "from": "henrik@fjordpack.example",
+      "receivedAt": "2026-11-03T08:20:00+01:00",
+      "bodyText": "We need 12 pieces, with bearings. What would the price be?"
+    },
+    {
+      "messageId": "<t4.out@nordpart.example>",
+      "direction": "outbound",
+      "from": "biuro@nordpart.example",
+      "receivedAt": "2026-11-03T13:05:00+01:00",
+      "bodyText": "Hello Henrik,\n\nI have sent the offer for 12 rollers with bearings as a PDF in a separate email. It is valid for 30 days.\n\nBest regards\nTomasz Bielak"
+    },
+    {
+      "messageId": "<t5.4403@fjordpack.example>",
+      "direction": "inbound",
+      "from": "henrik@fjordpack.example",
+      "receivedAt": "2026-11-04T10:10:00+01:00",
+      "bodyText": "Thanks, the offer looks good. What is the delivery time to Norway?"
+    },
+    {
+      "messageId": "<t6.out@nordpart.example>",
+      "direction": "outbound",
+      "from": "biuro@nordpart.example",
+      "receivedAt": "2026-11-04T15:45:00+01:00",
+      "bodyText": "Hello Henrik,\n\nDelivery to Norway takes about two weeks from order confirmation.\n\nBest regards\nTomasz Bielak"
+    },
+    {
+      "messageId": "<t7.4404@fjordpack.example>",
+      "direction": "inbound",
+      "from": "henrik@fjordpack.example",
+      "receivedAt": "2026-11-06T11:20:00+01:00",
+      "bodyText": "Could you send a drawing so our engineer can check the bearing seat?"
+    },
+    {
+      "messageId": "<t8.out@nordpart.example>",
+      "direction": "outbound",
+      "from": "biuro@nordpart.example",
+      "receivedAt": "2026-11-06T15:10:00+01:00",
+      "bodyText": "Hello Henrik,\n\nPlease find the drawing of the roller attached. The diameter is 60 mm as discussed.\n\nBest regards\nTomasz Bielak"
+    }
+  ]
+}

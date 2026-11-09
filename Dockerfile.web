@@ -1,0 +1,23 @@
+# The web app (Next.js). Build context: repository root.
+FROM node:26-slim
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm install -g pnpm@12.18.0
+WORKDIR /app
+
+# Dependencies first, so this layer is reused when only code changes.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
+COPY packages/db/package.json packages/db/
+COPY packages/core/package.json packages/core/
+COPY packages/mail/package.json packages/mail/
+COPY packages/ai/package.json packages/ai/
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm build:web
+
+ENV NODE_ENV=production
+EXPOSE 3000
+# Apply database migrations, then serve. The platform's PORT variable is respected.
+CMD ["sh", "-c", "pnpm db:migrate && pnpm --filter @bo/web start"]

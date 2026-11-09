@@ -1,0 +1,16 @@
+{
+  "name": "@bo/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bo/db": "workspace:*",
+    "@bo/mail": "workspace:*",
+    "pg-boss": "^12.38.1"
+  }
+}

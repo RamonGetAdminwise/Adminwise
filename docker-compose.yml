@@ -1,0 +1,50 @@
+# Local development.
+#   docker compose up -d            -> Postgres only (run web and worker with pnpm)
+#   docker compose --profile full up --build
+#                                   -> Postgres + web + worker in containers, as in production
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: backoffice
+      POSTGRES_PASSWORD: backoffice
+      POSTGRES_DB: backoffice
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backoffice"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://backoffice:backoffice@postgres:5432/backoffice
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://backoffice:backoffice@postgres:5432/backoffice
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -1,0 +1,12 @@
+{
+  "_note": "Fictional company for tests. Nordpart, its people, customers and suppliers are invented. All domains end in .example.",
+  "name": "Nordpart sp. z o.o.",
+  "slug": "nordpart",
+  "domain": "nordpart.example",
+  "ownerEmail": "tomasz.bielak@nordpart.example",
+  "mailbox": "biuro@nordpart.example",
+  "languages": ["pl", "en"],
+  "timeZone": "Europe/Warsaw",
+  "signatureText": "Tomasz Bielak\nNordpart sp. z o.o.\nul. Hutnicza 14, 40-241 Katowice\ntel. +48 32 555 01 42\nwww.nordpart.example",
+  "voiceProfile": "Greets with \"Dzień dobry,\" in Polish and \"Hello <first name>,\" in English. Polite but direct, uses \"Pan/Pani\" in Polish and first names in English. Short sentences, one topic per paragraph. Thanks for the message first, answers the question in the second sentence, ends with the next step. No emoji. Closes with \"Pozdrawiam\" in Polish and \"Best regards\" in English."
+}
