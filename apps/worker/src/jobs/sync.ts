@@ -1,6 +1,6 @@
-import { ConnectionUnavailableError, ingestInbound, QUEUES } from "@bo/core";
-import { forCustomer, system } from "@bo/db";
-import { GraphAuthError, GraphError } from "@bo/mail";
+import { ConnectionUnavailableError, ingestInbound, QUEUES } from "@adminwise/core";
+import { forCustomer, system } from "@adminwise/db";
+import { GraphAuthError, GraphError } from "@adminwise/mail";
 import { describeError, type Deps } from "../deps";
 
 /** Every 5 minutes: queue a poll for each connected Microsoft 365 mailbox. */

@@ -1,17 +1,17 @@
 import "server-only";
-import { createBedrockClient, type AiClient } from "@bo/ai";
-import { loadConfig, startQueue, type Config, type StartedQueue } from "@bo/core";
-import { createDb, type Db } from "@bo/db";
-import { ConsoleMailer, PostmarkMailer, type GraphOAuthConfig, type OutboundMailer } from "@bo/mail";
+import { createBedrockClient, type AiClient } from "@adminwise/ai";
+import { loadConfig, startQueue, type Config, type StartedQueue } from "@adminwise/core";
+import { createDb, type Db } from "@adminwise/db";
+import { ConsoleMailer, PostmarkMailer, type GraphOAuthConfig, type OutboundMailer } from "@adminwise/mail";
 
 /**
  * Server-side singletons for the web app. Kept on globalThis so that Next's
  * hot reload in development does not open a new database pool on every edit.
  */
 const cache = globalThis as unknown as {
-  __bo?: { config?: Config; db?: Db; queue?: Promise<StartedQueue>; ai?: AiClient; mailer?: OutboundMailer };
+  __adminwise?: { config?: Config; db?: Db; queue?: Promise<StartedQueue>; ai?: AiClient; mailer?: OutboundMailer };
 };
-const store = (cache.__bo ??= {});
+const store = (cache.__adminwise ??= {});
 
 export function getConfig(): Config {
   return (store.config ??= loadConfig());
@@ -32,8 +32,7 @@ export function getQueue(): Promise<StartedQueue> {
 }
 
 export function getAi(): AiClient {
-  const { aws } = getConfig();
-  return (store.ai ??= createBedrockClient({ region: aws.region, modelId: aws.modelId }));
+  return (store.ai ??= createBedrockClient(getConfig().aws));
 }
 
 export function getMailer(): OutboundMailer {

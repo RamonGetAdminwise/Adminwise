@@ -1,4 +1,4 @@
-import type { Classification, Message } from "@bo/db";
+import type { Classification, Message } from "@adminwise/db";
 
 /** Mailbox providers where "same domain" says nothing about being a colleague. */
 const FREE_MAIL = new Set([

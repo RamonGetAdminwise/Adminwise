@@ -27,8 +27,8 @@ describe("header flags", () => {
 describe("Postmark forwarding intake", () => {
   const payload = {
     FromFull: { Email: "Tomasz.Bielak@nordpart.example", Name: "Tomasz Bielak" },
-    ToFull: [{ Email: "nordpart@in.backoffice.example" }],
-    OriginalRecipient: "nordpart@in.backoffice.example",
+    ToFull: [{ Email: "nordpart@in.getadminwise.com" }],
+    OriginalRecipient: "nordpart@in.getadminwise.com",
     Subject: "Fwd: Quote request: bearings",
     MessageID: "pm-123",
     Date: "Thu, 5 Nov 2026 09:10:00 +0100",
@@ -39,7 +39,7 @@ describe("Postmark forwarding intake", () => {
   };
 
   it("finds the customer slug and unwraps a hand-forwarded mail to its real sender", () => {
-    const parsed = parsePostmarkInbound(payload, "in.backoffice.example", (from) => from === "tomasz.bielak@nordpart.example");
+    const parsed = parsePostmarkInbound(payload, "in.getadminwise.com", (from) => from === "tomasz.bielak@nordpart.example");
     expect(parsed.slugs).toEqual(["nordpart"]);
     expect(parsed.forwardedBy).toBe("tomasz.bielak@nordpart.example");
     expect(parsed.message.from).toEqual({ address: "erik@halvorsen-maskin.example", name: "Erik Halvorsen" });
@@ -50,12 +50,12 @@ describe("Postmark forwarding intake", () => {
   });
 
   it("keeps the real sender when the mail was not forwarded by the customer", () => {
-    const parsed = parsePostmarkInbound(payload, "in.backoffice.example", () => false);
+    const parsed = parsePostmarkInbound(payload, "in.getadminwise.com", () => false);
     expect(parsed.message.from.address).toBe("tomasz.bielak@nordpart.example");
   });
 
   it("ignores recipients at other domains", () => {
-    const parsed = parsePostmarkInbound({ ...payload, OriginalRecipient: "x@elsewhere.example", ToFull: [{ Email: "x@elsewhere.example" }] }, "in.backoffice.example");
+    const parsed = parsePostmarkInbound({ ...payload, OriginalRecipient: "x@elsewhere.example", ToFull: [{ Email: "x@elsewhere.example" }] }, "in.getadminwise.com");
     expect(parsed.slugs).toEqual([]);
   });
 

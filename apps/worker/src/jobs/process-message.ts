@@ -1,5 +1,5 @@
-import { classifyMessage, draftReply } from "@bo/ai";
-import { forCustomer } from "@bo/db";
+import { classifyMessage, draftReply } from "@adminwise/ai";
+import { forCustomer } from "@adminwise/db";
 import { describeError, type Deps } from "../deps";
 import { ownDomains, prefilter } from "./prefilter";
 

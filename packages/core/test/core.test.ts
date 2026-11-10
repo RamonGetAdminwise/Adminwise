@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { createDb, forCustomer, system, type Db } from "@bo/db";
-import { GraphAuthError } from "@bo/mail";
+import { createDb, forCustomer, system, type Db } from "@adminwise/db";
+import { GraphAuthError } from "@adminwise/mail";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { addDays, createOutlookGateway, isValidTimeZone, loadConfig, localClock, startOfLocalDay } from "../src";
 
@@ -25,11 +25,20 @@ describe("time zones", () => {
 });
 
 describe("config", () => {
-  it("keeps model and region in configuration, with EU defaults", () => {
+  it("keeps region and per-task models in configuration, with EU defaults", () => {
     const config = loadConfig({ DATABASE_URL: "postgres://x", TOKEN_ENCRYPTION_KEY: "k" } as NodeJS.ProcessEnv);
-    expect(config.aws).toEqual({ region: "eu-central-1", modelId: "anthropic.claude-opus-5-5" });
-    expect(loadConfig({ DATABASE_URL: "x", TOKEN_ENCRYPTION_KEY: "k", BEDROCK_MODEL_ID: "other", AWS_REGION: "eu-west-1" } as NodeJS.ProcessEnv).aws)
-      .toEqual({ region: "eu-west-1", modelId: "other" });
+    expect(config.aws).toEqual({
+      region: "eu-central-1",
+      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: "eu.anthropic.claude-haiku-4-5-20251001-v1:0" },
+    });
+    const base = { DATABASE_URL: "x", TOKEN_ENCRYPTION_KEY: "k" };
+    // Switching a task to another model is one line of configuration.
+    expect(loadConfig({ ...base, BEDROCK_MODEL_DRAFT: "eu.anthropic.claude-sonnet-5", AWS_REGION: "eu-west-1" } as NodeJS.ProcessEnv).aws).toEqual({
+      region: "eu-west-1",
+      models: { default: "eu.anthropic.claude-sonnet-5", classify: "eu.anthropic.claude-haiku-4-5-20251001-v1:0" },
+    });
+    // The global endpoint is refused: it may process requests outside the EU.
+    expect(() => loadConfig({ ...base, BEDROCK_MODEL_CLASSIFY: "global.anthropic.claude-haiku-4-5-20251001-v1:0" } as NodeJS.ProcessEnv)).toThrow(/global inference profile/);
     expect(() => loadConfig({} as NodeJS.ProcessEnv)).toThrow(/DATABASE_URL/);
   });
 });

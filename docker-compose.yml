@@ -6,15 +6,15 @@ services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_USER: backoffice
-      POSTGRES_PASSWORD: backoffice
-      POSTGRES_DB: backoffice
+      POSTGRES_USER: adminwise
+      POSTGRES_PASSWORD: adminwise
+      POSTGRES_DB: adminwise
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U backoffice"]
+      test: ["CMD-SHELL", "pg_isready -U adminwise"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile.web
     env_file: .env
     environment:
-      DATABASE_URL: postgres://backoffice:backoffice@postgres:5432/backoffice
+      DATABASE_URL: postgres://adminwise:adminwise@postgres:5432/adminwise
       PORT: "3000"
     ports:
       - "3000:3000"
@@ -41,7 +41,7 @@ services:
       dockerfile: Dockerfile.worker
     env_file: .env
     environment:
-      DATABASE_URL: postgres://backoffice:backoffice@postgres:5432/backoffice
+      DATABASE_URL: postgres://adminwise:adminwise@postgres:5432/adminwise
     depends_on:
       postgres:
         condition: service_healthy

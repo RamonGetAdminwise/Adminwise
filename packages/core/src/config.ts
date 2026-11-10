@@ -11,7 +11,8 @@ export interface Config {
   mailFrom: string;
   databaseUrl: string;
   tokenEncryptionKey: string;
-  aws: { region: string; modelId: string };
+  /** `models.default` writes (drafts, voice profile, later quotes); `models.classify` sorts mail. */
+  aws: { region: string; models: { default: string; classify: string } };
   microsoft: { clientId: string; clientSecret: string; tenant: string } | null;
   postmark: { serverToken: string | null; inboundSecret: string | null };
   workerConcurrency: number;
@@ -23,18 +24,34 @@ function required(env: NodeJS.ProcessEnv, name: string): string {
   return value;
 }
 
+/** EU inference profiles on Bedrock: sent to AWS_REGION, served only from EU regions. */
+export const DEFAULT_MODEL_DRAFT = "eu.anthropic.claude-sonnet-4-6";
+export const DEFAULT_MODEL_CLASSIFY = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
+
+function euModel(env: NodeJS.ProcessEnv, name: string, fallback: string): string {
+  const id = (env[name] || fallback).trim();
+  // The "global." profiles may process a request in any region worldwide. That breaks the EU promise.
+  if (id.startsWith("global.")) {
+    throw new Error(`${name} must not use a global inference profile (${id}). Use the "eu." profile instead.`);
+  }
+  return id;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const appName = env.APP_NAME || "Backoffice";
+  const appName = env.APP_NAME || "Adminwise";
   return {
     appName,
     appBaseUrl: (env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, ""),
-    inboundDomain: (env.INBOUND_DOMAIN || "in.backoffice.example").toLowerCase(),
-    mailFrom: env.MAIL_FROM || `${appName} <hello@backoffice.example>`,
+    inboundDomain: (env.INBOUND_DOMAIN || "in.getadminwise.com").toLowerCase(),
+    mailFrom: env.MAIL_FROM || `${appName} <hello@getadminwise.com>`,
     databaseUrl: required(env, "DATABASE_URL"),
     tokenEncryptionKey: required(env, "TOKEN_ENCRYPTION_KEY"),
     aws: {
       region: env.AWS_REGION || "eu-central-1",
-      modelId: env.BEDROCK_MODEL_ID || "anthropic.claude-opus-5-5",
+      models: {
+        default: euModel(env, "BEDROCK_MODEL_DRAFT", DEFAULT_MODEL_DRAFT),
+        classify: euModel(env, "BEDROCK_MODEL_CLASSIFY", DEFAULT_MODEL_CLASSIFY),
+      },
     },
     microsoft:
       env.MS_CLIENT_ID && env.MS_CLIENT_SECRET

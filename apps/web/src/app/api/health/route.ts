@@ -1,4 +1,4 @@
-import { system } from "@bo/db";
+import { system } from "@adminwise/db";
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/server";
 

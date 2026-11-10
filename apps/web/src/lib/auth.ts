@@ -1,12 +1,12 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { localClock } from "@bo/core";
-import { sha256, system, type SessionInfo } from "@bo/db";
+import { localClock } from "@adminwise/core";
+import { sha256, system, type SessionInfo } from "@adminwise/db";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getConfig, getDb, getMailer } from "./server";
 
-const SESSION_COOKIE = "bo_session";
+const SESSION_COOKIE = "aw_session";
 const LINK_MINUTES = 15;
 const SESSION_DAYS = 30;
 

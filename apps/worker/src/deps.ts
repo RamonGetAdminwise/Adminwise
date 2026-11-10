@@ -1,7 +1,7 @@
-import type { AiClient } from "@bo/ai";
-import type { JobQueue, OutlookGateway } from "@bo/core";
-import type { Db } from "@bo/db";
-import type { OutboundMailer } from "@bo/mail";
+import type { AiClient } from "@adminwise/ai";
+import type { JobQueue, OutlookGateway } from "@adminwise/core";
+import type { Db } from "@adminwise/db";
+import type { OutboundMailer } from "@adminwise/mail";
 
 /**
  * Everything a job needs from the outside world. Production wires in the real

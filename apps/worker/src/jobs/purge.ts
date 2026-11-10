@@ -1,4 +1,4 @@
-import { system } from "@bo/db";
+import { system } from "@adminwise/db";
 import { describeError, type Deps } from "../deps";
 
 /**

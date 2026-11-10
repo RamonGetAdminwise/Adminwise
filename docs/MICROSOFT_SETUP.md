@@ -2,7 +2,7 @@
 
 One app registration serves all customers. Each customer signs in with their own Microsoft 365 account and approves the permissions below; we never see their password. Menu names in the Entra portal change now and then; the steps are the same.
 
-You need: a Microsoft Entra tenant you administer (see `ACCOUNTS_SETUP.md` if you have none).
+Status 2026-11-10: steps 1, 3 and 4 are done (app "Adminwise" in your own tenant, multitenant for organisations, the four delegated permissions, a client secret, the localhost redirect URI). Open: step 2, the production redirect URI `https://app.getadminwise.com/api/microsoft/callback`, once the app is live.
 
 ## 1. Register the app
 
@@ -15,7 +15,7 @@ You need: a Microsoft Entra tenant you administer (see `ACCOUNTS_SETUP.md` if yo
 
 ## 2. Add the production redirect URI (when deployed)
 
-**Authentication > Web > Add URI**: `https://<your domain>/api/microsoft/callback`. Keep the localhost one for development. The value must match `APP_BASE_URL` + `/api/microsoft/callback` exactly.
+**Authentication > Web > Add URI**: `https://app.getadminwise.com/api/microsoft/callback`. Keep the localhost one for development. The value must match `APP_BASE_URL` + `/api/microsoft/callback` exactly.
 
 ## 3. Create a client secret
 
@@ -52,7 +52,7 @@ MS_TENANT=common
 
 ## How new mail reaches us
 
-- **Change notifications (webhook).** After connecting, the worker subscribes to "message created in Inbox" and Microsoft calls `https://<your domain>/api/webhooks/graph` within seconds. Microsoft only calls public https addresses, so this is off on localhost. Subscriptions expire; the worker renews them daily.
+- **Change notifications (webhook).** After connecting, the worker subscribes to "message created in Inbox" and Microsoft calls `https://app.getadminwise.com/api/webhooks/graph` within seconds. Microsoft only calls public https addresses, so this is off on localhost. Subscriptions expire; the worker renews them daily.
 - **Polling fallback.** Every 5 minutes the worker asks each mailbox what arrived since last time. This works everywhere, including localhost, and catches anything a notification missed. The same mail seen by both is stored once.
 
 ## When a connection breaks

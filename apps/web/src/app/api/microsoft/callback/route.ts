@@ -1,6 +1,6 @@
-import { QUEUES } from "@bo/core";
-import { forCustomer } from "@bo/db";
-import { exchangeCode, GraphClient } from "@bo/mail";
+import { QUEUES } from "@adminwise/core";
+import { forCustomer } from "@adminwise/db";
+import { exchangeCode, GraphClient } from "@adminwise/mail";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSession } from "@/lib/auth";
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   if (!oauth) return NextResponse.redirect(`${config.appBaseUrl}/settings?error=microsoft_config`);
 
   const jar = await cookies();
-  const expectedState = jar.get("bo_oauth_state")?.value;
-  jar.delete({ name: "bo_oauth_state", path: "/api/microsoft" });
+  const expectedState = jar.get("aw_oauth_state")?.value;
+  jar.delete({ name: "aw_oauth_state", path: "/api/microsoft" });
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   if (!code || !state || !expectedState || state !== expectedState) return fail();

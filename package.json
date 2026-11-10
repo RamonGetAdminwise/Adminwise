@@ -1,5 +1,5 @@
 {
-  "name": "backoffice",
+  "name": "adminwise",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.18.0",
@@ -8,10 +8,11 @@
   },
   "scripts": {
     "dev:db": "tsx scripts/dev-db.ts",
-    "dev:web": "pnpm --filter @bo/web dev",
-    "dev:worker": "pnpm --filter @bo/worker dev",
-    "db:migrate": "pnpm --filter @bo/db migrate",
-    "build:web": "pnpm --filter @bo/web build",
+    "check:ai": "tsx scripts/check-ai.ts",
+    "dev:web": "pnpm --filter @adminwise/web dev",
+    "dev:worker": "pnpm --filter @adminwise/worker dev",
+    "db:migrate": "pnpm --filter @adminwise/db migrate",
+    "build:web": "pnpm --filter @adminwise/web build",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run"

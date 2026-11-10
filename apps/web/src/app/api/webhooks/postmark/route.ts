@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
-import { ingestInbound } from "@bo/core";
-import { forCustomer, system } from "@bo/db";
-import { parsePostmarkInbound, type PostmarkInboundPayload } from "@bo/mail";
+import { ingestInbound } from "@adminwise/core";
+import { forCustomer, system } from "@adminwise/db";
+import { parsePostmarkInbound, type PostmarkInboundPayload } from "@adminwise/mail";
 import { NextResponse, type NextRequest } from "next/server";
 import { getConfig, getDb, getQueue } from "@/lib/server";
 

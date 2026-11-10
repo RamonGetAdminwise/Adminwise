@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import type { CustomerScope, MailboxConnection } from "@bo/db";
-import { GraphAuthError, GraphClient, refreshTokens, type GraphOAuthConfig, type InboundMessage } from "@bo/mail";
+import type { CustomerScope, MailboxConnection } from "@adminwise/db";
+import { GraphAuthError, GraphClient, refreshTokens, type GraphOAuthConfig, type InboundMessage } from "@adminwise/mail";
 
 /**
  * Everything the jobs need from a customer's Microsoft 365 mailbox.

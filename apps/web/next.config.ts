@@ -10,7 +10,7 @@ try {
 
 const config: NextConfig = {
   // Our own packages are TypeScript source; Next compiles them with the app.
-  transpilePackages: ["@bo/db", "@bo/core", "@bo/mail", "@bo/ai"],
+  transpilePackages: ["@adminwise/db", "@adminwise/core", "@adminwise/mail", "@adminwise/ai"],
   serverExternalPackages: ["pg", "pg-boss"],
   // Next would otherwise write an AGENTS.md file into this folder on every start.
   agentRules: false,

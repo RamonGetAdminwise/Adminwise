@@ -20,4 +20,4 @@ RUN pnpm build:web
 ENV NODE_ENV=production
 EXPOSE 3000
 # Apply database migrations, then serve. The platform's PORT variable is respected.
-CMD ["sh", "-c", "pnpm db:migrate && pnpm --filter @bo/web start"]
+CMD ["sh", "-c", "pnpm db:migrate && pnpm --filter @adminwise/web start"]

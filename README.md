@@ -1,9 +1,9 @@
-# Backoffice (working name) - code repository
+# Adminwise - code repository
 
 A hosted back-office service for small companies. Phase 1: sign-in, settings, voice profile, Microsoft 365 connection, forwarding-address intake, reply drafts, a first daily brief. Drafts only; nothing is sent to a customer's contacts.
 
 - What the folders are and how a mail flows through: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Accounts to create (AWS Bedrock, Microsoft, Postmark): [docs/ACCOUNTS_SETUP.md](docs/ACCOUNTS_SETUP.md)
+- Accounts, model ids and the AWS key: [docs/ACCOUNTS_SETUP.md](docs/ACCOUNTS_SETUP.md)
 - Microsoft app registration: [docs/MICROSOFT_SETUP.md](docs/MICROSOFT_SETUP.md)
 - Deployment: [docs/DEPLOY.md](docs/DEPLOY.md)
 - Spec and decisions: `../01_Project_docs/`
@@ -57,7 +57,7 @@ What works at which point:
 | You have | You can |
 | --- | --- |
 | nothing but `.env` with the encryption key | sign in, edit settings, see your forwarding address, run all tests |
-| + AWS keys | build a voice profile; business mail gets real drafts |
+| + AWS keys (`pnpm check:ai` confirms them) | build a voice profile; business mail gets real drafts |
 | + Microsoft app registration | connect an Outlook mailbox; drafts appear in its Drafts folder (polling every 5 minutes on localhost) |
 | + Postmark and a domain | real sign-in emails, the forwarding address, the daily brief by email |
 

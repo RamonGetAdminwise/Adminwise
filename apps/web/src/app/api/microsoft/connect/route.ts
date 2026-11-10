@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { buildAuthUrl } from "@bo/mail";
+import { buildAuthUrl } from "@adminwise/mail";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
@@ -14,7 +14,7 @@ export async function GET() {
 
   // The state value ties Microsoft's answer to this browser (CSRF protection).
   const state = randomBytes(24).toString("base64url");
-  (await cookies()).set("bo_oauth_state", state, {
+  (await cookies()).set("aw_oauth_state", state, {
     httpOnly: true,
     sameSite: "lax",
     secure: config.appBaseUrl.startsWith("https://"),

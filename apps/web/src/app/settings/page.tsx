@@ -1,4 +1,4 @@
-import { forCustomer } from "@bo/db";
+import { forCustomer } from "@adminwise/db";
 import type { ReactNode } from "react";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";

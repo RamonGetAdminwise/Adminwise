@@ -1,4 +1,4 @@
-import { QUEUES, type JobPayloads, type QueueName } from "@bo/core";
+import { QUEUES, type JobPayloads, type QueueName } from "@adminwise/core";
 import type { PgBoss } from "pg-boss";
 import type { Deps } from "./deps";
 import { briefTick, sendBrief } from "./jobs/brief";

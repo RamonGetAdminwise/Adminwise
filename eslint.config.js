@@ -12,13 +12,13 @@ export default tseslint.config(
       // forCustomer() / system(), so every query is scoped by customer id.
       "no-restricted-imports": [
         "error",
-        { paths: [{ name: "pg", message: "Use the data layer in @bo/db (forCustomer / system) instead of raw SQL." }] },
+        { paths: [{ name: "pg", message: "Use the data layer in @adminwise/db (forCustomer / system) instead of raw SQL." }] },
       ],
       "no-restricted-syntax": [
         "error",
         {
           selector: "MemberExpression[property.name='pool']",
-          message: "Do not query the pool directly. Use forCustomer() / system() from @bo/db.",
+          message: "Do not query the pool directly. Use forCustomer() / system() from @adminwise/db.",
         },
       ],
     },

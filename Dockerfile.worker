@@ -16,4 +16,4 @@ COPY . .
 
 ENV NODE_ENV=production
 # The worker applies pending migrations itself on start.
-CMD ["pnpm", "--filter", "@bo/worker", "start"]
+CMD ["pnpm", "--filter", "@adminwise/worker", "start"]

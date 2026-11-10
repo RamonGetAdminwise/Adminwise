@@ -1,8 +1,8 @@
 "use server";
 
-import { buildVoiceProfile } from "@bo/ai";
-import { isValidTimeZone } from "@bo/core";
-import { forCustomer } from "@bo/db";
+import { buildVoiceProfile } from "@adminwise/ai";
+import { isValidTimeZone } from "@adminwise/core";
+import { forCustomer } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
 import { getAi, getDb } from "@/lib/server";

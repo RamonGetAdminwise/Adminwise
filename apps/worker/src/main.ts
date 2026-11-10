@@ -1,7 +1,7 @@
-import { createBedrockClient } from "@bo/ai";
-import { createOutlookGateway, loadConfig, startQueue } from "@bo/core";
-import { createDb, migrate } from "@bo/db";
-import { ConsoleMailer, PostmarkMailer } from "@bo/mail";
+import { createBedrockClient } from "@adminwise/ai";
+import { createOutlookGateway, loadConfig, startQueue } from "@adminwise/core";
+import { createDb, migrate } from "@adminwise/db";
+import { ConsoleMailer, PostmarkMailer } from "@adminwise/mail";
 import type { Deps } from "./deps";
 import { registerSchedules, registerWorkers } from "./register";
 
@@ -18,7 +18,7 @@ const isPublic = config.appBaseUrl.startsWith("https://");
 const deps: Deps = {
   db,
   queue,
-  ai: createBedrockClient({ region: config.aws.region, modelId: config.aws.modelId }),
+  ai: createBedrockClient(config.aws),
   mailer: config.postmark.serverToken
     ? new PostmarkMailer({ serverToken: config.postmark.serverToken, from: config.mailFrom })
     : new ConsoleMailer(),
@@ -38,7 +38,7 @@ const deps: Deps = {
 
 await registerWorkers(queue.boss, deps, config.workerConcurrency);
 await registerSchedules(queue.boss);
-console.log(`[worker] running (model ${config.aws.modelId} in ${config.aws.region})`);
+console.log(`[worker] running (drafts: ${config.aws.models.default}, classification: ${config.aws.models.classify}, region ${config.aws.region})`);
 
 async function shutdown(signal: string) {
   console.log(`[worker] ${signal}: finishing current jobs`);

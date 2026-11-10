@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
-import { QUEUES } from "@bo/core";
-import { system } from "@bo/db";
+import { QUEUES } from "@adminwise/core";
+import { system } from "@adminwise/db";
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb, getQueue } from "@/lib/server";
 

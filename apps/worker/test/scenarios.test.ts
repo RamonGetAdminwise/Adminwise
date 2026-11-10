@@ -1,5 +1,5 @@
-import { ingestInbound, QUEUES, startQueue, type StartedQueue } from "@bo/core";
-import type { Db } from "@bo/db";
+import { ingestInbound, QUEUES, startQueue, type StartedQueue } from "@adminwise/core";
+import type { Db } from "@adminwise/db";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { composeBrief } from "../src/jobs/brief";
 import { processMessage } from "../src/jobs/process-message";
@@ -112,7 +112,7 @@ describe("Scenario 2: language the customer does not list", () => {
     expect(summaries).toHaveLength(1);
     expect(summaries[0]).toMatchObject({ language: "en", languageListed: false });
 
-    const brief = composeBrief({ appName: "Backoffice", appBaseUrl: "https://app.test", localDate: "2026-11-06", drafts: summaries, problems: [] });
+    const brief = composeBrief({ appName: "Adminwise", appBaseUrl: "https://app.test", localDate: "2026-11-06", drafts: summaries, problems: [] });
     expect(brief.textBody).toContain("written in English, a language not on your list");
   });
 });

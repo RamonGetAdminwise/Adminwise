@@ -1,5 +1,5 @@
 {
-  "name": "@bo/web",
+  "name": "@adminwise/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bo/ai": "workspace:*",
-    "@bo/core": "workspace:*",
-    "@bo/db": "workspace:*",
-    "@bo/mail": "workspace:*",
+    "@adminwise/ai": "workspace:*",
+    "@adminwise/core": "workspace:*",
+    "@adminwise/db": "workspace:*",
+    "@adminwise/mail": "workspace:*",
     "next": "^16.4.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

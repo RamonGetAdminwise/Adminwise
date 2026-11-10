@@ -1,5 +1,5 @@
 {
-  "name": "@bo/worker",
+  "name": "@adminwise/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,10 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bo/ai": "workspace:*",
-    "@bo/core": "workspace:*",
-    "@bo/db": "workspace:*",
-    "@bo/mail": "workspace:*",
+    "@adminwise/ai": "workspace:*",
+    "@adminwise/core": "workspace:*",
+    "@adminwise/db": "workspace:*",
+    "@adminwise/mail": "workspace:*",
     "pg-boss": "^12.38.1"
   }
 }

@@ -1,5 +1,5 @@
-import { addDays, localClock, QUEUES, startOfLocalDay } from "@bo/core";
-import { forCustomer, system, type DraftSummary, type MailboxConnection } from "@bo/db";
+import { addDays, localClock, QUEUES, startOfLocalDay } from "@adminwise/core";
+import { forCustomer, system, type DraftSummary, type MailboxConnection } from "@adminwise/db";
 import { describeError, type Deps } from "../deps";
 
 /** 07:30 in the customer's own time zone. */

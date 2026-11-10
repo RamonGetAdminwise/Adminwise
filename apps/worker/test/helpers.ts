@@ -2,10 +2,10 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AiClient, AiRequest, AiResult } from "@bo/ai";
-import { QUEUES, type JobPayloads, type JobQueue, type OutlookGateway, type QueueName } from "@bo/core";
-import { createDb, forCustomer, system, type CustomerScope, type Db } from "@bo/db";
-import { domainOf, flagsFromHeaders, type InboundMessage, type OutboundEmail, type OutboundMailer } from "@bo/mail";
+import type { AiClient, AiRequest, AiResult } from "@adminwise/ai";
+import { QUEUES, type JobPayloads, type JobQueue, type OutlookGateway, type QueueName } from "@adminwise/core";
+import { createDb, forCustomer, system, type CustomerScope, type Db } from "@adminwise/db";
+import { domainOf, flagsFromHeaders, type InboundMessage, type OutboundEmail, type OutboundMailer } from "@adminwise/mail";
 import { inject } from "vitest";
 import type { Deps } from "../src/deps";
 import { processMessage } from "../src/jobs/process-message";
@@ -165,7 +165,7 @@ export function makeWorld(db: Db) {
   const outlook = new FakeOutlook();
   const mailer = new FakeMailer();
   const queue = new MemoryQueue();
-  const deps: Deps = { db, queue, ai, mailer, outlook, appName: "Backoffice", appBaseUrl: "https://app.test" };
+  const deps: Deps = { db, queue, ai, mailer, outlook, appName: "Adminwise", appBaseUrl: "https://app.test" };
   return { ai, outlook, mailer, queue, deps };
 }
 

@@ -1,5 +1,5 @@
-import type { CustomerScope } from "@bo/db";
-import { domainOf, type InboundMessage } from "@bo/mail";
+import type { CustomerScope } from "@adminwise/db";
+import { domainOf, type InboundMessage } from "@adminwise/mail";
 import { QUEUES, type JobQueue } from "./queue";
 
 /**

@@ -28,7 +28,7 @@ export default async function setup(project: TestProject) {
 
   if (!url) {
     const { default: EmbeddedPostgres } = await import("embedded-postgres");
-    const dir = await mkdtemp(path.join(tmpdir(), "bo-test-pg-"));
+    const dir = await mkdtemp(path.join(tmpdir(), "adminwise-test-pg-"));
     const port = await freePort();
     const server = new EmbeddedPostgres({
       databaseDir: dir,
@@ -41,8 +41,8 @@ export default async function setup(project: TestProject) {
     });
     await server.initialise();
     await server.start();
-    await server.createDatabase("bo_test");
-    url = `postgres://postgres:postgres@127.0.0.1:${port}/bo_test`;
+    await server.createDatabase("adminwise_test");
+    url = `postgres://postgres:postgres@127.0.0.1:${port}/adminwise_test`;
     stop = async () => {
       await server.stop();
       await rm(dir, { recursive: true, force: true }).catch(() => {});

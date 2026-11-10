@@ -8,14 +8,14 @@ import EmbeddedPostgres from "embedded-postgres";
  * Data is kept in your user folder (outside OneDrive), so it survives restarts.
  * Stop it with Ctrl+C.
  */
-const dir = path.join(process.env.LOCALAPPDATA ?? homedir(), "backoffice-dev-postgres");
+const dir = path.join(process.env.LOCALAPPDATA ?? homedir(), "adminwise-dev-postgres");
 const port = Number(process.env.DEV_DB_PORT ?? 5432);
 const firstRun = !existsSync(path.join(dir, "PG_VERSION"));
 
 const server = new EmbeddedPostgres({
   databaseDir: dir,
-  user: "backoffice",
-  password: "backoffice",
+  user: "adminwise",
+  password: "adminwise",
   port,
   persistent: true,
   onLog: () => {},
@@ -24,10 +24,10 @@ const server = new EmbeddedPostgres({
 
 if (firstRun) await server.initialise();
 await server.start();
-if (firstRun) await server.createDatabase("backoffice");
+if (firstRun) await server.createDatabase("adminwise");
 
 console.log(`Postgres is running. Data folder: ${dir}`);
-console.log(`DATABASE_URL=postgres://backoffice:backoffice@localhost:${port}/backoffice`);
+console.log(`DATABASE_URL=postgres://adminwise:adminwise@localhost:${port}/adminwise`);
 console.log("Press Ctrl+C to stop.");
 
 const stop = async () => {

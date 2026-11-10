@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: process.env.APP_NAME || "Backoffice",
+  title: process.env.APP_NAME || "Adminwise",
   description: "Your back office, handled.",
 };
 

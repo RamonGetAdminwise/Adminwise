@@ -12,18 +12,18 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_USER: backoffice
-          POSTGRES_PASSWORD: backoffice
-          POSTGRES_DB: backoffice_test
+          POSTGRES_USER: adminwise
+          POSTGRES_PASSWORD: adminwise
+          POSTGRES_DB: adminwise_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U backoffice"
+          --health-cmd "pg_isready -U adminwise"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
     env:
-      TEST_DATABASE_URL: postgres://backoffice:backoffice@localhost:5432/backoffice_test
+      TEST_DATABASE_URL: postgres://adminwise:adminwise@localhost:5432/adminwise_test
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

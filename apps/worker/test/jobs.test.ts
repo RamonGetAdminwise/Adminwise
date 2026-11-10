@@ -1,5 +1,5 @@
-import { ingestInbound, QUEUES } from "@bo/core";
-import { forCustomer, system, type Db } from "@bo/db";
+import { ingestInbound, QUEUES } from "@adminwise/core";
+import { forCustomer, system, type Db } from "@adminwise/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { briefTick, composeBrief, sendBrief } from "../src/jobs/brief";
 import { purgeBodies } from "../src/jobs/purge";
@@ -40,11 +40,11 @@ describe("24-hour body purge", () => {
 });
 
 describe("Daily brief (phase-1 version)", () => {
-  const base = { appName: "Backoffice", appBaseUrl: "https://app.test", localDate: "2026-11-10" };
+  const base = { appName: "Adminwise", appBaseUrl: "https://app.test", localDate: "2026-11-10" };
 
   it("is one line when nothing happened", () => {
     const brief = composeBrief({ ...base, drafts: [], problems: [] });
-    expect(brief.textBody.trim()).toBe("Nothing needed your attention yesterday. Backoffice is running.");
+    expect(brief.textBody.trim()).toBe("Nothing needed your attention yesterday. Adminwise is running.");
   });
 
   it("leaves out empty sections", () => {
