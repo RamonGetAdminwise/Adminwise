@@ -30,8 +30,11 @@ export async function processMessage(
   const runId = await scope.startJobRun("reply-draft", job.messageId);
   let inputTokens = 0;
   let outputTokens = 0;
-  const finish = (status: "succeeded" | "failed" | "skipped", error: string | null = null) =>
-    scope.finishJobRun(runId, { status, inputTokens, outputTokens, error });
+  const finish = (
+    status: "succeeded" | "failed" | "skipped",
+    error: string | null = null,
+    outcome: string | null = null,
+  ) => scope.finishJobRun(runId, { status, inputTokens, outputTokens, error, outcome });
 
   try {
     const message = await scope.getMessage(job.messageId);
@@ -63,7 +66,7 @@ export async function processMessage(
       await scope.setClassification(message.id, classification, language);
     }
     if (classification !== "business") {
-      await finish("succeeded");
+      await finish("succeeded", null, `no_draft:${classification}`);
       return "no_draft";
     }
 
@@ -124,7 +127,7 @@ export async function processMessage(
       throw error;
     }
 
-    await finish("succeeded");
+    await finish("succeeded", null, toOutlook ? "drafted:outlook" : "drafted:email");
     return "drafted";
   } catch (error) {
     await finish("failed", describeError(error));

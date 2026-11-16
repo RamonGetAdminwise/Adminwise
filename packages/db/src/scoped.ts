@@ -315,12 +315,27 @@ export function forCustomer(db: Db, customerId: string) {
 
     async finishJobRun(
       id: string,
-      result: { status: JobStatus; inputTokens?: number; outputTokens?: number; error?: string | null },
+      result: {
+        status: JobStatus;
+        inputTokens?: number;
+        outputTokens?: number;
+        error?: string | null;
+        /** Short fixed code for what happened ("drafted", "no_draft:newsletter"); never mail content. */
+        outcome?: string | null;
+      },
     ) {
       await run(
-        `UPDATE job_runs SET status = $3, finished_at = now(), input_tokens = $4, output_tokens = $5, error = $6
+        `UPDATE job_runs SET status = $3, finished_at = now(), input_tokens = $4, output_tokens = $5, error = $6,
+                outcome = $7
          WHERE customer_id = $1 AND id = $2`,
-        [id, result.status, result.inputTokens ?? 0, result.outputTokens ?? 0, result.error ?? null],
+        [
+          id,
+          result.status,
+          result.inputTokens ?? 0,
+          result.outputTokens ?? 0,
+          result.error ?? null,
+          result.outcome ?? null,
+        ],
       );
     },
 

@@ -29,7 +29,7 @@ export async function syncMailbox(deps: Deps, job: { customerId: string; connect
     }
     await scope.markSynced(job.connectionId, deltaLink);
     await deps.outlook.ensureSubscription(scope, job.connectionId);
-    await scope.finishJobRun(runId, { status: "succeeded" });
+    await scope.finishJobRun(runId, { status: "succeeded", outcome: `new_mail:${stored}` });
     return stored;
   } catch (error) {
     // A connection the customer must fix is not an error to retry: its status

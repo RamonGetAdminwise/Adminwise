@@ -69,6 +69,7 @@ describe("Scenario 1: plain customer question", () => {
     expect(stored[0]).toMatchObject({ status: "created", language: "pl", languageListed: true, destination: "outlook_drafts" });
     const run = (await nordpart.scope.listJobRuns()).find((r) => r.job === "reply-draft")!;
     expect(run.status).toBe("succeeded");
+    expect(run.outcome).toBe("drafted:outlook");
     expect(run.inputTokens).toBe(150 + 700);
     expect(run.outputTokens).toBe(15 + 90);
 
@@ -140,6 +141,12 @@ describe("Scenario 3: newsletter, notification, out-of-office, internal mail", (
       const stored = await nordpart.scope.getMessage(ids.get(mail.id)!);
       expect(stored!.classification, mail.id).toBe(mail.expected.category);
     }
+    // The activity log says why there is no draft, not just "succeeded".
+    const runs = (await nordpart.scope.listJobRuns(50)).filter((r) => r.job === "reply-draft");
+    expect(runs).toHaveLength(noReplyNeeded.length);
+    expect(runs.map((r) => r.outcome).sort()).toEqual(
+      noReplyNeeded.map((f) => `no_draft:${f.expected.category}`).sort(),
+    );
     // Headers, sender address and the customer's own domain settle 8 of the 10
     // without the model; only the two with no such signal are sent to it.
     expect(world.ai.of("classify")).toHaveLength(noReplyNeeded.filter((f) => f.expected.decidedBy === "model").length);

@@ -1,5 +1,6 @@
 import { forCustomer } from "@adminwise/db";
 import type { ReactNode } from "react";
+import { describeRun, jobName } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
 import { generateVoiceProfile, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
@@ -178,7 +179,7 @@ export default async function SettingsPage({
             <thead className="text-stone-500">
               <tr>
                 <th className="py-1 font-medium">When (UTC)</th>
-                <th className="py-1 font-medium">Job</th>
+                <th className="py-1 font-medium">What</th>
                 <th className="py-1 font-medium">Result</th>
               </tr>
             </thead>
@@ -186,8 +187,8 @@ export default async function SettingsPage({
               {runs.map((run) => (
                 <tr key={run.id} className="border-t border-stone-100">
                   <td className="py-1">{run.startedAt.toISOString().slice(0, 16).replace("T", " ")}</td>
-                  <td className="py-1">{run.job}</td>
-                  <td className="py-1">{run.status}</td>
+                  <td className="py-1">{jobName(run)}</td>
+                  <td className="py-1">{describeRun(run)}</td>
                 </tr>
               ))}
             </tbody>

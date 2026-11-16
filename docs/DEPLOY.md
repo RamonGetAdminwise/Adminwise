@@ -1,6 +1,6 @@
 # Deploying Adminwise to Railway (EU)
 
-The app is two Docker images (web and worker) and one Postgres database. Nothing in the code knows about Railway; the only Railway files are `deploy/railway.web.json` and `deploy/railway.worker.json`. The same images run on any Linux server (last section).
+The app is two Docker images (web and worker) and one Postgres database. Nothing in the code knows about Railway. The files `deploy/railway.web.json` and `deploy/railway.worker.json` record the intended service settings, but Railway no longer reads them for new services (Config-as-code is deprecated), so the settings are entered in the Railway screens as described below. The same images run on any Linux server (last section).
 
 Target: `https://app.getadminwise.com`. The bare domain `getadminwise.com` stays free for the website.
 
@@ -47,7 +47,7 @@ In the Railway project: **Settings > Shared Variables** (environment "production
 
 1. In the project: **+ New > GitHub Repo**. Authorise Railway for the `adminwise` repository if asked, pick it.
 2. Open the new service > **Settings**: rename it to `web`; check **Region** is EU West (Amsterdam).
-3. **Settings > Config-as-code**: path `deploy/railway.web.json` (selects `Dockerfile.web` and the health check `/api/health`).
+3. **Settings > Build**: builder **Dockerfile**, Dockerfile path `Dockerfile.web`. **Settings > Deploy**: healthcheck path `/api/health`, healthcheck timeout `120`, restart policy **On failure**, max retries `5`. (Railway deprecated Config-as-code: new services cannot opt in since 2026-08-28, so these are set by hand. If the builder cannot be chosen, add the service variable `RAILWAY_DOCKERFILE_PATH=Dockerfile.web`.)
 4. **Variables**: **Shared Variable > Add all**; then add `DATABASE_URL` with the value `${{Postgres.DATABASE_URL}}`.
 5. **Deploy**. The container applies the database migrations, then starts the web app on Railway's `PORT`. The deployment turns green when `/api/health` answers.
 
@@ -68,7 +68,7 @@ In the Railway project: **Settings > Shared Variables** (environment "production
 ## Step 5. Worker service
 
 1. **+ New > GitHub Repo**, the same repository again.
-2. **Settings**: rename to `worker`; region EU West (Amsterdam); **Config-as-code** path `deploy/railway.worker.json`. No domain.
+2. **Settings**: rename to `worker`; region EU West (Amsterdam); **Build**: builder **Dockerfile**, path `Dockerfile.worker`; **Deploy**: restart policy **On failure**, max retries `5`, no healthcheck. No domain.
 3. **Variables**: **Shared Variable > Add all**; add `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`.
 4. **Deploy**. The log shows `[worker] running (drafts: eu.anthropic.claude-sonnet-4-6, classification: eu.anthropic.claude-haiku-4-5-20251001-v1:0, region eu-central-1)`.
 

@@ -122,4 +122,5 @@ export interface JobRun {
   inputTokens: number;
   outputTokens: number;
   error: string | null;
+  outcome: string | null;
 }
