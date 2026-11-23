@@ -1,4 +1,4 @@
-import { extractText, getDocumentProxy } from "unpdf";
+import { getDocumentProxy } from "unpdf";
 
 /**
  * The text of a PDF, for reading an invoice's number, amount and dates.
