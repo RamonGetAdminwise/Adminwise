@@ -2,7 +2,10 @@ import { chaserCheckPrompt, type ChaserCheckInput } from "../prompts/chaser-chec
 import { chaserDraftPrompt, type ChaserDraftInput } from "../prompts/chaser-draft";
 import { classifyPrompt, type ClassifyInput } from "../prompts/classify";
 import { fileTypePrompt, type FileTypeInput } from "../prompts/file-type";
+import { invoiceFieldsPrompt, type InvoiceFieldsInput } from "../prompts/invoice-fields";
 import { matchItemsPrompt, type MatchItemsInput } from "../prompts/match-items";
+import { paymentNoticePrompt, type PaymentNoticeInput } from "../prompts/payment-notice";
+import { paymentReminderPrompt, type PaymentReminderInput } from "../prompts/payment-reminder";
 import { offerAcceptancePrompt, type OfferAcceptanceInput } from "../prompts/offer-acceptance";
 import { orderReplyPrompt, type OrderReplyInput } from "../prompts/order-reply";
 import { priceListColumnsPrompt, type PriceListColumnsInput } from "../prompts/price-list-columns";
@@ -214,6 +217,73 @@ export async function draftOrderReply(ai: AiClient, input: OrderReplyInput): Pro
   const body = result.text.trim();
   if (!body) throw new AiError("Model returned an empty draft");
   return { body, usage: result };
+}
+
+export interface InvoiceReading {
+  isInvoice: boolean;
+  issuedByCompany: boolean;
+  /** Proposals only: the caller keeps a value only when it is printed in the document. */
+  number: string | null;
+  grossAmount: string | null;
+  currency: string | null;
+  issueDate: string | null;
+  dueDate: string | null;
+  paymentTermDays: number | null;
+  buyer: string | null;
+  language: string | null;
+}
+
+/** Reads the key fields of a document that may be one of the company's own invoices. */
+export async function readInvoiceFields(
+  ai: AiClient,
+  input: InvoiceFieldsInput,
+): Promise<{ reading: InvoiceReading; usage: AiUsage }> {
+  const result = await ai.complete({
+    job: "invoice-fields",
+    ...invoiceFieldsPrompt({ ...input, text: clip(input.text, MAX_BODY_CHARS) }),
+    maxTokens: 2000,
+  });
+  const answer = firstJson(result.text);
+  if (answer.is_invoice !== "yes" && answer.is_invoice !== "no") {
+    throw new AiError("Invoice reading answer was not in the expected format");
+  }
+  const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim().slice(0, 200) : null);
+  const amount = typeof answer.gross_amount === "number" ? String(answer.gross_amount) : text(answer.gross_amount);
+  const language = text(answer.language)?.toLowerCase().slice(0, 2) ?? null;
+  return {
+    reading: {
+      isInvoice: answer.is_invoice === "yes",
+      issuedByCompany: answer.issued_by_company === "yes",
+      number: text(answer.number),
+      grossAmount: amount,
+      currency: text(answer.currency),
+      issueDate: text(answer.issue_date),
+      dueDate: text(answer.due_date),
+      paymentTermDays: typeof answer.payment_term_days === "number" ? answer.payment_term_days : null,
+      buyer: text(answer.buyer),
+      language: language && /^[a-z]{2}$/.test(language) ? language : null,
+    },
+    usage: result,
+  };
+}
+
+export async function draftPaymentReminder(
+  ai: AiClient,
+  input: PaymentReminderInput,
+): Promise<{ body: string; usage: AiUsage }> {
+  const result = await ai.complete({ job: "payment-reminder", ...paymentReminderPrompt(input), maxTokens: 4000 });
+  const body = result.text.trim();
+  if (!body) throw new AiError("Model returned an empty reminder");
+  return { body, usage: result };
+}
+
+/** Does this reply say the invoice was paid? Anything but a clear "yes" is no. */
+export async function checkPaymentNotice(ai: AiClient, input: PaymentNoticeInput): Promise<{ paid: boolean; usage: AiUsage }> {
+  const prompt = paymentNoticePrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
+  const result = await ai.complete({ job: "payment-notice", ...prompt, maxTokens: 2000 });
+  const answer = firstJson(result.text).paid;
+  if (answer !== "yes" && answer !== "no") throw new AiError("Payment notice answer was not in the expected format");
+  return { paid: answer === "yes", usage: result };
 }
 
 export interface ProposedColumns {

@@ -238,7 +238,39 @@ export interface NewMessage {
   bodyText: string;
 }
 
-export type DraftKind = "reply" | "chaser" | "order_confirmation";
+export type DraftKind = "reply" | "chaser" | "order_confirmation" | "reminder";
+
+export type InvoiceStatus = "pending" | "open" | "needs_due_date" | "unreadable" | "not_ours" | "duplicate" | "paid" | "stopped";
+
+/** An invoice the customer sent to one of their own customers, tracked for payment reminders. */
+export interface Invoice {
+  id: string;
+  customerId: string;
+  /** "sent" = seen in the mailbox's Sent Items; "forwarded" = the customer forwarded it to their Adminwise address. */
+  source: "sent" | "forwarded";
+  messageId: string | null;
+  threadId: string | null;
+  connectionId: string | null;
+  fileName: string;
+  contentHash: string;
+  status: InvoiceStatus;
+  number: string | null;
+  language: string | null;
+  debtorDomain: string;
+  debtorName: string;
+  amountCents: number | null;
+  currency: string | null;
+  /** YYYY-MM-DD */
+  issueDate: string | null;
+  dueDate: string | null;
+  remindersMade: number;
+  lastReminderAt: Date | null;
+  endedAt: Date | null;
+  endedBy: "owner" | "sender" | null;
+  /** Text read from a forwarded PDF, until the job has read it. */
+  pendingText: string | null;
+  createdAt: Date;
+}
 export type ChaseMode = "on" | "never" | "done";
 export type DocType = "invoice" | "order" | "contract" | "offer" | "other";
 export type FilingStatus = "filed" | "duplicate" | "queued" | "failed";

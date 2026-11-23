@@ -4,7 +4,7 @@ import { forCustomer, system } from "@adminwise/db";
 import { domainOf, GraphAuthError, GraphError } from "@adminwise/mail";
 import { describeError, type Deps } from "../deps";
 import { ownDomains, SYSTEM_SENDER } from "./prefilter";
-import { appendSignature } from "./process-message";
+import { appendSignature } from "./signature";
 
 /** 06:00 in the customer's own time zone: follow-ups are ready before the 07:30 brief. */
 export const CHASE_MINUTE_OF_DAY = 6 * 60;
@@ -28,6 +28,10 @@ export async function chaseTick(deps: Deps): Promise<number> {
   for (const customer of await system(deps.db).listCustomerClocks()) {
     const clock = localClock(now, customer.timeZone);
     if (clock.minutesOfDay < CHASE_MINUTE_OF_DAY) continue;
+    // The payment reminders run at the same hour, with their own once-a-day marker.
+    if (!customer.remindLastRunOn || customer.remindLastRunOn < clock.date) {
+      await deps.queue.send(QUEUES.remindCustomer, { customerId: customer.id, localDate: clock.date });
+    }
     if (customer.chaseLastRunOn && customer.chaseLastRunOn >= clock.date) continue;
     await deps.queue.send(QUEUES.chaseCustomer, { customerId: customer.id, localDate: clock.date });
     queued++;

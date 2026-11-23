@@ -21,8 +21,9 @@ CREATE TABLE invoices (
   -- needs_due_date = the owner is asked for the due date; unreadable = could not be read, not tracked;
   -- not_ours = not an invoice issued by the customer; paid / stopped = the chain has ended.
   status           text NOT NULL DEFAULT 'pending'
-                   CHECK (status IN ('pending', 'open', 'needs_due_date', 'unreadable', 'not_ours', 'paid', 'stopped')),
+                   CHECK (status IN ('pending', 'open', 'needs_due_date', 'unreadable', 'not_ours', 'duplicate', 'paid', 'stopped')),
   number           text,
+  language         text,                          -- ISO 639-1 code the invoice is written in; reminders use it
   debtor_domain    text NOT NULL DEFAULT '',
   debtor_name      text NOT NULL DEFAULT '',
   amount_cents     bigint,

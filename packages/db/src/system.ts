@@ -126,11 +126,17 @@ export function system(db: Db) {
 
     /** Each customer's time zone and the local date their last daily brief was for (YYYY-MM-DD or null). */
     async listCustomerClocks(): Promise<
-      { id: string; timeZone: string; briefLastSentOn: string | null; chaseLastRunOn: string | null }[]
+      {
+        id: string;
+        timeZone: string;
+        briefLastSentOn: string | null;
+        chaseLastRunOn: string | null;
+        remindLastRunOn: string | null;
+      }[]
     > {
       const { rows } = await db.pool.query(
         `SELECT id, time_zone, brief_last_sent_on::text AS brief_last_sent_on,
-                chase_last_run_on::text AS chase_last_run_on
+                chase_last_run_on::text AS chase_last_run_on, remind_last_run_on::text AS remind_last_run_on
          FROM customers`,
       );
       return rows.map((r) => camel(r));
@@ -203,6 +209,10 @@ export function system(db: Db) {
          WHERE body_purged_at IS NULL AND created_at < $1`,
         [cutoff],
       );
+      // Text read from a forwarded invoice that was never processed must not linger either.
+      await db.pool.query("UPDATE invoices SET pending_text = NULL WHERE pending_text IS NOT NULL AND created_at < $1", [
+        cutoff,
+      ]);
       return { messages: messages.rowCount ?? 0, drafts: drafts.rowCount ?? 0 };
     },
 

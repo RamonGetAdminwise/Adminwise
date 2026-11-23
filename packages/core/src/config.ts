@@ -62,6 +62,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         "file-type": classify,
         "price-list-columns": classify,
         "offer-acceptance": classify,
+        "payment-notice": classify,
       },
     },
     alertEmail: env.ALERT_EMAIL?.trim() || null,

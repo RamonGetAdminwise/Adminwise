@@ -64,8 +64,8 @@ const invoices = [
       <tr><td>Pompa hydrauliczna zębata PZ-40</td><td>12 szt.</td><td>1 700,00</td><td>20 400,00</td></tr>
       <tr><td>Uszczelka gumowa U-22</td><td>30 szt.</td><td>34,70</td><td>1 041,00</td></tr></table>
       <p>Razem netto: 21 441,00 PLN<br>VAT 23%: 4 931,43 PLN</p><p class="total">Do zapłaty: 26 372,43 PLN</p>`),
-    expected: { status: "open", number: "FV/2026/11/0457", amountCents: 2637243, currency: "PLN", issueDate: "2026-11-03", dueDate: "2026-11-17", buyer: "Rolmet sp. z o.o." },
-    recorded: { is_invoice: "yes", issued_by_company: "yes", number: "FV/2026/11/0457", gross_amount: "26 372,43", currency: "PLN", issue_date: "2026-11-03", due_date: "2026-11-17", payment_term_days: null, buyer: "Rolmet sp. z o.o." },
+    expected: { status: "open", number: "FV/2026/11/0457", amountCents: 2637243, currency: "PLN", issueDate: "2026-11-03", dueDate: "2026-11-17", buyer: "Rolmet sp. z o.o.", language: "pl" },
+    recorded: { is_invoice: "yes", issued_by_company: "yes", number: "FV/2026/11/0457", gross_amount: "26 372,43", currency: "PLN", issue_date: "2026-11-03", due_date: "2026-11-17", payment_term_days: null, buyer: "Rolmet sp. z o.o.", language: "pl" },
   },
   {
     id: "i02",
@@ -76,8 +76,8 @@ const invoices = [
       <p>Invoice date: 03.11.2026<br>Payment terms: 14 days net</p>
       <table><tr><th>Item</th><th>Qty</th><th>Net</th></tr><tr><td>Gear motor GM-75</td><td>4 pcs</td><td>14,890.00</td></tr></table>
       <p>VAT 23%: 3,424.70 PLN</p><p class="total">Total due: 18,314.70 PLN</p>`),
-    expected: { status: "open", number: "INV-2026-118", amountCents: 1831470, currency: "PLN", issueDate: "2026-11-03", dueDate: "2026-11-17", buyer: "Halvorsen Maskin AS" },
-    recorded: { is_invoice: "yes", issued_by_company: "yes", number: "INV-2026-118", gross_amount: "18,314.70", currency: "PLN", issue_date: "2026-11-03", due_date: null, payment_term_days: 14, buyer: "Halvorsen Maskin AS" },
+    expected: { status: "open", number: "INV-2026-118", amountCents: 1831470, currency: "PLN", issueDate: "2026-11-03", dueDate: "2026-11-17", buyer: "Halvorsen Maskin AS", language: "en" },
+    recorded: { is_invoice: "yes", issued_by_company: "yes", number: "INV-2026-118", gross_amount: "18,314.70", currency: "PLN", issue_date: "2026-11-03", due_date: null, payment_term_days: 14, buyer: "Halvorsen Maskin AS", language: "en" },
   },
   {
     id: "i03",
@@ -88,8 +88,8 @@ const invoices = [
       <p>Data wystawienia: 2026-11-05</p>
       <table><tr><th>Nazwa</th><th>Ilość</th><th>Wartość netto</th></tr><tr><td>Łożysko kulkowe LK-6203</td><td>20 szt.</td><td>6 851,60</td></tr></table>
       <p class="total">Do zapłaty: 8 427,47 PLN</p>`),
-    expected: { status: "needs_due_date", number: "FV/2026/11/0461", amountCents: 842747, currency: "PLN", issueDate: "2026-11-05", dueDate: null, buyer: "Stalbud S.A." },
-    recorded: { is_invoice: "yes", issued_by_company: "yes", number: "FV/2026/11/0461", gross_amount: "8 427,47", currency: "PLN", issue_date: "2026-11-05", due_date: "2026-11-19", payment_term_days: null, buyer: "Stalbud S.A." },
+    expected: { status: "needs_due_date", number: "FV/2026/11/0461", amountCents: 842747, currency: "PLN", issueDate: "2026-11-05", dueDate: null, buyer: "Stalbud S.A.", language: "pl" },
+    recorded: { is_invoice: "yes", issued_by_company: "yes", number: "FV/2026/11/0461", gross_amount: "8 427,47", currency: "PLN", issue_date: "2026-11-05", due_date: "2026-11-19", payment_term_days: null, buyer: "Stalbud S.A.", language: "pl" },
   },
   {
     id: "i04",
@@ -99,7 +99,7 @@ const invoices = [
       <div class="cols"><div><b>Sprzedawca</b><br>Kurier Północ sp. z o.o.<br>ul. Portowa 9, 80-001 Gdańsk</div><div><b>Nabywca</b><br>${NORDPART}</div></div>
       <p>Data wystawienia: 2026-11-04<br>Termin płatności: 2026-11-18</p><p class="total">Do zapłaty: 615,00 PLN</p>`),
     expected: { status: "not_ours" },
-    recorded: { is_invoice: "yes", issued_by_company: "no", number: "T/7781/2026", gross_amount: "615,00", currency: "PLN", issue_date: "2026-11-04", due_date: "2026-11-18", payment_term_days: null, buyer: "Nordpart sp. z o.o." },
+    recorded: { is_invoice: "yes", issued_by_company: "no", number: "T/7781/2026", gross_amount: "615,00", currency: "PLN", issue_date: "2026-11-04", due_date: "2026-11-18", payment_term_days: null, buyer: "Nordpart sp. z o.o.", language: "pl" },
   },
   {
     id: "i05",

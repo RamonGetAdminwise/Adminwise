@@ -26,6 +26,12 @@ export const QUEUES = {
   alertTick: "alert-tick",
   /** The owner confirmed an offer from the brief: make the order confirmation and a draft with it. */
   confirmOffer: "confirm-offer",
+  /** Look at the PDFs attached to a mail the customer sent: is one of them an invoice of theirs to track? */
+  trackInvoices: "track-invoices",
+  /** Read one invoice whose text was taken from a forwarded PDF. */
+  readInvoice: "read-invoice",
+  /** Draft payment reminders for one customer's overdue invoices. */
+  remindCustomer: "remind-customer",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -43,6 +49,9 @@ export interface JobPayloads {
   "chase-customer": { customerId: string; localDate: string };
   "alert-tick": Record<string, never>;
   "confirm-offer": { customerId: string; offerId: string };
+  "track-invoices": { customerId: string; messageId: string };
+  "read-invoice": { customerId: string; invoiceId: string };
+  "remind-customer": { customerId: string; localDate: string };
 }
 
 /** What the web app and jobs need: a way to hand work to the worker. */

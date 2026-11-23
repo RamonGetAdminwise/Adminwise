@@ -38,7 +38,7 @@ export async function syncMailbox(deps: Deps, job: { customerId: string; connect
     const sent = await deps.outlook.listNewSentMessageIds(scope, job.connectionId);
     for (const id of sent.messageIds) {
       try {
-        await ingestOutbound(scope, job.connectionId, await deps.outlook.fetchMessage(scope, job.connectionId, id));
+        await ingestOutbound(scope, job.connectionId, await deps.outlook.fetchMessage(scope, job.connectionId, id), deps.queue);
       } catch (error) {
         // Moved or deleted between listing and reading: nothing to note.
         if (!(error instanceof GraphError && error.status === 404)) throw error;

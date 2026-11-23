@@ -1,17 +1,15 @@
-import { classifyMessage, draftReply } from "@adminwise/ai";
+import { checkPaymentNotice, classifyMessage, draftReply } from "@adminwise/ai";
 import { forCustomer } from "@adminwise/db";
 import { describeError, type Deps } from "../deps";
 import { ownDomains, prefilter } from "./prefilter";
 import { prepareOrderConfirmation, prepareQuoteReply } from "./quote";
+import { endInvoiceChain } from "./reminders";
+import { appendSignature } from "./signature";
 
 /** How many earlier messages of the thread the model sees as background. */
 const HISTORY_LIMIT = 8;
 
-export function appendSignature(body: string, signature: string): string {
-  const sig = signature.trim();
-  if (!sig || body.trimEnd().endsWith(sig)) return body.trimEnd();
-  return `${body.trimEnd()}\n\n${sig}`;
-}
+export { appendSignature };
 
 /**
  * The reply-draft job. For one stored inbound message:
@@ -69,6 +67,24 @@ export async function processMessage(
     if (classification !== "business") {
       await finish("succeeded", null, `no_draft:${classification}`);
       return "no_draft";
+    }
+
+    // A reply in a conversation with an invoice we are chasing: does it say the invoice was paid?
+    // If so the reminders stop, and the owner sees in the next brief that the sender said so.
+    const chased = await scope.listOpenInvoicesForThread(message.threadId);
+    if (chased.length > 0) {
+      const notice = await checkPaymentNotice(deps.ai, {
+        companyName: customer.name,
+        invoiceNumbers: chased.map((i) => i.number ?? "").filter(Boolean),
+        subject: message.subject,
+        body: message.bodyText,
+      });
+      inputTokens += notice.usage.inputTokens;
+      outputTokens += notice.usage.outputTokens;
+      if (notice.paid) {
+        const at = deps.now?.() ?? new Date();
+        for (const invoice of chased) await endInvoiceChain(deps, scope, invoice, "paid", "sender", at);
+      }
     }
 
     // 2. Reserve the one draft this message may get.

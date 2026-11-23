@@ -21,7 +21,8 @@ export interface PostmarkInboundPayload {
   TextBody?: string;
   HtmlBody?: string;
   Headers?: { Name: string; Value: string }[];
-  Attachments?: { Name?: string }[];
+  /** Content is the file, base64-encoded. */
+  Attachments?: { Name?: string; ContentType?: string; Content?: string; ContentLength?: number }[];
 }
 
 export interface ParsedForward {

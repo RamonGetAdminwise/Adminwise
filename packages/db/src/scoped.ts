@@ -14,6 +14,8 @@ import type {
   DraftSummary,
   FiledDocument,
   FilingStatus,
+  Invoice,
+  InvoiceStatus,
   JobStatus,
   QuietThread,
   Thread,
@@ -96,6 +98,18 @@ export function forCustomer(db: Db, customerId: string) {
         lineTotalCents: Number(l.lineTotalCents),
       })),
     };
+  }
+
+  /** Dates as text (YYYY-MM-DD), so no time zone can shift them by a day. */
+  const INVOICE_SELECT = `
+    SELECT id, customer_id, source, message_id, thread_id, connection_id, file_name, content_hash, status, number,
+           language, debtor_domain, debtor_name, amount_cents, currency, issue_date::text AS issue_date,
+           due_date::text AS due_date, reminders_made, last_reminder_at, ended_at, ended_by, pending_text, created_at
+    FROM invoices`;
+
+  function toInvoice(row: QueryResultRow): Invoice {
+    const invoice = camel<Invoice>(row);
+    return { ...invoice, amountCents: invoice.amountCents === null ? null : Number(invoice.amountCents) };
   }
 
   /** All items of a list in one statement; the list travels as JSON so prices stay whole numbers. */
@@ -367,6 +381,192 @@ export function forCustomer(db: Db, customerId: string) {
         [from, to],
       );
       return rows.map(toOffer);
+    },
+
+    // ---- invoices and payment reminders (phase 4) -------------------------------
+
+    async claimRemindForDate(localDate: string): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE customers SET remind_last_run_on = $2::date
+         WHERE id = $1 AND (remind_last_run_on IS NULL OR remind_last_run_on < $2::date)`,
+        [localDate],
+      );
+      return rowCount === 1;
+    },
+
+    async releaseRemindForDate(localDate: string) {
+      await run(
+        `UPDATE customers SET remind_last_run_on = $2::date - 1
+         WHERE id = $1 AND remind_last_run_on = $2::date`,
+        [localDate],
+      );
+    },
+
+    /**
+     * Notes a PDF that may be one of the customer's invoices, to be read next.
+     * Returns null when the same file (same content) is already known.
+     */
+    async createInvoice(i: {
+      source: "sent" | "forwarded";
+      messageId: string | null;
+      threadId: string | null;
+      connectionId: string | null;
+      fileName: string;
+      contentHash: string;
+      debtorDomain?: string;
+      status?: "pending" | "unreadable";
+      pendingText?: string | null;
+    }): Promise<string | null> {
+      const { rows } = await run<{ id: string }>(
+        `INSERT INTO invoices
+           (customer_id, source, message_id, thread_id, connection_id, file_name, content_hash, debtor_domain,
+            status, pending_text)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (customer_id, content_hash) DO NOTHING
+         RETURNING id`,
+        [
+          i.source,
+          i.messageId,
+          i.threadId,
+          i.connectionId,
+          i.fileName.slice(0, 200),
+          i.contentHash,
+          i.debtorDomain ?? "",
+          i.status ?? "pending",
+          i.pendingText ?? null,
+        ],
+      );
+      return rows[0]?.id ?? null;
+    },
+
+    async getInvoice(id: string): Promise<Invoice | null> {
+      const { rows } = await run(`${INVOICE_SELECT} WHERE customer_id = $1 AND id = $2`, [id]);
+      return rows[0] ? toInvoice(rows[0]) : null;
+    },
+
+    /** Another tracked invoice with this number, if there is one (the same invoice sent again as a different file). */
+    async findInvoiceByNumber(number: string, exceptId: string): Promise<Invoice | null> {
+      const { rows } = await run(
+        `${INVOICE_SELECT} WHERE customer_id = $1 AND lower(number) = lower($2) AND id <> $3
+           AND status IN ('open', 'needs_due_date', 'paid', 'stopped')
+         LIMIT 1`,
+        [number, exceptId],
+      );
+      return rows[0] ? toInvoice(rows[0]) : null;
+    },
+
+    /** The result of reading an invoice. The text that was read is removed in the same step. */
+    async setInvoiceRead(
+      id: string,
+      r: {
+        status: InvoiceStatus;
+        number?: string | null;
+        language?: string | null;
+        debtorName?: string;
+        amountCents?: number | null;
+        currency?: string | null;
+        issueDate?: string | null;
+        dueDate?: string | null;
+      },
+    ) {
+      await run(
+        `UPDATE invoices SET status = $3, number = $4, language = $5, debtor_name = $6, amount_cents = $7,
+                currency = $8, issue_date = $9::date, due_date = $10::date, pending_text = NULL
+         WHERE customer_id = $1 AND id = $2`,
+        [
+          id,
+          r.status,
+          r.number ?? null,
+          r.language ?? null,
+          r.debtorName ?? "",
+          r.amountCents ?? null,
+          r.currency ?? null,
+          r.issueDate ?? null,
+          r.dueDate ?? null,
+        ],
+      );
+    },
+
+    /** Invoices being chased: read, with a due date, not paid. */
+    async listOpenInvoices(): Promise<Invoice[]> {
+      const { rows } = await run(
+        `${INVOICE_SELECT} WHERE customer_id = $1 AND status = 'open' AND due_date IS NOT NULL ORDER BY due_date`,
+      );
+      return rows.map(toInvoice);
+    },
+
+    async listOpenInvoicesForThread(threadId: string): Promise<Invoice[]> {
+      const { rows } = await run(`${INVOICE_SELECT} WHERE customer_id = $1 AND thread_id = $2 AND status = 'open'`, [
+        threadId,
+      ]);
+      return rows.map(toInvoice);
+    },
+
+    async recordReminder(id: string, at: Date) {
+      await run(
+        `UPDATE invoices SET reminders_made = reminders_made + 1, last_reminder_at = $3
+         WHERE customer_id = $1 AND id = $2`,
+        [id, at],
+      );
+    },
+
+    /** Ends the reminder chain: paid (said by the sender, or by the owner's click) or stopped by the owner. */
+    async endInvoice(id: string, status: "paid" | "stopped", by: "owner" | "sender", at: Date): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE invoices SET status = $3, ended_by = $4, ended_at = $5
+         WHERE customer_id = $1 AND id = $2 AND status IN ('open', 'needs_due_date')`,
+        [id, status, by, at],
+      );
+      return rowCount === 1;
+    },
+
+    /** The owner supplied the due date that could not be read from the invoice. */
+    async setInvoiceDueDate(id: string, dueDate: string): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE invoices SET due_date = $3::date, status = 'open'
+         WHERE customer_id = $1 AND id = $2 AND status IN ('needs_due_date', 'open')`,
+        [id, dueDate],
+      );
+      return rowCount === 1;
+    },
+
+    /**
+     * What the "overdue money" section of the brief shows for one morning:
+     *   reminded: invoices that got a reminder draft since `since` (this morning's scan),
+     *   paidBySender: invoices a sender said they paid in [yesterday, since), for the owner to verify,
+     *   toAsk: invoices without a readable due date, or unreadable ones, not mentioned before.
+     * The "toAsk" invoices are marked as mentioned, so each is asked about once.
+     */
+    async invoicesForBrief(since: Date, yesterday: Date, localDate: string) {
+      const reminded = await run(`${INVOICE_SELECT} WHERE customer_id = $1 AND last_reminder_at >= $2 ORDER BY due_date`, [
+        since,
+      ]);
+      const paid = await run(
+        `${INVOICE_SELECT} WHERE customer_id = $1 AND status = 'paid' AND ended_by = 'sender'
+           AND ended_at >= $2 AND ended_at < $3 ORDER BY ended_at`,
+        [yesterday, since],
+      );
+      const toAsk = await run(
+        `WITH marked AS (
+           UPDATE invoices SET listed_on = $2::date
+           WHERE customer_id = $1 AND status IN ('needs_due_date', 'unreadable') AND listed_on IS NULL
+           RETURNING id
+         )
+         ${INVOICE_SELECT} WHERE customer_id = $1 AND id IN (SELECT id FROM marked) ORDER BY created_at`,
+        [localDate],
+      );
+      return { reminded: reminded.rows.map(toInvoice), paidBySender: paid.rows.map(toInvoice), toAsk: toAsk.rows.map(toInvoice) };
+    },
+
+    /** The reminder draft still waiting for an invoice's mail, if any. */
+    async getOpenReminder(messageId: string): Promise<Draft | null> {
+      const { rows } = await run(
+        `SELECT * FROM drafts
+         WHERE customer_id = $1 AND message_id = $2 AND kind = 'reminder' AND status = 'created'
+         ORDER BY completed_at DESC LIMIT 1`,
+        [messageId],
+      );
+      return rows[0] ? camel<Draft>(rows[0]) : null;
     },
 
     // ---- discounts per sender --------------------------------------------------

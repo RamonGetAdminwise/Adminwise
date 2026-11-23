@@ -1,0 +1,26 @@
+[
+  {
+    "id": "p01",
+    "messageId": "<p01.20261126@rolmet.example>",
+    "threadKey": "thr-inv-i01",
+    "from": { "address": "ksiegowosc@rolmet.example", "name": "Rolmet Księgowość" },
+    "subject": "Re: Faktura FV/2026/11/0457 - płatność",
+    "receivedAt": "2026-11-26T09:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nfaktura FV/2026/11/0457 została zapłacona wczoraj, przelew wykonany z rachunku firmowego.\n\nPozdrawiamy\nKsięgowość Rolmet",
+    "expected": { "category": "business", "language": "pl", "decidedBy": "model", "paid": true, "note": "scenario 19: the debtor writes that the invoice was paid" }
+  },
+  {
+    "id": "p02",
+    "messageId": "<p02.20261126@rolmet.example>",
+    "threadKey": "thr-inv-i01",
+    "from": { "address": "ksiegowosc@rolmet.example", "name": "Rolmet Księgowość" },
+    "subject": "Re: Faktura FV/2026/11/0457 - termin",
+    "receivedAt": "2026-11-25T09:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nprzepraszamy za opóźnienie, zapłacimy w przyszłym tygodniu.\n\nPozdrawiamy\nKsięgowość Rolmet",
+    "expected": { "category": "business", "language": "pl", "decidedBy": "model", "paid": false, "note": "a promise to pay later is not a payment: reminders continue" }
+  }
+]

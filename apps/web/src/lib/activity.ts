@@ -8,6 +8,8 @@ const JOB_NAMES: Record<string, string> = {
   chaser: "Follow-up check",
   filing: "Filing",
   "order-confirmation": "Order confirmation",
+  "invoice-tracking": "Invoice check",
+  "payment-reminders": "Payment reminders",
   "price-list-columns": "Price list upload",
 };
 
@@ -74,6 +76,20 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     if (code === "order") return detail === "email" ? "Order confirmation emailed to you" : "Order confirmation attached to a draft in your Outlook Drafts folder";
     if (run.outcome === "already_confirmed") return "This offer already had its order confirmation";
     return "Skipped: the offer could not be found";
+  }
+  if (run.job === "payment-reminders") {
+    const n = counts(run.outcome ?? "").reminders ?? 0;
+    return n === 0 ? "No reminder is due today" : `${plural(n, "payment reminder", "payment reminders")} prepared as drafts`;
+  }
+  if (run.job === "invoice-tracking") {
+    if (run.status === "skipped" || run.outcome === "nothing_new") return "Nothing new to track";
+    const c = counts(run.outcome ?? "");
+    const parts = [];
+    if (c.open) parts.push(`${plural(c.open, "invoice", "invoices")} now tracked for payment`);
+    if (c.needs_due_date) parts.push(`${plural(c.needs_due_date, "invoice", "invoices")} without a readable due date: you are asked in the brief`);
+    if (c.unreadable) parts.push(`${plural(c.unreadable, "file", "files")} could not be read`);
+    if (c.duplicate) parts.push(`${plural(c.duplicate, "invoice", "invoices")} already tracked`);
+    return parts.length ? parts.join("; ") : "No invoice of yours in the attachments";
   }
   if (run.job === "price-list-columns") {
     return run.outcome === "columns_found" ? "Columns of your price list recognised" : "Columns not recognised: choose them on the price list page";

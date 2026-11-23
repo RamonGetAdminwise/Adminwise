@@ -5,6 +5,8 @@ import { sendOperatorAlert } from "./jobs/alerts";
 import { briefTick, sendBrief } from "./jobs/brief";
 import { chaseCustomer, chaseTick } from "./jobs/chaser";
 import { fileAttachments } from "./jobs/filing";
+import { readForwardedInvoice, trackSentInvoices } from "./jobs/invoices";
+import { remindCustomer } from "./jobs/reminders";
 import { processMessage } from "./jobs/process-message";
 import { purgeBodies } from "./jobs/purge";
 import { confirmOffer } from "./jobs/quote";
@@ -29,6 +31,9 @@ export async function registerWorkers(boss: PgBoss, deps: Deps, concurrency: num
   await on(QUEUES.syncMailbox, concurrency, (data) => syncMailbox(deps, data));
   await on(QUEUES.fileAttachments, concurrency, (data) => fileAttachments(deps, data));
   await on(QUEUES.confirmOffer, 2, (data) => confirmOffer(deps, data));
+  await on(QUEUES.trackInvoices, concurrency, (data) => trackSentInvoices(deps, data));
+  await on(QUEUES.readInvoice, concurrency, (data) => readForwardedInvoice(deps, data));
+  await on(QUEUES.remindCustomer, 2, (data) => remindCustomer(deps, data));
   await on(QUEUES.sendBrief, 2, (data) => sendBrief(deps, data));
   await on(QUEUES.chaseCustomer, 2, (data) => chaseCustomer(deps, data));
   await on(QUEUES.pollTick, 1, () => pollTick(deps));

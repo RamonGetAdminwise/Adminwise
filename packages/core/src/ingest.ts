@@ -47,6 +47,8 @@ export async function ingestOutbound(
   scope: CustomerScope,
   connectionId: string,
   message: InboundMessage,
+  /** When given, a sent mail with attachments is also checked for an invoice to track. */
+  queue?: JobQueue,
 ): Promise<{ stored: boolean; messageId: string | null }> {
   const stored = await scope.insertMessage({
     threadKey: message.threadKey,
@@ -62,5 +64,8 @@ export async function ingestOutbound(
     attachmentNames: message.attachmentNames,
     bodyText: message.bodyText,
   });
+  if (stored && queue && message.attachmentNames.some((name) => /\.pdf$/i.test(name))) {
+    await queue.send(QUEUES.trackInvoices, { customerId: scope.customerId, messageId: stored.id });
+  }
   return { stored: Boolean(stored), messageId: stored?.id ?? null };
 }

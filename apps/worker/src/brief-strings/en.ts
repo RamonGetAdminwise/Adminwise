@@ -36,6 +36,24 @@ export const en = {
       `- Order confirmation ${number} for ${recipientDomain} - attached to a draft.`,
   },
 
+  money: {
+    heading: (count: number) => `MONEY DUE AND OVERDUE (${count})`,
+    overdue: (number: string, who: string, amount: string, dueDate: string, days: number) =>
+      `- Invoice ${number} to ${who}: ${amount}, due ${dueDate}, ${days} day(s) overdue.`,
+    dueSoon: (number: string, who: string, amount: string, dueDate: string) =>
+      `- Invoice ${number} to ${who}: ${amount}, due ${dueDate}.`,
+    reminderInOutlook: (level: number) => `  Reminder ${level} of 3 is in your Outlook Drafts.`,
+    reminderByEmail: (level: number) => `  Reminder ${level} of 3 was emailed to you.`,
+    paidLink: (url: string) => `  Paid already, or stop reminders for it: ${url}`,
+    more: (count: number) => `- ...and ${count} more open invoice(s).`,
+    askDueDate: (number: string, who: string, amount: string, url: string) =>
+      `- Invoice ${number} to ${who} (${amount}): no due date could be read from it, so no reminders are planned. Set the due date here: ${url}`,
+    unreadable: (fileName: string) =>
+      `- "${fileName}" looks like an invoice you sent, but it could not be read (a scan or a picture), so it is not tracked.`,
+    paidBySender: (number: string, who: string, amount: string) =>
+      `- Invoice ${number} to ${who} (${amount}): the customer wrote that it has been paid. Reminders have stopped; please check your bank.`,
+  },
+
   wentQuiet: {
     heading: (count: number) => `WENT QUIET (${count})`,
     chaserReady: (subject: string, counterpartDomain: string, workingDays: number) =>

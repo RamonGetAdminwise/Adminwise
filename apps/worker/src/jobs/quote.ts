@@ -30,13 +30,8 @@ import {
 } from "@adminwise/offers";
 import { describeError, type Deps } from "../deps";
 import { safeName } from "./filing";
+import { appendSignature } from "./signature";
 
-/** The signature from settings goes under every draft, once. */
-function appendSignature(body: string, signature: string): string {
-  const sig = signature.trim();
-  if (!sig || body.trimEnd().endsWith(sig)) return body.trimEnd();
-  return `${body.trimEnd()}\n\n${sig}`;
-}
 
 /** How many price list items the model is shown per requested item. */
 const CANDIDATES_PER_ITEM = 10;
