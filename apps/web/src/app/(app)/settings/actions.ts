@@ -110,5 +110,5 @@ export async function saveVoiceProfile(formData: FormData) {
 
 export async function signOutAction() {
   await signOut();
-  redirect("/");
+  redirect("/signin");
 }

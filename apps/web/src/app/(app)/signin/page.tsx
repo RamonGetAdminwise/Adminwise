@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 async function requestLink(formData: FormData) {
   "use server";
   const email = normalizeEmail(formData.get("email"));
-  if (!email) redirect("/?error=email");
+  if (!email) redirect("/signin?error=email");
   await sendSignInLink(email);
-  redirect("/?sent=1");
+  redirect("/signin?sent=1");
 }
 
-export default async function HomePage({
+export default async function SignInPage({
   searchParams,
 }: {
   searchParams: Promise<{ sent?: string; error?: string }>;

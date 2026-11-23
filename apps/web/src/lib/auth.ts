@@ -89,7 +89,7 @@ export async function getSession(): Promise<SessionInfo | null> {
 
 export async function requireSession(): Promise<SessionInfo> {
   const session = await getSession();
-  if (!session) redirect("/");
+  if (!session) redirect("/signin");
   return session;
 }
 

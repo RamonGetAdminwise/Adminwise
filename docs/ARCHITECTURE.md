@@ -128,6 +128,14 @@ For our own invoices to a customer, settings has a "Billing details" section: in
 
 `taxTreatment(sellerCountry, customerCountry, vatStatus)` names the case for the invoice: `domestic` (same country as us: our VAT, with or without a number), `reverse_charge` (another EU country with a valid number), `eu_with_vat` (another EU country without one), `outside_eu`. Our own country comes from `SELLER_COUNTRY` (default PL). The function names the case only; rates and invoice wording will come from the billing provider's tax settings when Stripe is added.
 
+## Public site (phase 4)
+
+The website is part of the web app, so there is one thing to deploy. `apps/web/src/app` has two areas: `(site)` holds the public pages (`/`, `/privacy`, `/terms`) with their own header and footer; `(app)` holds everything behind sign-in plus the sign-in page itself, now at `/signin`, and is kept out of search engines. A signed-in visitor who opens `/` is taken to their settings or the guide.
+
+Rule for the copy: every line describes what the product does today; planned features are named once, under "Coming next". Plans, prices and the trial length live in one file (`apps/web/src/lib/site.ts`) and are used by the home page and the terms. The privacy page lists every outside service and what it sees; it must be changed whenever a service is added or what is stored changes.
+
+The privacy and terms pages are drafts: `LEGAL_READY` in `(site)/legal.tsx` is false, which shows a "Draft" notice on both, keeps them out of search engines, and shows each missing detail as a highlighted gap. The "Start free" and "Sign in" buttons point at `APP_BASE_URL/signin`, so the site can be served on getadminwise.com and the app on app.getadminwise.com from the same deployment.
+
 ## Daily brief and operator alerts
 
 The brief (`jobs/brief.ts`, texts in `brief-strings/en.ts`) has four sections and leaves out the empty ones: needs you today (reply drafts), went quiet (follow-ups ready), filed yesterday, connection problems. With nothing to report it is one line. All texts are in one keyed file per language, so a second language is a translation of that file.

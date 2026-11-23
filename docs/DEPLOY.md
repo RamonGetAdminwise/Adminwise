@@ -105,3 +105,13 @@ On any server with Docker:
 4. Put a reverse proxy with TLS (Caddy or nginx) in front of port 3000 and point the domain at it.
 
 The environment variables, webhook URLs and health check are identical.
+
+## Public site on getadminwise.com (phase 4)
+
+The website is served by the same web service as the app. To show it on the main domain:
+
+1. Railway, web service, Settings, Networking: add the custom domain `getadminwise.com` (and `www.getadminwise.com` if wanted). Railway shows the DNS record to create.
+2. Cloudflare, DNS: add that record (a CNAME on the root is allowed in Cloudflare; keep it "DNS only", like the `app` record).
+3. Leave `APP_BASE_URL` as `https://app.getadminwise.com`: sign-in links and the "Start free" buttons keep pointing at the app address.
+
+Do this only when billing and the legal pages are ready (see docs/TO_VERIFY.md). Until then the site is visible at `https://app.getadminwise.com/` for anyone who is not signed in.

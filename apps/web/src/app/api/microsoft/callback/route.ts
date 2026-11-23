@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const fail = () => NextResponse.redirect(`${config.appBaseUrl}/settings?error=microsoft`);
 
   const session = await getSession();
-  if (!session) return NextResponse.redirect(`${config.appBaseUrl}/`);
+  if (!session) return NextResponse.redirect(`${config.appBaseUrl}/signin`);
   const oauth = getMicrosoftOAuth();
   if (!oauth) return NextResponse.redirect(`${config.appBaseUrl}/settings?error=microsoft_config`);
 

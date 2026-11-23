@@ -7,7 +7,7 @@ async function signIn(formData: FormData) {
   "use server";
   const token = formData.get("token");
   const ok = typeof token === "string" && (await completeSignIn(token));
-  if (!ok) redirect("/?error=link");
+  if (!ok) redirect("/signin?error=link");
   const session = await getSession();
   redirect(session ? await landingPath(session) : "/settings");
 }
@@ -18,7 +18,7 @@ async function signIn(formData: FormData) {
  */
 export default async function VerifyPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams;
-  if (!token) redirect("/");
+  if (!token) redirect("/signin");
   return (
     <div className="card mx-auto max-w-md">
       <h1 className="text-xl font-semibold">Almost there</h1>
