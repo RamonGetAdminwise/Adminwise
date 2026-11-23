@@ -40,6 +40,16 @@ export interface Customer {
   setupTestSentAt: Date | null;
   /** Details read from an uploaded sample document, waiting for the owner's yes or no. */
   offerProposal: OfferProposal | null;
+  // ---- billing details, for our own invoices to the customer ----
+  billingName: string;
+  billingAddress: string;
+  /** "" = not given, an EU country's ISO code, or "OTHER". */
+  billingCountry: string;
+  vatNumber: string;
+  vatStatus: "none" | "valid" | "invalid" | "unverified";
+  vatCheckedAt: Date | null;
+  /** The name the EU register holds for the VAT number, when it gives one. */
+  vatRegisteredName: string | null;
   createdAt: Date;
 }
 

@@ -1,9 +1,10 @@
+import { EU_COUNTRIES, OTHER_COUNTRY, taxTreatment, type TaxTreatment } from "@adminwise/core";
 import { canFile, forCustomer } from "@adminwise/db";
 import type { ReactNode } from "react";
 import { describeRun, jobName } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
-import { generateVoiceProfile, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
+import { generateVoiceProfile, saveBilling, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ const ERRORS: Record<string, string> = {
   timezone: "Choose a time zone from the list.",
   followup: "Follow-up days must be a whole number from 1 to 30.",
   replydrafts: "Choose one of the three options for reply drafts.",
+  billing_country: "Choose your country from the list.",
+  vat_format: "That does not look like a VAT number of the country you chose. Check the country and the number.",
   samples: "Paste three complete sent emails (each at least a few lines).",
   ai: "The voice profile could not be built right now. Your emails were not stored; please try again.",
   microsoft: "Microsoft sign-in did not complete. Please try again.",
@@ -23,7 +26,20 @@ const ERRORS: Record<string, string> = {
 const SAVED: Record<string, string> = {
   settings: "Settings saved.",
   voice: "Voice profile saved.",
+  billing_none: "Billing details saved.",
+  billing_valid: "Billing details saved. Your VAT number is valid.",
+  billing_invalid: "Billing details saved, but the EU register does not know this VAT number.",
+  billing_unverified: "Billing details saved. The EU register could not be reached, so your VAT number is not checked yet.",
   connected: "Mailbox connected. New mail will get reply drafts from now on.",
+};
+
+/** What the billing country and VAT number mean for our invoices to this customer. */
+const TAX_LINES: Record<TaxTreatment, string> = {
+  unknown: "",
+  domestic: "VAT is charged on your invoices at the standard rate.",
+  reverse_charge: "No VAT is charged on your invoices: with a valid EU VAT number you account for it yourself (reverse charge).",
+  eu_with_vat: "VAT is charged on your invoices. With a valid EU VAT number it would not be.",
+  outside_eu: "You are outside the EU: no EU VAT is charged on your invoices.",
 };
 
 function Notice({ tone, children }: { tone: "ok" | "error"; children: ReactNode }) {
@@ -48,6 +64,7 @@ export default async function SettingsPage({
   ]);
   const microsoft = connections.find((c) => c.provider === "microsoft");
   const timeZones = Intl.supportedValuesOf("timeZone");
+  const tax = taxTreatment(config.sellerCountry, customer.billingCountry, customer.vatStatus);
 
   return (
     <div className="space-y-8">
@@ -229,6 +246,67 @@ export default async function SettingsPage({
         <a className="btn mt-3" href="/settings/offers">
           Open offers and price list
         </a>
+      </section>
+
+      <section className="card" id="billing">
+        <h2 className="text-lg font-semibold">Billing details</h2>
+        <p className="mt-1 text-sm text-stone-600">For the invoices {config.appName} sends you. Not used in your own offers.</p>
+        <form action={saveBilling} className="mt-4 space-y-4">
+          <div>
+            <label htmlFor="billingName">Company name on the invoice</label>
+            <input id="billingName" name="billingName" type="text" defaultValue={customer.billingName || customer.name} />
+          </div>
+          <div>
+            <label htmlFor="billingAddress">Address</label>
+            <textarea id="billingAddress" name="billingAddress" rows={3} defaultValue={customer.billingAddress} />
+          </div>
+          <div>
+            <label htmlFor="billingCountry">Country</label>
+            <select id="billingCountry" name="billingCountry" defaultValue={customer.billingCountry} required>
+              <option value="">Choose...</option>
+              {Object.entries(EU_COUNTRIES)
+                .sort(([, a], [, b]) => a.localeCompare(b))
+                .map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              <option value={OTHER_COUNTRY}>Another country (outside the EU)</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="vatNumber">VAT number</label>
+            <input id="vatNumber" name="vatNumber" type="text" defaultValue={customer.vatNumber} placeholder="for example PL1234567890" />
+            <p className="hint">
+              Checked against the EU&apos;s public VAT register (VIES) each time you save. Only the country and the number
+              are sent there. Leave empty if you have none.
+            </p>
+            {customer.vatStatus === "valid" && (
+              <p className="mt-2 text-sm">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-green-600" />
+                Valid, checked {customer.vatCheckedAt?.toISOString().slice(0, 10)}.
+                {customer.vatRegisteredName && <> Registered as: {customer.vatRegisteredName}.</>}
+              </p>
+            )}
+            {customer.vatStatus === "invalid" && (
+              <p className="mt-2 text-sm">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-600" />
+                The EU register does not know this number (checked {customer.vatCheckedAt?.toISOString().slice(0, 10)}).
+                Check it for typing mistakes, and that it is registered for trade within the EU.
+              </p>
+            )}
+            {customer.vatStatus === "unverified" && (
+              <p className="mt-2 text-sm">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-amber-500" />
+                Not checked yet: the EU register could not be reached. Press Save to try again.
+              </p>
+            )}
+          </div>
+          {tax !== "unknown" && <p className="text-sm">{TAX_LINES[tax]}</p>}
+          <button className="btn" type="submit">
+            Save and check
+          </button>
+        </form>
       </section>
 
       <section className="card" id="voice">

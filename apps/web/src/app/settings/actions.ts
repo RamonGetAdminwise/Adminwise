@@ -1,7 +1,7 @@
 "use server";
 
 import { buildVoiceProfile } from "@adminwise/ai";
-import { isValidTimeZone } from "@adminwise/core";
+import { checkVatNumber, EU_COUNTRIES, isValidTimeZone, normalizeVatNumber, OTHER_COUNTRY } from "@adminwise/core";
 import { forCustomer, REPLY_DRAFT_MODES, type ReplyDraftMode } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
@@ -40,6 +40,39 @@ export async function saveSettings(formData: FormData) {
   });
   await scope.audit("settings.updated", { languages, timeZone, followUpDays }, session.userId);
   redirect("/settings?saved=settings");
+}
+
+/**
+ * Billing details for our own invoices. An EU VAT number is checked on every save: its shape
+ * first, then the EU register (VIES), which gets the country code and the number and nothing else.
+ */
+export async function saveBilling(formData: FormData) {
+  const session = await requireSession();
+  const scope = forCustomer(getDb(), session.customerId);
+  const billingCountry = text(formData.get("billingCountry"), 5).toUpperCase();
+  if (!EU_COUNTRIES[billingCountry] && billingCountry !== OTHER_COUNTRY) redirect("/settings?error=billing_country#billing");
+  const typed = text(formData.get("vatNumber"), 30);
+
+  let vatNumber = typed;
+  let vatStatus: "none" | "valid" | "invalid" | "unverified" = "none";
+  let vatRegisteredName: string | null = null;
+  if (typed && billingCountry !== OTHER_COUNTRY) {
+    const normalized = normalizeVatNumber(billingCountry, typed);
+    if (!normalized) redirect("/settings?error=vat_format#billing");
+    vatNumber = normalized;
+    ({ status: vatStatus, registeredName: vatRegisteredName } = await checkVatNumber(billingCountry, normalized));
+  }
+  await scope.updateBilling({
+    billingName: text(formData.get("billingName"), 200),
+    billingAddress: text(formData.get("billingAddress"), 500),
+    billingCountry,
+    vatNumber,
+    vatStatus,
+    vatCheckedAt: vatStatus === "valid" || vatStatus === "invalid" ? new Date() : null,
+    vatRegisteredName,
+  });
+  await scope.audit("billing.updated", { billingCountry, vatStatus }, session.userId);
+  redirect(`/settings?saved=billing_${vatStatus}#billing`);
 }
 
 /** Builds the voice profile from three pasted sent emails. The emails themselves are not stored. */

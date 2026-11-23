@@ -40,6 +40,7 @@ In the Railway project: **Settings > Shared Variables** (environment "production
 | `POSTMARK_SERVER_TOKEN` | from the password manager |
 | `POSTMARK_INBOUND_SECRET` | from step 1 |
 | `WORKER_CONCURRENCY` | `5` |
+| `SELLER_COUNTRY` | optional; two-letter code of the EU country our own invoices are issued from, default `PL` (phase 4) |
 | `ALERT_EMAIL` | the operator's address for failure summaries, e.g. `ramon.haagen@getadminwise.com` (phase 2) |
 
 `DATABASE_URL` is not a shared variable; each service gets it as a reference to the database (next steps).

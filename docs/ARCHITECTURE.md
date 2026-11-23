@@ -122,6 +122,12 @@ A new customer lands on `/start` after sign-in, and keeps landing there until th
 
 `pnpm check:setup` runs the test mail (classification and draft, both languages) and the sample-document reading through the real model. `pnpm tsx scripts/dev-session.ts` signs in to a local database without the sign-in email, for looking at pages during development; it refuses any database that is not on localhost.
 
+## Billing details and the VAT number check (phase 4)
+
+For our own invoices to a customer, settings has a "Billing details" section: invoice name, address, country and VAT number. On every save an EU VAT number is checked in two steps (`packages/core/src/vat.ts`): its shape for the chosen country, by code; then the EU's public register, VIES, which is sent the country code and the number and nothing else. The outcome is stored on the customer: `valid` (with the date and the name the register holds), `invalid`, or `unverified` when the register could not be reached. Unverified is never treated as valid.
+
+`taxTreatment(sellerCountry, customerCountry, vatStatus)` names the case for the invoice: `domestic` (same country as us: our VAT, with or without a number), `reverse_charge` (another EU country with a valid number), `eu_with_vat` (another EU country without one), `outside_eu`. Our own country comes from `SELLER_COUNTRY` (default PL). The function names the case only; rates and invoice wording will come from the billing provider's tax settings when Stripe is added.
+
 ## Daily brief and operator alerts
 
 The brief (`jobs/brief.ts`, texts in `brief-strings/en.ts`) has four sections and leaves out the empty ones: needs you today (reply drafts), went quiet (follow-ups ready), filed yesterday, connection problems. With nothing to report it is one line. All texts are in one keyed file per language, so a second language is a translation of that file.

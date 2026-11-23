@@ -9,6 +9,8 @@ export interface Config {
   /** Forwarding addresses are <slug>@<inboundDomain>. */
   inboundDomain: string;
   mailFrom: string;
+  /** ISO code of the country our own invoices are issued from; decides when VAT is reverse-charged. */
+  sellerCountry: string;
   databaseUrl: string;
   tokenEncryptionKey: string;
   /**
@@ -51,6 +53,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     appBaseUrl: (env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, ""),
     inboundDomain: (env.INBOUND_DOMAIN || "in.getadminwise.com").toLowerCase(),
     mailFrom: env.MAIL_FROM || `${appName} <hello@getadminwise.com>`,
+    sellerCountry: (env.SELLER_COUNTRY || "PL").trim().toUpperCase(),
     databaseUrl: required(env, "DATABASE_URL"),
     tokenEncryptionKey: required(env, "TOKEN_ENCRYPTION_KEY"),
     aws: {

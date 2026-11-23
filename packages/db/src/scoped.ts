@@ -618,6 +618,24 @@ export function forCustomer(db: Db, customerId: string) {
       );
     },
 
+    /** Billing details with the outcome of the VAT number check that was just made. */
+    async updateBilling(b: {
+      billingName: string;
+      billingAddress: string;
+      billingCountry: string;
+      vatNumber: string;
+      vatStatus: Customer["vatStatus"];
+      vatCheckedAt: Date | null;
+      vatRegisteredName: string | null;
+    }) {
+      await run(
+        `UPDATE customers SET billing_name = $2, billing_address = $3, billing_country = $4, vat_number = $5,
+                vat_status = $6, vat_checked_at = $7, vat_registered_name = $8
+         WHERE id = $1`,
+        [b.billingName, b.billingAddress, b.billingCountry, b.vatNumber, b.vatStatus, b.vatCheckedAt, b.vatRegisteredName],
+      );
+    },
+
     /** The owner finished or skipped the "Getting started" guide. */
     async finishSetup() {
       await run("UPDATE customers SET setup_finished_at = COALESCE(setup_finished_at, now()) WHERE id = $1");
