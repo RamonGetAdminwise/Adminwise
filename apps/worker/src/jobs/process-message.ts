@@ -66,7 +66,10 @@ export async function processMessage(
         });
         inputTokens += result.usage.inputTokens;
         outputTokens += result.usage.outputTokens;
-        classification = result.category;
+        // Mail from the company's own addresses was sorted out by the rules above and never reaches
+        // the model. If the model still says "a colleague" about an outside sender (an informal
+        // customer), we trust the address: better one draft too many than a customer left unanswered.
+        classification = result.category === "internal" ? "business" : result.category;
         language = result.language;
         suspicious = result.suspicious;
       }

@@ -17,6 +17,7 @@ export {
   draftPaymentReminder,
   checkPaymentNotice,
   readOfferDetails,
+  outerJson,
   type OfferDetailsReading,
   type InvoiceReading,
   type ProposedColumns,

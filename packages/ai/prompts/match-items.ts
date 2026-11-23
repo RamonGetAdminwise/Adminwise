@@ -21,17 +21,29 @@ ${SHARED_RULES}
 Task: for each requested item below there is a numbered list of candidates from the
 price list. Decide for each requested item:
 
-- "match": exactly one candidate is clearly the product asked for, including its
-  size, type or variant. Give its number in "candidate".
-- "ambiguous": two or more candidates fit and the request does not say which one
-  (for example the size is missing). "candidate" is null.
-- "none": no candidate is the product asked for. "candidate" is null.
+- "match": one candidate is the product or service asked for. Give its number in
+  "candidate". This is the answer when:
+  - only one candidate is that kind of product or service, also when the request
+    is in another language, uses another word for it, or adds what it is for
+    ("a patient brochure of 16 pages" is the 16-page brochure; "packaging design
+    for our coffees" is packaging design; "VAT registration" is VAT registration,
+    not EU VAT registration, which the sender would have named);
+  - several candidates are the same thing in different sizes or packages and the
+    request says enough to choose one. An amount "up to" a limit is the smallest
+    package that covers it: "about 40 documents a month" is the package up to 60,
+    not the one up to 30; "about 8 pages" is the website up to 10 pages.
+- "ambiguous": two or more candidates fit and the request does not say which
+  (the size, type or package is missing: "a logo" when there are two logo
+  packages; "the annual tax return" when there are three). "candidate" is null.
+- "none": no candidate is the product or service asked for. A similar product,
+  another size than the one asked for, or a related part is not a match.
+  "candidate" is null.
 
-Be strict. A similar product, another size or a related part is not a match. When
-in doubt between "match" and "ambiguous", answer "ambiguous": the sender will be
-asked.
+Never choose a candidate that the sender did not ask for. If the request names
+two different things at once, match the one named first.
 
-Answer with JSON and nothing else, one entry per requested item, in the same order:
+Decide before you answer. Answer once, with JSON and nothing else, and write
+nothing after it. One entry per requested item, in the same order:
 {"matches":[{"item":<number of the requested item>,"result":"match|ambiguous|none","candidate":<number or null>}]}
 `.trim();
 

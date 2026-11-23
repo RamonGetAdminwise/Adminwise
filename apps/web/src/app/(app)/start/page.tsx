@@ -242,7 +242,9 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
                 : `Forward any customer email to ${forwardingAddress}, or send this text there:`}
             </p>
             <pre className="mt-2 whitespace-pre-wrap rounded-md bg-stone-100 p-3 text-xs">
-              {`Subject: ${testMail.subject}\n\n${testMail.textBody.split("\n--\n")[0]}`}
+              {`Subject: ${testMail.subject}
+
+${testMail.textBody}`}
             </pre>
             <p className="hint">
               Mail from your own company&apos;s addresses gets no draft on purpose: colleagues are not customers.

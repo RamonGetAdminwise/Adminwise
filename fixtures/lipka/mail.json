@@ -43,18 +43,18 @@
       "what": "A sole trader on a free mail provider sends receipt photos and asks a question", "expected": { "category": "business", "language": "pl", "decidedBy": "model", "outcome": "drafted", "covers": ["1", "21", "B:free mail provider", "C:receipt photos"] } },
 
     { "id": "L010", "at": "2026-11-03T08:00:00Z", "from": { "address": "lars@nordhaven-trading.example", "name": "Lars Mikkelsen" }, "subject": "Request for a quote: company set-up and accounting in Poland",
-      "body": "Hello,\n\nwe are a Danish trading company and plan to open a Polish limited liability company (sp. z o.o.) in January. Could you send us a quote for:\n\n- setting up the company\n- full bookkeeping, about 40 documents a month\n- payroll for 2 employees\n- a monthly management report in English\n\nBest regards\nLars Mikkelsen\nNordhaven Trading ApS",
+      "body": "Hello,\n\nwe are a Danish trading company and plan to open a Polish limited liability company (sp. z o.o.) in January. Could you send us a quote for:\n\n- setting up the company\n- full bookkeeping, about 40 documents a month\n- payroll for 2 employees on employment contracts\n- a monthly management report in English\n\nBest regards\nLars Mikkelsen\nNordhaven Trading ApS",
       "what": "Quote request in English with four services. The offer document is in Polish (the office's offer language), the reply in English.",
       "expected": { "category": "business", "language": "en", "decidedBy": "model", "outcome": "offer",
         "quote": { "isQuote": true, "items": [
           { "request": "setting up the company", "quantity": null, "unit": null },
           { "request": "full bookkeeping, about 40 documents a month", "quantity": null, "unit": null },
-          { "request": "payroll for 2 employees", "quantity": 2, "unit": "employees" },
+          { "request": "payroll for 2 employees on employment contracts", "quantity": 2, "unit": "employees" },
           { "request": "a monthly management report in English", "quantity": null, "unit": null }] },
         "matches": [
           { "request": "setting up the company", "result": "match", "code": "SPZOO-S24" },
           { "request": "full bookkeeping, about 40 documents a month", "result": "match", "code": "KH-60" },
-          { "request": "payroll for 2 employees", "result": "match", "code": "KADRY-UOP" },
+          { "request": "payroll for 2 employees on employment contracts", "result": "match", "code": "KADRY-UOP" },
           { "request": "a monthly management report in English", "result": "match", "code": "EN-REP" }],
         "offerLines": [{ "code": "SPZOO-S24", "quantity": 1 }, { "code": "KH-60", "quantity": 1 }, { "code": "KADRY-UOP", "quantity": 2 }, { "code": "EN-REP", "quantity": 1 }], "covers": ["11", "14"] } },
 

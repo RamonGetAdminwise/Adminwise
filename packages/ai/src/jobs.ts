@@ -106,17 +106,34 @@ export async function classifyDocument(
   return { type, usage: result };
 }
 
-/** The outermost JSON object in a model answer (for answers that hold lists). */
-function outerJson(text: string): Record<string, unknown> {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return {};
-  try {
-    const parsed = JSON.parse(text.slice(start, end + 1)) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
+/**
+ * The JSON object in a model answer (for answers that hold lists). A model sometimes answers,
+ * reconsiders in a sentence or two and answers again: the LAST complete object is its answer.
+ */
+export function outerJson(text: string): Record<string, unknown> {
+  let last: Record<string, unknown> = {};
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+    } else if (depth > 0 && c === '"') inString = true;
+    else if (c === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (c === "}" && depth > 0 && --depth === 0) {
+      try {
+        const parsed = JSON.parse(text.slice(start, i + 1)) as unknown;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) last = parsed as Record<string, unknown>;
+      } catch {
+        // not JSON: keep looking
+      }
+    }
   }
+  return last;
 }
 
 export interface RequestedItem {

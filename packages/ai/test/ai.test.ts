@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { classifyPrompt } from "../prompts/classify";
 import { replyDraftPrompt } from "../prompts/reply-draft";
 import { voiceProfilePrompt } from "../prompts/voice-profile";
-import { AiError, classifyMessage, stripQuotedHistory, type AiClient } from "../src";
+import { AiError, classifyMessage, outerJson, stripQuotedHistory, type AiClient } from "../src";
 
 const answering = (text: string): AiClient => ({
   complete: async () => ({ text, inputTokens: 10, outputTokens: 5 }),
@@ -57,5 +57,22 @@ describe("stripQuotedHistory", () => {
   it("leaves a mail without quotes untouched, including a line that merely starts with From:", () => {
     const body = "Hello,\n\nFrom: Monday we are closed.\nPlease ship before.";
     expect(stripQuotedHistory(body)).toBe(body);
+  });
+});
+
+describe("reading a model's JSON answer", () => {
+  it("takes the last complete answer when the model reconsiders after its first one", () => {
+    const reconsidered =
+      '{"matches":[{"item":1,"result":"ambiguous","candidate":null}]}\n\nWait, let me reconsider. Candidate 1 is the 16-page brochure.\n\n{"matches":[{"item":1,"result":"match","candidate":1}]}';
+    expect(outerJson(reconsidered)).toEqual({ matches: [{ item: 1, result: "match", candidate: 1 }] });
+  });
+
+  it("reads an answer with text around it, braces inside strings, and gives nothing for no JSON", () => {
+    expect(outerJson('Here it is:\n{"items":[{"request":"bracket {x} and \\"quote\\"","quantity":2}]}\nDone.')).toEqual({
+      items: [{ request: 'bracket {x} and "quote"', quantity: 2 }],
+    });
+    expect(outerJson('{"a":1} trailing words that end mid {"b":')).toEqual({ a: 1 });
+    expect(outerJson("I cannot answer that.")).toEqual({});
+    expect(outerJson("[1,2,3]")).toEqual({});
   });
 });

@@ -5,15 +5,14 @@
  * customer's mailbox, and the mail goes to the owner only.
  */
 
-const TEST_MAILS: Record<string, { subject: string; body: string; note: string }> = {
+const TEST_MAILS: Record<string, { subject: string; body: string }> = {
   en: {
     subject: "Question about your delivery time",
     body:
       "Hello,\n\n" +
       "We are looking for a new supplier and came across your company. Could you tell me how quickly you usually " +
       "deliver after an order, and who I should contact to place a first order?\n\n" +
-      "Thank you,\nAnna Example",
-    note: "This is the test email you asked for in the Getting started guide of {app}. You do not have to answer it.",
+      "Thank you,\nAnna Wrona",
   },
   pl: {
     subject: "Pytanie o termin dostawy",
@@ -21,15 +20,18 @@ const TEST_MAILS: Record<string, { subject: string; body: string; note: string }
       "Dzień dobry,\n\n" +
       "szukamy nowego dostawcy i trafiliśmy na Państwa firmę. Proszę o informację, jak szybko zwykle realizują " +
       "Państwo dostawę po złożeniu zamówienia i z kim mogę się skontaktować w sprawie pierwszego zamówienia.\n\n" +
-      "Pozdrawiam\nAnna Przykładowa",
-    note: "To jest wiadomość testowa, o którą poproszono w przewodniku Getting started w {app}. Nie trzeba na nią odpowiadać.",
+      "Pozdrawiam\nAnna Wrona",
   },
 };
 
 /** The test mail, in the owner's first working language when we have it, otherwise in English. */
 export function setupTestMail(languages: string[], appName: string): { subject: string; textBody: string } {
   const mail = TEST_MAILS[languages[0] ?? "en"] ?? TEST_MAILS.en!;
-  return { subject: mail.subject, textBody: `${mail.body}\n\n--\n${mail.note.replace("{app}", appName)}\n` };
+  // Nothing in the mail says it is a test, and the product's name is not in it: a line like that
+  // makes the sorting step take it for an automatic notice, and then no draft appears. The guide
+  // page tells the owner what the mail is.
+  void appName;
+  return { subject: mail.subject, textBody: `${mail.body}\n` };
 }
 
 /** "Adminwise <hello@getadminwise.com>" -> "getadminwise.com" */

@@ -29,6 +29,13 @@ Kinds:
 - "offer": an offer, quote, quotation or price proposal.
 - "other": anything else, or when you cannot tell.
 
+Judge this one file. The email may have come with several attachments and talk
+about the others too ("the invoice and the bank statement"): go by this file's
+own name first. A bank statement, a list, a timesheet, a letter from an
+authority, a certificate or a picture of a place or product is "other". A photo
+or scan of a receipt or an invoice is an "invoice", also when the file name is
+only a camera number and the email says what it shows.
+
 If you cannot tell, answer "other". Do not guess from a single weak hint.
 
 Answer with one line of JSON and nothing else:

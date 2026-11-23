@@ -201,6 +201,12 @@ Three invented companies live in `fixtures/`: Nordpart (a parts trader, used by 
 
 `apps/worker/test/pack.ts` plays a pack's whole month through the real jobs, day by day, with a model stand-in that answers from the pack and fails the test when it is asked something that should never reach the model. `companies.test.ts` then checks every mail, sent mail, attachment and invoice. A new company is a new folder; no test code changes.
 
+## Golden set
+
+`pnpm check:golden` runs every decision the model makes for the two company packs through the real model and compares it with what the fixtures expect: sorting, hostile or not, quote requests and the price list items they lead to, acceptances, "paid" replies, whether a sent mail expects an answer, document types and invoice reading. About 250 decisions; a run takes some minutes and costs well under a euro. What the model answered is saved in `golden/<company>.json` and committed, so that after a change to a prompt `git diff golden/` shows exactly which answers moved. Run it after every prompt change, together with `check:quotes`, `check:invoices`, `check:setup` and `check:security` for the first company. It is run by hand for now; running it automatically on every prompt change needs an AWS key at GitHub.
+
+Two things the golden set taught, now built in: a model answer is read as its LAST complete JSON object (the model sometimes answers, reconsiders and answers again), and the model's "a colleague" about a sender outside the company's own addresses is treated as business mail.
+
 ## Tests
 
 `pnpm test` starts its own throw-away Postgres and runs everything, including the acceptance scenarios against the Nordpart fixtures: 1-6 in `apps/worker/test/scenarios.test.ts`, 7-10 (chaser), 21-24 (filing) and 25-27 (brief) in `apps/worker/test/phase2.test.ts` and `jobs.test.ts`, and 11-16 (offers and order confirmations) in `apps/worker/test/quotes.test.ts` with the price list and quote request fixtures (`price-list.xlsx`, `quotes.json`). Price list reading and offer arithmetic have their own tests in `packages/offers/test`. The phase 2 fixtures (sent mail, invoices, orders, a contract, a logo, a duplicate) are in `fixtures/nordpart/phase2.json`; file contents are generated in the tests. In tests the model is replaced by a recorded stand-in, so they prove the pipeline (classification routing, what the model is asked, where drafts go, no duplicates) and not the quality of a real model's wording. That needs Bedrock access and is the job of the phase-5 golden set.

@@ -8,7 +8,8 @@ describe("the guided test at the end of setup", () => {
     const en = setupTestMail(["en", "pl"], "Adminwise");
     expect(en.subject).toBe("Question about your delivery time");
     expect(en.textBody).toContain("Could you tell me how quickly you usually deliver");
-    expect(en.textBody).toContain("test email you asked for in the Getting started guide of Adminwise");
+    // The mail does not say it is a test: the real model then sorts it as an automatic notice.
+    expect(`${en.textBody} ${setupTestMail(["pl"], "Adminwise").textBody}`).not.toMatch(/test|Adminwise|Getting started|example|przyk/i);
 
     const pl = setupTestMail(["pl"], "Adminwise");
     expect(pl.subject).toBe("Pytanie o termin dostawy");

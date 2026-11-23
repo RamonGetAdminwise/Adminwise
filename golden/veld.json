@@ -1,0 +1,800 @@
+{
+ "B03": {
+  "type": "invoice"
+ },
+ "B08": {
+  "type": "invoice"
+ },
+ "B09": {
+  "type": "invoice"
+ },
+ "B10": {
+  "type": "other"
+ },
+ "B11": {
+  "type": "other"
+ },
+ "B13": {
+  "type": "other"
+ },
+ "inv0": {
+  "status": "open",
+  "fields": "2026-118, 77440, due 2026-11-02, buyer \"Bakkerij Van Dam\"",
+  "language": "nl"
+ },
+ "inv1": {
+  "status": "open",
+  "fields": "2026-124, 225000, due 2026-11-23, buyer \"Brightwell Health Ltd\"",
+  "language": "en"
+ },
+ "inv2": {
+  "status": "needs_due_date",
+  "fields": "2026-125, 372075, due null, buyer \"TechnoPlast B.V.\"",
+  "language": "nl"
+ },
+ "inv3": {
+  "status": "unreadable"
+ },
+ "inv4": {
+  "status": "not_ours",
+  "fields": "",
+  "language": "nl"
+ },
+ "inv5": {
+  "status": "open",
+  "fields": "2026-126, 30855, due 2026-12-02, buyer \"Tandartspraktijk Wit\"",
+  "language": "nl"
+ },
+ "T04": {
+  "expectsReply": true
+ },
+ "T05": {
+  "expectsReply": true
+ },
+ "T06": {
+  "expectsReply": false
+ },
+ "T07": {
+  "expectsReply": true
+ },
+ "T10": {
+  "expectsReply": true
+ },
+ "T11": {
+  "expectsReply": true
+ },
+ "T12": {
+  "expectsReply": true
+ },
+ "V002": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "nieuw logo, één concept is genoeg",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "website van ongeveer 5 pagina's",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "nieuw logo, één concept is genoeg: LOGO-1",
+   "website van ongeveer 5 pagina's: WEB-5"
+  ],
+  "offerLines": [
+   {
+    "code": "LOGO-1",
+    "quantity": 1
+   },
+   {
+    "code": "WEB-5",
+    "quantity": 1
+   }
+  ]
+ },
+ "V003": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V005": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "a 16-page patient brochure",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "2 days of photography on location",
+     "quantity": 2,
+     "unit": "days"
+    }
+   ]
+  },
+  "matching": [
+   "a 16-page patient brochure: BROCH-16",
+   "2 days of photography on location: DAG-FOTO"
+  ],
+  "offerLines": [
+   {
+    "code": "BROCH-16",
+    "quantity": 1
+   },
+   {
+    "code": "DAG-FOTO",
+    "quantity": 2
+   }
+  ]
+ },
+ "V007": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V009": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "1 poster",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "3 flyers A5",
+     "quantity": 3,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "1 poster: POSTER",
+   "3 flyers A5: FLYER-A5"
+  ],
+  "offerLines": [
+   {
+    "code": "POSTER",
+    "quantity": 1
+   },
+   {
+    "code": "FLYER-A5",
+    "quantity": 3
+   }
+  ]
+ },
+ "V010": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V012": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "nieuwe website van ongeveer 8 pagina's",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "onderhoud daarna",
+     "quantity": null,
+     "unit": null
+    },
+    {
+     "request": "scherm met informatie in de wachtkamer (narrowcasting)",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "nieuwe website van ongeveer 8 pagina's: WEB-10",
+   "onderhoud daarna: WEB-OND",
+   "scherm met informatie in de wachtkamer (narrowcasting): none"
+  ],
+  "offerLines": [
+   {
+    "code": "WEB-10",
+    "quantity": 1
+   },
+   {
+    "code": "WEB-OND",
+    "quantity": 1
+   }
+  ]
+ },
+ "V013": {
+  "sorting": {
+   "category": "notification",
+   "language": "nl",
+   "suspicious": false
+  }
+ },
+ "V014": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "accepts": false,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V015": {
+  "sorting": {
+   "category": "business",
+   "language": "de",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "Verpackungsdesign für 4 Produkte",
+     "quantity": 4,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "Verpackungsdesign für 4 Produkte: VERPAK"
+  ],
+  "offerLines": [
+   {
+    "code": "VERPAK",
+    "quantity": 4
+   }
+  ]
+ },
+ "V016": {
+  "sorting": {
+   "category": "notification",
+   "language": "nl",
+   "suspicious": false
+  }
+ },
+ "V017": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "nieuwe beurswand laten ontwerpen",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "bedrijfsfilm van anderhalve minuut laten maken",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "nieuwe beurswand laten ontwerpen: BEURS-WAND",
+   "bedrijfsfilm van anderhalve minuut laten maken: VIDEO-90"
+  ],
+  "offerLines": [
+   {
+    "code": "BEURS-WAND",
+    "quantity": 1
+   },
+   {
+    "code": "VIDEO-90",
+    "quantity": 1
+   }
+  ]
+ },
+ "V019": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": true
+  }
+ },
+ "V020": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "accepts": true
+ },
+ "V021": {
+  "sorting": {
+   "category": "business",
+   "language": "fr",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V023": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "radiocommercial van 20 seconden",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "radiocommercial van 20 seconden: none"
+  ],
+  "offerLines": []
+ },
+ "V025": {
+  "modelSaidInternal": true,
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "accepts": true
+ },
+ "V026": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "social media beheer per maand",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "social media beheer per maand: ambiguous"
+  ],
+  "offerLines": []
+ },
+ "V027": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "productfotografie",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "productfotografie: FOTO-PROD"
+  ],
+  "offerLines": []
+ },
+ "V028": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V029": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V030": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "1 animatie van 15 seconden voor social media",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "1 animatie van 15 seconden voor social media: ANIM-15"
+  ],
+  "offerLines": [
+   {
+    "code": "ANIM-15",
+    "quantity": 1
+   }
+  ]
+ },
+ "V033": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V034": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "paid": false,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V035": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "accepts": true
+ },
+ "V037": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V038": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V040": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V041": {
+  "sorting": {
+   "category": "business",
+   "language": "de",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "6 Stunden Textarbeit",
+     "quantity": 6,
+     "unit": "Stunden"
+    }
+   ]
+  },
+  "matching": [
+   "6 Stunden Textarbeit: UUR-TXT"
+  ],
+  "offerLines": [
+   {
+    "code": "UUR-TXT",
+    "quantity": 6
+   }
+  ]
+ },
+ "V042": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V043": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V044": {
+  "modelSaidInternal": true,
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V045": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V047": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V048": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": true
+  }
+ },
+ "V049": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "paid": true,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V050": {
+  "sorting": {
+   "category": "notification",
+   "language": "nl",
+   "suspicious": false
+  }
+ },
+ "V051": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V052": {
+  "sorting": {
+   "category": "notification",
+   "language": "nl",
+   "suspicious": false
+  }
+ },
+ "V053": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "8 uur ontwerp",
+     "quantity": 8,
+     "unit": "uur"
+    },
+    {
+     "request": "spoed, levering binnen 48 uur",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "8 uur ontwerp: UUR-ONT",
+   "spoed, levering binnen 48 uur: SPOED"
+  ],
+  "offerLines": [
+   {
+    "code": "UUR-ONT",
+    "quantity": 8
+   }
+  ]
+ },
+ "V054": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V056": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "BROCH-8 x 1",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "ANIM-15 x 2",
+     "quantity": 2,
+     "unit": null
+    }
+   ]
+  },
+  "offerLines": [
+   {
+    "code": "BROCH-8",
+    "quantity": 1
+   },
+   {
+    "code": "ANIM-15",
+    "quantity": 2
+   }
+  ]
+ },
+ "V057": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "social media beheer met 16 berichten per maand",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "social media beheer met 16 berichten per maand: SOC-16"
+  ],
+  "offerLines": [
+   {
+    "code": "SOC-16",
+    "quantity": 1
+   }
+  ]
+ },
+ "V059": {
+  "sorting": {
+   "category": "business",
+   "language": "nl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "V060": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "paid": true,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ }
+}
