@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { deflateSync } from "node:zlib";
 import { createPdfRenderer } from "../apps/worker/src/pdf";
 import { buildOffer, renderOfferHtml, type OfferDocument } from "../packages/offers/src";
 
@@ -28,6 +29,35 @@ const base: OfferDocument = {
   paymentTerms: "14 dni od daty faktury", bankDetails: "PL00 0000 0000 0000 0000 0000 0000", footer: "Dziękujemy za zapytanie.",
 };
 
+/** A plain PNG picture made here (a coloured block), so the check also covers documents with a logo. */
+function samplePng(width: number, height: number, [r, g, b]: [number, number, number]): Buffer {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (data: Buffer) => {
+    let c = 0xffffffff;
+    for (const byte of data) c = crcTable[(c ^ byte) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc(body));
+    return Buffer.concat([length, body, sum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8); // 8 bits per channel, RGB
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, Buffer.from([r, g, b]))]);
+  const pixels = deflateSync(Buffer.concat(Array.from({ length: height }, () => row)));
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", header), chunk("IDAT", pixels), chunk("IEND", Buffer.alloc(0))]);
+}
+
 const pdf = createPdfRenderer();
 let failed = false;
 try {
@@ -41,6 +71,14 @@ try {
       console.log(`${ok ? "ok    " : "FAILED"}  ${layout} / ${language}: ${bytes.byteLength} bytes -> ${file}`);
     }
   }
+  const logoDataUrl = `data:image/png;base64,${samplePng(240, 80, [31, 111, 107]).toString("base64")}`;
+  const withLogo = await pdf.render(renderOfferHtml({ ...base, logoDataUrl }));
+  writeFileSync(path.join(out, "offer_classic_pl_with_logo.pdf"), withLogo);
+  // A PDF that holds a picture has an image object in it; the offers without a logo have none.
+  const hasImage = (bytes: Uint8Array) => /\/Subtype\s*\/Image/.test(Buffer.from(bytes).toString("latin1"));
+  const logoShown = hasImage(withLogo) && !hasImage(await pdf.render(renderOfferHtml(base)));
+  failed ||= !logoShown;
+  console.log(`${logoShown ? "ok    " : "FAILED"}  with logo: ${withLogo.byteLength} bytes, picture ${hasImage(withLogo) ? "is" : "is NOT"} in the document`);
   const confirmation = await pdf.render(renderOfferHtml({ ...base, kind: "order_confirmation", number: "OF/2026/001-C", sourceOfferNumber: "OF/2026/001", validUntil: null }));
   writeFileSync(path.join(out, "order_confirmation_classic_pl.pdf"), confirmation);
   console.log(`ok      order confirmation: ${confirmation.byteLength} bytes`);
