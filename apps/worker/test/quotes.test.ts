@@ -1,7 +1,10 @@
-import { ingestInbound } from "@adminwise/core";
-import type { Db } from "@adminwise/db";
+import { ingestInbound, QUEUES } from "@adminwise/core";
+import { verifyLinkToken, type Db } from "@adminwise/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sendBrief } from "../src/jobs/brief";
+import { confirmOffer } from "../src/jobs/quote";
 import {
+  CANNED_ORDER_REPLY,
   CANNED_QUOTE_REPLIES,
   company,
   createNordpart,
@@ -310,5 +313,113 @@ describe("Offers for customers without Outlook, or without filing", () => {
     const offer = (await nordpart.scope.getOfferForMessage("offer", messageId))!;
     expect(offer.lines[0]!.unitPriceCents).toBe(PZ40);
     expect(offer.grossCents).toBe(2637243);
+  });
+});
+
+describe("Scenario 16: the sender accepts the offer", () => {
+  it("makes an order confirmation from the offer, not an invoice, and attaches it to the reply draft", async () => {
+    const world = makeWorld(db);
+    const nordpart = await createNordpart(db);
+    await giveNordpartPriceList(nordpart.scope);
+    await nordpart.scope.setDiscount("rolmet.example", 10);
+    const requestId = await receive(world, nordpart, "q01");
+    const offer = (await nordpart.scope.getOfferForMessage("offer", requestId))!;
+
+    // A question about the offer is not an acceptance: ordinary reply, the offer stays open.
+    await receive(world, nordpart, "q10");
+    expect(world.outlook.drafts.at(-1)!.attachments).toHaveLength(0);
+    expect((await nordpart.scope.getOffer(offer.id))!.status).toBe("prepared");
+    expect(world.ai.of("offer-acceptance")).toHaveLength(1);
+    expect(world.ai.of("offer-acceptance")[0]!.system).toContain("If you are unsure, answer \"no\".");
+
+    // "Akceptujemy, proszę realizować zamówienie."
+    const acceptanceId = await receive(world, nordpart, "q09");
+    const confirmation = (await nordpart.scope.getOfferForMessage("order_confirmation", acceptanceId))!;
+    // The same lines, prices, discount and totals as the offer: nothing is recalculated or re-priced.
+    expect(confirmation).toMatchObject({
+      kind: "order_confirmation", number: "OF/2026/001-C", sourceOfferId: offer.id, validUntil: null,
+      discountPercent: 10, netCents: offer.netCents, discountCents: offer.discountCents, vatCents: offer.vatCents, grossCents: offer.grossCents,
+    });
+    expect(confirmation.lines).toEqual(offer.lines);
+    expect((await nordpart.scope.getOffer(offer.id))!.status).toBe("accepted");
+
+    const draft = world.outlook.drafts.at(-1)!;
+    expect(draft.providerMessageId).toBe("graph-q09");
+    expect(draft.text.startsWith(CANNED_ORDER_REPLY)).toBe(true);
+    expect(draft.attachments.map((a) => a.name)).toEqual(["Potwierdzenie_zamówienia_OF-2026-001-C.pdf"]);
+
+    const page = world.pdf.pages.at(-1)!;
+    expect(page).toContain("Potwierdzenie zamówienia OF/2026/001-C");
+    expect(page).toContain("Do oferty OF/2026/001");
+    expect(page).toContain("nie jest fakturą VAT");
+    expect(page).toContain("Rabat 10%");
+    expect(page).not.toContain("Ważna do");
+
+    const reply = world.ai.of("order-reply")[0]!;
+    expect(reply.system).toContain("order confirmation\nOF/2026/001-C is attached");
+    expect(reply.system).toContain("Never write a price, a total, a discount or a percentage");
+    expect(`${reply.system}\n${reply.user}`).not.toMatch(/23 ?735|2373519|10 ?%/);
+    expect((await nordpart.scope.listJobRuns()).find((r) => r.job === "reply-draft")!.outcome).toBe("order:outlook");
+    expect([...world.outlook.drive.keys()].sort()).toEqual(["Offers/2026/Oferta_OF-2026-001.pdf", "Offers/2026/Potwierdzenie_zamówienia_OF-2026-001-C.pdf"]);
+
+    // The same acceptance delivered again makes nothing new; nothing was ever sent.
+    await ingestInbound(nordpart.scope, world.queue, nordpart.microsoftId, toInbound(quoteFixture("q09")));
+    await world.queue.drain({ ...world.deps, now: NOW });
+    expect(world.outlook.drafts).toHaveLength(3);
+    expect(world.mailer.sent).toHaveLength(0);
+  });
+
+  it("lets the owner confirm from the daily brief when the customer accepted in another way", async () => {
+    const world = makeWorld(db);
+    const nordpart = await createNordpart(db, { briefStartDate: "2026-11-01" });
+    await giveNordpartPriceList(nordpart.scope);
+    const requestId = await receive(world, nordpart, "q01");
+    const offer = (await nordpart.scope.getOfferForMessage("offer", requestId))!;
+
+    // The next morning's brief lists the offer with its total and a link.
+    const briefTime = () => new Date("2026-11-25T06:30:00Z");
+    await sendBrief({ ...world.deps, now: briefTime }, { customerId: nordpart.customerId, localDate: "2026-11-25" });
+    const brief = world.mailer.sent.at(-1)!.textBody;
+    expect(brief).toContain("OFFERS AND ORDERS PREPARED YESTERDAY (1)");
+    expect(brief).toContain("- Offer OF/2026/001 for rolmet.example, 26,372.43 PLN including VAT - attached to the reply draft.");
+    const token = /https:\/\/app\.test\/offer\?token=([\w.-]+)/.exec(brief)![1]!;
+    expect(verifyLinkToken(token, db.encryptionKey, briefTime())).toEqual({ c: nordpart.customerId, o: offer.id });
+
+    // The owner presses the button on that page: the web app queues this job.
+    world.queue.jobs = [];
+    expect(await confirmOffer({ ...world.deps, now: briefTime }, { customerId: nordpart.customerId, offerId: offer.id })).toBe("confirmed");
+    const draft = world.outlook.drafts.at(-1)!;
+    expect(draft.providerMessageId).toBe("graph-q01"); // a reply on the original request
+    expect(draft.attachments.map((a) => a.name)).toEqual(["Potwierdzenie_zamówienia_OF-2026-001-C.pdf"]);
+    expect(world.ai.of("order-reply")[0]!.user).toContain("The owner confirmed the order themselves");
+    expect((await nordpart.scope.getOffer(offer.id))!.status).toBe("accepted");
+    expect((await nordpart.scope.listJobRuns()).find((r) => r.job === "order-confirmation")).toMatchObject({ status: "succeeded", outcome: "order:outlook" });
+
+    // Pressing it twice makes nothing new.
+    expect(await confirmOffer(world.deps, { customerId: nordpart.customerId, offerId: offer.id })).toBe("skipped");
+    expect(world.outlook.drafts).toHaveLength(2);
+    expect(world.queue.of(QUEUES.confirmOffer)).toHaveLength(0);
+
+    // The following brief shows the order confirmation, and no more link for that offer.
+    await sendBrief({ ...world.deps, now: () => new Date("2026-11-26T06:30:00Z") }, { customerId: nordpart.customerId, localDate: "2026-11-26" });
+    const next = world.mailer.sent.at(-1)!.textBody;
+    expect(next).toContain("- Order confirmation OF/2026/001-C for rolmet.example - attached to a draft.");
+    expect(next).not.toContain("/offer?token=");
+  });
+
+  it("emails the order confirmation to a forwarding-address customer, and cannot be used across customers", async () => {
+    const world = makeWorld(db);
+    const nordpart = await createNordpart(db);
+    const other = await createNordpart(db);
+    await giveNordpartPriceList(nordpart.scope);
+    const requestId = await receive(world, nordpart, "q01", nordpart.forwardingId);
+    const offer = (await nordpart.scope.getOfferForMessage("offer", requestId))!;
+
+    expect(await confirmOffer(world.deps, { customerId: other.customerId, offerId: offer.id })).toBe("skipped");
+    expect(await confirmOffer(world.deps, { customerId: nordpart.customerId, offerId: offer.id })).toBe("confirmed");
+    const mail = world.mailer.sent.at(-1)!;
+    expect(mail.to).toEqual([nordpart.email]);
+    expect(mail.subject).toBe("Order confirmation OF/2026/001-C: Zapytanie ofertowe: pompy i uszczelki");
+    expect(mail.attachments!.map((a) => a.name)).toEqual(["Potwierdzenie_zamówienia_OF-2026-001-C.pdf"]);
   });
 });

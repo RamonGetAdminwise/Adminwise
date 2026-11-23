@@ -149,5 +149,45 @@
       "matches": [],
       "note": "business mail that is not a quote request: an ordinary reply draft"
     }
+  },
+  {
+    "id": "q09",
+    "messageId": "<q09.20261126@rolmet.example>",
+    "threadKey": "thr-q01-oferta-pompy",
+    "from": { "address": "anna.kowalczyk@rolmet.example", "name": "Anna Kowalczyk" },
+    "subject": "Re: Zapytanie ofertowe: pompy i uszczelki - zamówienie",
+    "receivedAt": "2026-11-26T09:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\ndziękuję za ofertę. Akceptujemy, proszę realizować zamówienie zgodnie z ofertą.\n\nPozdrawiam\nAnna Kowalczyk",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "accepts": true,
+      "quote": { "isQuote": false, "items": [] },
+      "matches": [],
+      "note": "scenario 16: the sender accepts the offer made for q01 (same conversation)"
+    }
+  },
+  {
+    "id": "q10",
+    "messageId": "<q10.20261126@rolmet.example>",
+    "threadKey": "thr-q01-oferta-pompy",
+    "from": { "address": "anna.kowalczyk@rolmet.example", "name": "Anna Kowalczyk" },
+    "subject": "Re: Zapytanie ofertowe: pompy i uszczelki - pytanie o termin",
+    "receivedAt": "2026-11-25T09:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\ndziękuję za ofertę. Czy możliwy jest krótszy termin dostawy?\n\nPozdrawiam\nAnna Kowalczyk",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "accepts": false,
+      "quote": { "isQuote": false, "items": [] },
+      "matches": [],
+      "note": "a question about the offer is not an acceptance: ordinary reply, the offer stays open"
+    }
   }
 ]

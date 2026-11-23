@@ -2,7 +2,7 @@ import { classifyMessage, draftReply } from "@adminwise/ai";
 import { forCustomer } from "@adminwise/db";
 import { describeError, type Deps } from "../deps";
 import { ownDomains, prefilter } from "./prefilter";
-import { prepareQuoteReply } from "./quote";
+import { prepareOrderConfirmation, prepareQuoteReply } from "./quote";
 
 /** How many earlier messages of the thread the model sees as background. */
 const HISTORY_LIMIT = 8;
@@ -87,10 +87,12 @@ export async function processMessage(
       return "skipped";
     }
 
-    let what: "drafted" | "offer" | "clarify" = "drafted";
+    let what: "drafted" | "offer" | "clarify" | "order" = "drafted";
     try {
-      // 3. Write it. A quote request (for customers with a price list) gets an offer; everything else an ordinary reply.
-      const quote = await prepareQuoteReply(deps, scope, { customer, message, connection, language: draftLanguage });
+      // 3. Write it. An acceptance of an open offer gets an order confirmation; a quote request (for
+      //    customers with a price list) gets an offer; everything else an ordinary reply.
+      const context = { customer, message, connection, language: draftLanguage };
+      const quote = (await prepareOrderConfirmation(deps, scope, context)) ?? (await prepareQuoteReply(deps, scope, context));
       let body: string;
       if (quote) {
         inputTokens += quote.inputTokens;
@@ -136,7 +138,9 @@ export async function processMessage(
           subject: `Draft reply: ${message.subject}`,
           textBody:
             `${deps.appName} prepared this draft reply to the email from ${message.senderDomain}. ` +
-            (attachments.length ? "The offer is attached: send it along with your reply. " : "") +
+            (attachments.length
+              ? `${what === "order" ? "The order confirmation" : "The offer"} is attached: send it along with your reply. `
+              : "") +
             "Nothing was sent: review it and paste it into your reply.\n\n" +
             `--------------------\n\n${text}\n`,
           attachments,

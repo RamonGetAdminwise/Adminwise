@@ -61,6 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         "chaser-check": classify,
         "file-type": classify,
         "price-list-columns": classify,
+        "offer-acceptance": classify,
       },
     },
     alertEmail: env.ALERT_EMAIL?.trim() || null,

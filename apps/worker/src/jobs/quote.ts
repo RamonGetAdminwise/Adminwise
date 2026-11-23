@@ -1,7 +1,15 @@
-import { detectQuoteRequest, draftQuoteReply, matchItems, type RequestedItem } from "@adminwise/ai";
+import {
+  checkOfferAccepted,
+  detectQuoteRequest,
+  draftOrderReply,
+  draftQuoteReply,
+  matchItems,
+  type RequestedItem,
+} from "@adminwise/ai";
 import { addDays, localClock } from "@adminwise/core";
 import {
   canFile,
+  forCustomer,
   type Customer,
   type CustomerScope,
   type MailboxConnection,
@@ -20,8 +28,15 @@ import {
   renderOfferHtml,
   type OfferDocument,
 } from "@adminwise/offers";
-import type { Deps } from "../deps";
+import { describeError, type Deps } from "../deps";
 import { safeName } from "./filing";
+
+/** The signature from settings goes under every draft, once. */
+function appendSignature(body: string, signature: string): string {
+  const sig = signature.trim();
+  if (!sig || body.trimEnd().endsWith(sig)) return body.trimEnd();
+  return `${body.trimEnd()}\n\n${sig}`;
+}
 
 /** How many price list items the model is shown per requested item. */
 const CANDIDATES_PER_ITEM = 10;
@@ -37,8 +52,8 @@ export interface QuoteReply {
   body: string;
   /** The offer PDF, or nothing when no item could be priced. */
   attachments: OutboundAttachment[];
-  /** "offer" = a PDF is attached; "clarify" = the draft only asks questions. */
-  outcome: "offer" | "clarify";
+  /** "offer" = an offer PDF is attached; "clarify" = the draft only asks questions; "order" = an order confirmation is attached. */
+  outcome: "offer" | "clarify" | "order";
   inputTokens: number;
   outputTokens: number;
 }
@@ -118,6 +133,186 @@ export async function fileOfferCopy(
     }
   }
   return null;
+}
+
+/**
+ * Makes the order confirmation for an accepted offer: the same lines and
+ * prices as the offer, under the offer's number with "-C", marked as not being
+ * an invoice. `messageId` is the message it answers (the customer's acceptance,
+ * or the original request when the owner confirmed it themselves); asking twice
+ * for the same message gives the same document.
+ */
+export async function makeOrderConfirmation(
+  deps: Deps,
+  scope: CustomerScope,
+  input: { customer: Customer; offer: Offer; message: Message; connection: MailboxConnection | null },
+): Promise<{ confirmation: Offer; attachment: OutboundAttachment }> {
+  const { customer, offer, message } = input;
+  const now = deps.now?.() ?? new Date();
+  let confirmation = await scope.getOfferForMessage("order_confirmation", message.id);
+  if (!confirmation) {
+    const id = await scope.createOffer({
+      kind: "order_confirmation",
+      number: `${offer.number}-C`,
+      threadId: offer.threadId,
+      messageId: message.id,
+      sourceOfferId: offer.id,
+      priceListId: offer.priceListId,
+      recipientDomain: offer.recipientDomain,
+      language: offer.language,
+      layout: offer.layout,
+      currency: offer.currency,
+      vatRate: offer.vatRate,
+      discountPercent: offer.discountPercent,
+      netCents: offer.netCents,
+      discountCents: offer.discountCents,
+      vatCents: offer.vatCents,
+      grossCents: offer.grossCents,
+      validUntil: null,
+      lines: offer.lines,
+      createdAt: now,
+    });
+    confirmation = id ? await scope.getOffer(id) : await scope.getOfferForMessage("order_confirmation", message.id);
+    if (!confirmation) throw new Error("Order confirmation could not be stored");
+  }
+  await scope.markOfferAccepted(offer.id);
+
+  const date = localClock(confirmation.createdAt, customer.timeZone).date;
+  const document = await offerDocument(scope, customer, confirmation, {
+    date,
+    recipient: [message.direction === "inbound" && message.fromAddress ? message.fromAddress : offer.recipientDomain],
+    sourceOfferNumber: offer.number,
+  });
+  const pdf = await deps.pdf.render(renderOfferHtml(document));
+  const fileName = offerFileName(confirmation);
+  if (!confirmation.storedPath) {
+    await fileOfferCopy(deps, scope, input.connection, confirmation.id, date.slice(0, 4), fileName, pdf);
+  }
+  return { confirmation, attachment: { name: fileName, contentType: "application/pdf", content: pdf } };
+}
+
+/**
+ * The acceptance part of the reply-draft job: when the conversation has an
+ * open offer and the sender's message accepts it ("please go ahead"), the
+ * draft carries an order confirmation. Returns null when there is no open
+ * offer or the message is anything other than a clear acceptance.
+ */
+export async function prepareOrderConfirmation(
+  deps: Deps,
+  scope: CustomerScope,
+  input: { customer: Customer; message: Message; connection: MailboxConnection | null; language: string },
+): Promise<QuoteReply | null> {
+  const { customer, message } = input;
+  if (message.bodyText === null) return null;
+  const offer = await scope.latestOpenOfferForThread(message.threadId);
+  if (!offer) return null;
+
+  const check = await checkOfferAccepted(deps.ai, {
+    companyName: customer.name,
+    offerNumber: offer.number,
+    subject: message.subject,
+    body: message.bodyText,
+  });
+  if (!check.accepted) {
+    // The tokens of the check are small and are not carried into the ordinary reply's count.
+    return null;
+  }
+  const { confirmation, attachment } = await makeOrderConfirmation(deps, scope, { ...input, offer });
+  const reply = await draftOrderReply(deps.ai, {
+    companyName: customer.name,
+    voiceProfile: customer.voiceProfile,
+    language: input.language,
+    confirmationNumber: confirmation.number,
+    offerNumber: offer.number,
+    latest: { senderDomain: message.senderDomain, subject: message.subject, body: message.bodyText },
+  });
+  return {
+    body: reply.body,
+    attachments: [attachment],
+    outcome: "order",
+    inputTokens: check.usage.inputTokens + reply.usage.inputTokens,
+    outputTokens: check.usage.outputTokens + reply.usage.outputTokens,
+  };
+}
+
+/**
+ * The owner clicked "prepare the order confirmation" in the daily brief: the
+ * customer accepted by phone or in another mail. Makes the confirmation and
+ * puts a draft with it on the original request (Outlook), or emails it to the
+ * owner (forwarding address). Nothing is sent to the customer's contact.
+ */
+export async function confirmOffer(deps: Deps, job: { customerId: string; offerId: string }): Promise<"confirmed" | "skipped"> {
+  const scope = forCustomer(deps.db, job.customerId);
+  const runId = await scope.startJobRun("order-confirmation", job.offerId);
+  const skip = async (outcome: string) => {
+    await scope.finishJobRun(runId, { status: "skipped", outcome });
+    return "skipped" as const;
+  };
+  try {
+    const offer = await scope.getOffer(job.offerId);
+    if (!offer || offer.kind !== "offer" || !offer.messageId) return await skip("no_offer");
+    if (offer.status === "accepted") return await skip("already_confirmed");
+    const message = await scope.getMessage(offer.messageId);
+    if (!message) return await skip("no_offer");
+    const [customer, connection] = await Promise.all([
+      scope.getCustomer(),
+      message.connectionId ? scope.getConnection(message.connectionId) : null,
+    ]);
+    const toOutlook = connection?.provider === "microsoft";
+    const language = message.language ?? customer.languages[0] ?? "en";
+
+    const draftId = await scope.claimDraft({
+      messageId: message.id,
+      threadId: message.threadId,
+      destination: toOutlook ? "outlook_drafts" : "email_to_customer",
+      language,
+      languageListed: customer.languages.includes(language),
+      kind: "order_confirmation",
+    });
+    if (!draftId) return await skip("already_confirmed");
+
+    try {
+      const { confirmation, attachment } = await makeOrderConfirmation(deps, scope, { customer, offer, message, connection });
+      const reply = await draftOrderReply(deps.ai, {
+        companyName: customer.name,
+        voiceProfile: customer.voiceProfile,
+        language,
+        confirmationNumber: confirmation.number,
+        offerNumber: offer.number,
+        latest: null,
+      });
+      const text = appendSignature(reply.body, customer.signatureText);
+      let providerDraftId: string | null = null;
+      if (toOutlook) {
+        providerDraftId = await deps.outlook.createReplyDraft(scope, connection!.id, message.providerMessageId, text, [attachment]);
+      } else {
+        const users = await scope.listUsers();
+        await deps.mailer.send({
+          to: users.map((u) => u.email),
+          subject: `Order confirmation ${confirmation.number}: ${message.subject}`,
+          textBody:
+            `${deps.appName} prepared order confirmation ${confirmation.number} for ${offer.recipientDomain}. ` +
+            "It is attached. Nothing was sent: review the text below and send it with the attachment yourself.\n\n" +
+            `--------------------\n\n${text}\n`,
+          attachments: [attachment],
+        });
+      }
+      await scope.completeDraft(draftId, text, providerDraftId, deps.now?.() ?? null);
+      await scope.finishJobRun(runId, {
+        status: "succeeded",
+        inputTokens: reply.usage.inputTokens,
+        outputTokens: reply.usage.outputTokens,
+        outcome: `order:${toOutlook ? "outlook" : "email"}`,
+      });
+      return "confirmed";
+    } catch (error) {
+      await scope.failDraft(draftId, describeError(error));
+      throw error;
+    }
+  } catch (error) {
+    await scope.finishJobRun(runId, { status: "failed", error: describeError(error) });
+    throw error;
+  }
 }
 
 /**

@@ -7,6 +7,8 @@ const JOB_NAMES: Record<string, string> = {
   "daily-brief": "Daily brief",
   chaser: "Follow-up check",
   filing: "Filing",
+  "order-confirmation": "Order confirmation",
+  "price-list-columns": "Price list upload",
 };
 
 const FILING_OUTCOMES: Record<string, string> = {
@@ -46,6 +48,15 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     if (code === "drafted") {
       return detail === "email" ? "Draft written and emailed to you" : "Draft written, in your Outlook Drafts folder";
     }
+    if (code === "offer") {
+      return detail === "email" ? "Offer prepared and emailed to you with the draft" : "Offer prepared, attached to the draft in your Outlook Drafts folder";
+    }
+    if (code === "clarify") {
+      return "Quote request: the draft asks the sender for details, no offer yet";
+    }
+    if (code === "order") {
+      return detail === "email" ? "Offer accepted: order confirmation emailed to you with the draft" : "Offer accepted: order confirmation attached to the draft in your Outlook Drafts folder";
+    }
     if (code === "no_draft") {
       const reason = NO_DRAFT_REASONS[detail ?? ""] ?? "it is not a business email that needs a reply";
       return `No draft needed: ${reason}`;
@@ -58,6 +69,14 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
       const count = Number(detail);
       return count === 0 ? "No new mail" : `${count} new ${count === 1 ? "email" : "emails"} taken in`;
     }
+  }
+  if (run.job === "order-confirmation") {
+    if (code === "order") return detail === "email" ? "Order confirmation emailed to you" : "Order confirmation attached to a draft in your Outlook Drafts folder";
+    if (run.outcome === "already_confirmed") return "This offer already had its order confirmation";
+    return "Skipped: the offer could not be found";
+  }
+  if (run.job === "price-list-columns") {
+    return run.outcome === "columns_found" ? "Columns of your price list recognised" : "Columns not recognised: choose them on the price list page";
   }
   if (run.job === "chaser") {
     if (run.outcome === "no_mailbox" || run.status === "skipped") return "Skipped: no connected Microsoft 365 mailbox";

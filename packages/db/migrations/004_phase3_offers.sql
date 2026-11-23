@@ -71,6 +71,11 @@ CREATE TABLE sender_discounts (
   UNIQUE (customer_id, match)
 );
 
+-- A third kind of draft: the order confirmation the owner asked for from the brief
+-- (it hangs on the original request, next to the reply draft that carried the offer).
+ALTER TABLE drafts DROP CONSTRAINT drafts_kind_check;
+ALTER TABLE drafts ADD CONSTRAINT drafts_kind_check CHECK (kind IN ('reply', 'chaser', 'order_confirmation'));
+
 -- ---- offers and order confirmations --------------------------------------------
 -- An offer keeps its own lines and prices: a later price list never changes an
 -- offer that was already made.

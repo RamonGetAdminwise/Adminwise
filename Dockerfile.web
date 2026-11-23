@@ -12,6 +12,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/core/package.json packages/core/
 COPY packages/mail/package.json packages/mail/
 COPY packages/ai/package.json packages/ai/
+COPY packages/offers/package.json packages/offers/
 RUN pnpm install --frozen-lockfile
 
 COPY . .

@@ -10,7 +10,14 @@ COPY packages/db/package.json packages/db/
 COPY packages/core/package.json packages/core/
 COPY packages/mail/package.json packages/mail/
 COPY packages/ai/package.json packages/ai/
+COPY packages/offers/package.json packages/offers/
 RUN pnpm install --frozen-lockfile
+
+# Headless Chromium prints offers and order confirmations to PDF. Installed with
+# the system libraries and fonts it needs, in a fixed place inside the image.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN pnpm --filter @adminwise/worker exec playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY . .
 

@@ -3,6 +3,8 @@ import { chaserDraftPrompt, type ChaserDraftInput } from "../prompts/chaser-draf
 import { classifyPrompt, type ClassifyInput } from "../prompts/classify";
 import { fileTypePrompt, type FileTypeInput } from "../prompts/file-type";
 import { matchItemsPrompt, type MatchItemsInput } from "../prompts/match-items";
+import { offerAcceptancePrompt, type OfferAcceptanceInput } from "../prompts/offer-acceptance";
+import { orderReplyPrompt, type OrderReplyInput } from "../prompts/order-reply";
 import { priceListColumnsPrompt, type PriceListColumnsInput } from "../prompts/price-list-columns";
 import { quoteReplyPrompt, type QuoteReplyInput } from "../prompts/quote-reply";
 import { quoteRequestPrompt, type QuoteRequestInput } from "../prompts/quote-request";
@@ -186,6 +188,29 @@ export async function draftQuoteReply(ai: AiClient, input: QuoteReplyInput): Pro
     latest: { ...input.latest, body: clip(stripQuotedHistory(input.latest.body), MAX_BODY_CHARS) },
   });
   const result = await ai.complete({ job: "quote-reply", ...prompt, maxTokens: 6000 });
+  const body = result.text.trim();
+  if (!body) throw new AiError("Model returned an empty draft");
+  return { body, usage: result };
+}
+
+/** Does this reply accept the offer sent earlier in the conversation? Anything but a clear "yes" is no. */
+export async function checkOfferAccepted(
+  ai: AiClient,
+  input: OfferAcceptanceInput,
+): Promise<{ accepted: boolean; usage: AiUsage }> {
+  const prompt = offerAcceptancePrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
+  const result = await ai.complete({ job: "offer-acceptance", ...prompt, maxTokens: 2000 });
+  const answer = firstJson(result.text).accepts;
+  if (answer !== "yes" && answer !== "no") throw new AiError("Offer acceptance answer was not in the expected format");
+  return { accepted: answer === "yes", usage: result };
+}
+
+export async function draftOrderReply(ai: AiClient, input: OrderReplyInput): Promise<{ body: string; usage: AiUsage }> {
+  const prompt = orderReplyPrompt({
+    ...input,
+    latest: input.latest ? { ...input.latest, body: clip(stripQuotedHistory(input.latest.body), MAX_BODY_CHARS) } : null,
+  });
+  const result = await ai.complete({ job: "order-reply", ...prompt, maxTokens: 4000 });
   const body = result.text.trim();
   if (!body) throw new AiError("Model returned an empty draft");
   return { body, usage: result };

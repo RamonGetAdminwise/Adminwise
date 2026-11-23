@@ -1,6 +1,6 @@
 # Architecture, in plain language
 
-This is the codebase after phase 2: sign-in, settings, the Microsoft 365 connection, the forwarding address, reply drafts, the follow-up chaser, filing of attachments to OneDrive, the full daily brief and operator alerts. Nothing is ever sent to a customer's contacts; the product only writes drafts.
+This is the codebase after phase 3: sign-in, settings, the Microsoft 365 connection, the forwarding address, reply drafts, the follow-up chaser, filing of attachments to OneDrive, the full daily brief, operator alerts, and offers and order confirmations from the customer's own price list. Nothing is ever sent to a customer's contacts; the product only writes drafts.
 
 ## The two programs
 
@@ -22,6 +22,7 @@ packages/
   core/       shared plumbing: configuration, queue names, time zones, mail intake, Outlook gateway
   mail/       provider adapters: Microsoft Graph (graph.ts) and Postmark (postmark.ts)
   ai/         the only door to the model: src/bedrock.ts, one prompt file per job in prompts/
+  offers/     price list reading, item matching, offer arithmetic, the offer documents (no model, no database writes of its own)
 fixtures/     invented test companies and emails (Nordpart)
 docs/         this file, setup and deployment guides
 deploy/       Railway configuration (the only Railway-specific files)
@@ -74,6 +75,26 @@ Apps/Adminwise/<sender>/<YYYY-MM>/<YYYY-MM-DD>_<type>_<original name>
 
 The permission is `Files.ReadWrite.AppFolder`: the app sees only its own folder, not the rest of the drive. A mailbox connected before phase 2 keeps working; filing is off for it until the customer reconnects once. Customers who only use the forwarding address get no filing. A folder of the customer's choice, SharePoint and Google Drive are later options.
 
+## Offers and order confirmations (phase 3)
+
+One rule shapes this part: **every number in an offer comes from the customer's price list, and all arithmetic is done by code.** The model reads what the sender asks for and words the email; it never sees, states or calculates a price.
+
+**Price list** (`packages/offers/src/price-list.ts`, Settings > Offers and price list). The customer uploads their own `.xlsx` as it is. The code finds the header row and works out the columns from the column titles (Polish, English, German, Dutch, Czech); only when the titles say nothing is the model asked, and it answers with column numbers (`prompts/price-list-columns.ts`). Values are copied cell by cell. A price that is not clearly a number is not guessed: the row is left out and shown with its row number. The upload is a draft until the customer confirms the preview; the previous list is kept so earlier offers do not change.
+
+**From a quote request to an offer** (`apps/worker/src/jobs/quote.ts`, called by the reply-draft job for business mail of customers with a confirmed price list):
+
+1. *Detect* (`prompts/quote-request.ts`): does the mail ask for a quote, and for what? The model reports the sender's own words and the quantities they state. A quantity the sender did not write is dropped and asked for.
+2. *Match*: by item code first, however it is typed, without a model. Otherwise the model is shown up to 10 candidates chosen by shared words and answers "match", "ambiguous" or "none" (`prompts/match-items.ts`); an answer that is not on the list counts as none.
+3. *Price* (`packages/offers/src/offer.ts`): quantity from the request, unit price from the price list, the sender's discount as its own line, VAT on the net after discount. Money is whole numbers of the smallest unit.
+4. *Document* (`packages/offers/src/document.ts`): an HTML page in one of three layouts, in the customer's offer language (English or Polish, texts in `strings/`), printed to PDF by headless Chromium (`apps/worker/src/pdf.ts`) with scripts and network switched off.
+5. *Reply* (`prompts/quote-reply.ts`): in the sender's language, announces the attached offer and asks about every item that was not clear. It never contains a price, total or discount.
+
+What the sender gets depends on what was clear: all items clear, an offer; some clear, an offer for those and questions about the rest; none clear, questions only and no PDF. The PDF is attached to the Outlook draft, or to the draft emailed back for forwarding-address customers, and a copy is filed under `Apps/Adminwise/Offers/<year>/` when filing is on. One offer per request; an offer stores its own lines, so later price lists never change it.
+
+**Order confirmation.** When a reply in a conversation with an open offer clearly accepts it (`prompts/offer-acceptance.ts`; unsure means no), or the owner presses "prepare the order confirmation" from the brief, the worker makes an order confirmation with the same lines and totals as the offer, numbered after it with "-C" and marked as not being a VAT invoice, and a draft email to go with it (`prompts/order-reply.ts`). Nothing is sent or ordered automatically.
+
+`pnpm check:pdf` prints sample documents and proves the PDF engine works on a machine or in the worker image.
+
 ## Daily brief and operator alerts
 
 The brief (`jobs/brief.ts`, texts in `brief-strings/en.ts`) has four sections and leaves out the empty ones: needs you today (reply drafts), went quiet (follow-ups ready), filed yesterday, connection problems. With nothing to report it is one line. All texts are in one keyed file per language, so a second language is a translation of that file.
@@ -99,10 +120,14 @@ Problems the customer can fix (mailbox disconnected, OneDrive not reachable, rec
 | `mailbox_connections` | provider (microsoft / forwarding), encrypted tokens, status, notification subscription, polling bookmark |
 | `threads`, `messages` | metadata of each conversation and mail, plus the body field that the purge empties |
 | `drafts` | what we generated for which message (reply or follow-up), where it went, status, language flag |
+| `price_lists`, `price_items` | the customer's price list: draft, active or replaced, with its items; kept until replaced or deleted |
+| `sender_discounts` | a fixed discount for a company domain or one address |
+| `offers`, `offer_lines` | each offer and order confirmation with its own lines, prices and totals |
+| `customer_logos` | the customer's logo for their documents |
 | `filed_documents` | one row per attachment: name, size, content hash, type, where it was filed, or that it is waiting; never the file |
 | `job_runs` | the Control Tower log, with a short outcome code per run |
 | `audit_events` | who changed or connected what |
 
 ## Tests
 
-`pnpm test` starts its own throw-away Postgres and runs everything, including the acceptance scenarios against the Nordpart fixtures: 1-6 in `apps/worker/test/scenarios.test.ts`, and 7-10 (chaser), 21-24 (filing) and 25-27 (brief) in `apps/worker/test/phase2.test.ts` and `jobs.test.ts`. The phase 2 fixtures (sent mail, invoices, orders, a contract, a logo, a duplicate) are in `fixtures/nordpart/phase2.json`; file contents are generated in the tests. In tests the model is replaced by a recorded stand-in, so they prove the pipeline (classification routing, what the model is asked, where drafts go, no duplicates) and not the quality of a real model's wording. That needs Bedrock access and is the job of the phase-5 golden set.
+`pnpm test` starts its own throw-away Postgres and runs everything, including the acceptance scenarios against the Nordpart fixtures: 1-6 in `apps/worker/test/scenarios.test.ts`, 7-10 (chaser), 21-24 (filing) and 25-27 (brief) in `apps/worker/test/phase2.test.ts` and `jobs.test.ts`, and 11-16 (offers and order confirmations) in `apps/worker/test/quotes.test.ts` with the price list and quote request fixtures (`price-list.xlsx`, `quotes.json`). Price list reading and offer arithmetic have their own tests in `packages/offers/test`. The phase 2 fixtures (sent mail, invoices, orders, a contract, a logo, a duplicate) are in `fixtures/nordpart/phase2.json`; file contents are generated in the tests. In tests the model is replaced by a recorded stand-in, so they prove the pipeline (classification routing, what the model is asked, where drafts go, no duplicates) and not the quality of a real model's wording. That needs Bedrock access and is the job of the phase-5 golden set.

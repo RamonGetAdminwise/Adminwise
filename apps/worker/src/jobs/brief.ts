@@ -9,6 +9,7 @@ import {
   type MailboxConnection,
   type QuietThread,
 } from "@adminwise/db";
+import { formatMoney } from "@adminwise/offers";
 import { briefStrings } from "../brief-strings";
 import { describeError, type Deps } from "../deps";
 import { chaseCustomer, MAX_CHASERS } from "./chaser";
@@ -42,6 +43,8 @@ export interface BriefInput {
   localDate: string;
   /** Reply drafts prepared yesterday. */
   drafts: DraftSummary[];
+  /** Offers and order confirmations made yesterday. `confirmUrl` is null once an offer was accepted. */
+  offers?: { kind: "offer" | "order_confirmation"; number: string; recipientDomain: string; grossTotal: string; confirmUrl: string | null }[];
   /** Threads that went quiet, each with how long and the two links for the customer. */
   quiet?: (QuietThread & { workingDaysQuiet: number; skipUrl: string; neverUrl: string })[];
   /** Documents filed yesterday. */
@@ -74,6 +77,17 @@ export function composeBrief(input: BriefInput): { subject: string; textBody: st
       return line + flag;
     });
     sections.push([t.needsYou.heading(input.drafts.length), ...lines].join("\n"));
+  }
+
+  const offers = input.offers ?? [];
+  if (offers.length > 0) {
+    const lines = offers.flatMap((o) => {
+      if (o.kind === "order_confirmation") return [t.offers.orderConfirmation(o.number, o.recipientDomain)];
+      // An offer that already has its order confirmation needs nothing more.
+      if (o.confirmUrl === null) return [t.offers.accepted(o.number, o.recipientDomain)];
+      return [t.offers.offer(o.number, o.recipientDomain, o.grossTotal), t.offers.confirmLink(o.confirmUrl)];
+    });
+    sections.push([t.offers.heading(offers.length), ...lines].join("\n"));
   }
 
   if (quiet.length > 0) {
@@ -133,8 +147,9 @@ export async function sendBrief(
     const customer = await scope.getCustomer();
     const today = startOfLocalDay(job.localDate, customer.timeZone);
     const yesterday = startOfLocalDay(addDays(job.localDate, -1), customer.timeZone);
-    const [drafts, quiet, filed, connections, users, filingOffCount, queuedCount] = await Promise.all([
+    const [drafts, offers, quiet, filed, connections, users, filingOffCount, queuedCount] = await Promise.all([
       scope.listDraftSummaries(yesterday, today),
+      scope.listOffersBetween(yesterday, today),
       scope.listQuietThreads(today, job.localDate),
       scope.listFiledBetween(yesterday, today),
       scope.listConnections(),
@@ -154,6 +169,16 @@ export async function sendBrief(
       appBaseUrl: deps.appBaseUrl,
       localDate: job.localDate,
       drafts,
+      offers: offers.map((o) => ({
+        kind: o.kind,
+        number: o.number,
+        recipientDomain: o.recipientDomain,
+        grossTotal: formatMoney(o.grossCents, o.currency, "en"),
+        confirmUrl:
+          o.kind === "offer" && o.status === "prepared"
+            ? `${deps.appBaseUrl}/offer?token=${signLinkToken({ c: job.customerId, o: o.id }, linkExpiry, deps.db.encryptionKey)}`
+            : null,
+      })),
       quiet: quiet.map((q) => ({
         ...q,
         workingDaysQuiet: workingDaysBetween(q.lastOutboundAt, now, customer.timeZone),

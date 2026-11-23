@@ -31,14 +31,14 @@ describe("config", () => {
     // Writing jobs use the default model; the sorting jobs (mail, follow-up check, document type) use the classify model.
     expect(config.aws).toEqual({
       region: "eu-central-1",
-      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku },
+      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku, "offer-acceptance": haiku },
     });
     expect(config.alertEmail).toBeNull();
     const base = { DATABASE_URL: "x", TOKEN_ENCRYPTION_KEY: "k" };
     // Switching a task to another model is one line of configuration.
     expect(loadConfig({ ...base, BEDROCK_MODEL_DRAFT: "eu.anthropic.claude-sonnet-5", AWS_REGION: "eu-west-1" } as NodeJS.ProcessEnv).aws).toEqual({
       region: "eu-west-1",
-      models: { default: "eu.anthropic.claude-sonnet-5", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku },
+      models: { default: "eu.anthropic.claude-sonnet-5", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku, "offer-acceptance": haiku },
     });
     expect(loadConfig({ ...base, ALERT_EMAIL: " ops@adminwise.example " } as NodeJS.ProcessEnv).alertEmail).toBe("ops@adminwise.example");
     // The global endpoint is refused: it may process requests outside the EU.

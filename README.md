@@ -1,6 +1,6 @@
 # Adminwise - code repository
 
-A hosted back-office service for small companies. Phase 1: sign-in, settings, voice profile, Microsoft 365 connection, forwarding-address intake, reply drafts. Phase 2: follow-up chaser, filing of attachments to OneDrive, the full daily brief, operator alerts. Drafts only; nothing is sent to a customer's contacts.
+A hosted back-office service for small companies. Phase 1: sign-in, settings, voice profile, Microsoft 365 connection, forwarding-address intake, reply drafts. Phase 2: follow-up chaser, filing of attachments to OneDrive, the full daily brief, operator alerts. Phase 3: offers and order confirmations as PDF from the customer's own price list. Drafts only; nothing is sent to a customer's contacts.
 
 - What the folders are and how a mail flows through: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Accounts, model ids and the AWS key: [docs/ACCOUNTS_SETUP.md](docs/ACCOUNTS_SETUP.md)
@@ -17,6 +17,14 @@ Needs Node 24 or newer and pnpm. Open a terminal in this folder (`03_Build`).
 ```bash
 pnpm install
 ```
+
+For offers as PDF, the worker also needs a browser to print with. Download it once (about 170 MB, stored in your user folder):
+
+```bash
+pnpm --filter @adminwise/worker exec playwright install chromium
+```
+
+`pnpm check:pdf` then prints sample offers into `sample-offers/`. The Docker image of the worker has the browser built in.
 
 **2. Settings file.** Copy `.env.example` to `.env` and fill in at least `TOKEN_ENCRYPTION_KEY` (the file explains how to generate one). Everything else can stay empty to start: without Postmark, mail is printed in the console; without Microsoft and AWS keys, those features report that they are not set up.
 
@@ -67,7 +75,7 @@ What works at which point:
 pnpm test
 ```
 
-Starts its own throw-away Postgres (no Docker, nothing to set up) and runs all tests, including acceptance scenarios 1-10 and 21-27 against the Nordpart fixtures in `fixtures/nordpart`. To use an existing database instead, set `TEST_DATABASE_URL`.
+Starts its own throw-away Postgres (no Docker, nothing to set up) and runs all tests, including acceptance scenarios 1-16 and 21-27 against the Nordpart fixtures in `fixtures/nordpart`. To use an existing database instead, set `TEST_DATABASE_URL`.
 
 Other checks, all run by GitHub Actions on every push:
 

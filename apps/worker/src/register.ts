@@ -7,6 +7,7 @@ import { chaseCustomer, chaseTick } from "./jobs/chaser";
 import { fileAttachments } from "./jobs/filing";
 import { processMessage } from "./jobs/process-message";
 import { purgeBodies } from "./jobs/purge";
+import { confirmOffer } from "./jobs/quote";
 import { fetchGraphMessage, pollTick, syncMailbox } from "./jobs/sync";
 
 /** Connects each queue to the job that handles it. */
@@ -27,6 +28,7 @@ export async function registerWorkers(boss: PgBoss, deps: Deps, concurrency: num
   await on(QUEUES.fetchGraphMessage, concurrency, (data) => fetchGraphMessage(deps, data));
   await on(QUEUES.syncMailbox, concurrency, (data) => syncMailbox(deps, data));
   await on(QUEUES.fileAttachments, concurrency, (data) => fileAttachments(deps, data));
+  await on(QUEUES.confirmOffer, 2, (data) => confirmOffer(deps, data));
   await on(QUEUES.sendBrief, 2, (data) => sendBrief(deps, data));
   await on(QUEUES.chaseCustomer, 2, (data) => chaseCustomer(deps, data));
   await on(QUEUES.pollTick, 1, () => pollTick(deps));

@@ -42,6 +42,8 @@ export interface FixtureEmail {
     /** Phase 3: what the model reports for a quote request, and which candidate it picks for items without a code. */
     quote?: { isQuote: boolean; items: { request: string; quantity: number | null; unit: string | null }[] };
     matches?: { request: string; result: "match" | "ambiguous" | "none"; code: string | null }[];
+    /** Whether this reply accepts the open offer in its conversation. */
+    accepts?: boolean;
   };
 }
 
@@ -64,6 +66,9 @@ export const quoteFixture = (id: string): FixtureEmail => {
   return found;
 };
 const recorded = (): FixtureEmail[] => [...inbound, ...quotes];
+/** The fixture a model request is about: the one whose subject it contains (the longest, as a reply's subject contains the original's). */
+const bySubject = (text: string, list: FixtureEmail[]): FixtureEmail | undefined =>
+  list.filter((f) => text.includes(f.subject)).sort((a, b) => b.subject.length - a.subject.length)[0];
 export const sentEmails = readJson<{ id: string; language: string; bodyText: string }[]>("sent-emails.json");
 export const longThread = readJson<{
   threadKey: string;
@@ -188,6 +193,8 @@ const CANNED_DRAFTS: Record<string, string> = {
   en: "Hello,\n\nThank you for your message. [confirm date]\n\nBest regards",
 };
 
+export const CANNED_ORDER_REPLY = "Dzień dobry,\n\ndziękuję za zamówienie, potwierdzenie przesyłam w załączeniu. [termin dostawy]\n\nPozdrawiam";
+
 export const CANNED_QUOTE_REPLIES: Record<string, string> = {
   pl: "Dzień dobry,\n\ndziękuję za zapytanie, odpowiedź przesyłam poniżej.\n\nPozdrawiam",
   en: "Hello,\n\nThank you for your enquiry, please see my reply below.\n\nBest regards",
@@ -207,7 +214,7 @@ export class RecordedAi implements AiClient {
   async complete(request: AiRequest): Promise<AiResult> {
     this.requests.push(request);
     if (request.job === "quote-request") {
-      const match = recorded().find((f) => request.user.includes(f.subject));
+      const match = bySubject(request.user, recorded());
       const quote = match?.expected.quote ?? { isQuote: false, items: [] };
       return {
         text: JSON.stringify({ is_quote_request: quote.isQuote ? "yes" : "no", items: quote.items }),
@@ -228,12 +235,19 @@ export class RecordedAi implements AiClient {
       });
       return { text: JSON.stringify({ matches }), inputTokens: 400, outputTokens: 30 };
     }
+    if (request.job === "offer-acceptance") {
+      const match = bySubject(request.user, quotes);
+      return { text: JSON.stringify({ accepts: match?.expected.accepts ? "yes" : "no" }), inputTokens: 110, outputTokens: 6 };
+    }
+    if (request.job === "order-reply") {
+      return { text: CANNED_ORDER_REPLY, inputTokens: 450, outputTokens: 50 };
+    }
     if (request.job === "quote-reply") {
       const language = /Write in this language: ([a-z]{2})/.exec(request.system)?.[1] ?? "en";
       return { text: CANNED_QUOTE_REPLIES[language] ?? CANNED_QUOTE_REPLIES.en!, inputTokens: 600, outputTokens: 80 };
     }
     if (request.job === "classify") {
-      const match = recorded().find((f) => request.user.includes(f.subject));
+      const match = bySubject(request.user, recorded());
       if (!match?.expected.language) throw new Error("No recorded classification for this email");
       return {
         text: JSON.stringify({ category: match.expected.category, language: match.expected.language }),

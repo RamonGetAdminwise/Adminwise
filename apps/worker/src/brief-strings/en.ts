@@ -26,6 +26,16 @@ export const en = {
       ` [written in ${language}, a language not on your list: please check it]`,
   },
 
+  offers: {
+    heading: (count: number) => `OFFERS AND ORDERS PREPARED YESTERDAY (${count})`,
+    offer: (number: string, recipientDomain: string, grossTotal: string) =>
+      `- Offer ${number} for ${recipientDomain}, ${grossTotal} including VAT - attached to the reply draft.`,
+    confirmLink: (url: string) => `  Accepted by phone or in another way? Prepare the order confirmation: ${url}`,
+    accepted: (number: string, recipientDomain: string) => `- Offer ${number} for ${recipientDomain} was accepted.`,
+    orderConfirmation: (number: string, recipientDomain: string) =>
+      `- Order confirmation ${number} for ${recipientDomain} - attached to a draft.`,
+  },
+
   wentQuiet: {
     heading: (count: number) => `WENT QUIET (${count})`,
     chaserReady: (subject: string, counterpartDomain: string, workingDays: number) =>

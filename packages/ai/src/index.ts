@@ -11,6 +11,8 @@ export {
   detectQuoteRequest,
   matchItems,
   draftQuoteReply,
+  checkOfferAccepted,
+  draftOrderReply,
   type ProposedColumns,
   type RequestedItem,
   type ItemMatch,

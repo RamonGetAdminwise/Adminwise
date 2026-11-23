@@ -238,7 +238,7 @@ export interface NewMessage {
   bodyText: string;
 }
 
-export type DraftKind = "reply" | "chaser";
+export type DraftKind = "reply" | "chaser" | "order_confirmation";
 export type ChaseMode = "on" | "never" | "done";
 export type DocType = "invoice" | "order" | "contract" | "offer" | "other";
 export type FilingStatus = "filed" | "duplicate" | "queued" | "failed";

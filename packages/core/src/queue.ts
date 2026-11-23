@@ -24,6 +24,8 @@ export const QUEUES = {
   chaseCustomer: "chase-customer",
   /** Hourly: email the operator a summary of failures, if there were any. */
   alertTick: "alert-tick",
+  /** The owner confirmed an offer from the brief: make the order confirmation and a draft with it. */
+  confirmOffer: "confirm-offer",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -40,6 +42,7 @@ export interface JobPayloads {
   "chase-tick": Record<string, never>;
   "chase-customer": { customerId: string; localDate: string };
   "alert-tick": Record<string, never>;
+  "confirm-offer": { customerId: string; offerId: string };
 }
 
 /** What the web app and jobs need: a way to hand work to the worker. */
