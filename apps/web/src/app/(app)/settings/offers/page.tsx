@@ -71,7 +71,7 @@ const COLUMN_FIELDS: { key: "name" | "price" | "code" | "unit" | "aliases"; labe
 ];
 
 function Notice({ tone, children }: { tone: "ok" | "error"; children: ReactNode }) {
-  const colours = tone === "ok" ? "border-teal-200 bg-teal-50 text-teal-900" : "border-red-200 bg-red-50 text-red-900";
+  const colours = tone === "ok" ? "border-brand-200 bg-brand-50 text-brand-900" : "border-red-200 bg-red-50 text-red-900";
   return <p className={`mb-6 rounded-md border px-4 py-3 text-sm ${colours}`}>{children}</p>;
 }
 

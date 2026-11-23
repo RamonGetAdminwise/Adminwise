@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getSession, landingPath, normalizeEmail, sendSignInLink } from "@/lib/auth";
-import { getConfig } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,15 +19,14 @@ export default async function SignInPage({
   const session = await getSession();
   if (session) redirect(await landingPath(session));
   const params = await searchParams;
-  const { appName } = getConfig();
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="text-2xl font-semibold">{appName}</h1>
+      <h1 className="text-2xl font-semibold">Sign in</h1>
       <p className="mt-1 text-stone-600">Your back office, handled.</p>
 
       {params.closed && (
-        <p className="mt-6 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+        <p className="mt-6 rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
           Your account is closed and its data has been deleted.
         </p>
       )}

@@ -31,7 +31,7 @@ const SAVED: Record<string, string> = {
 };
 
 function Notice({ tone, children }: { tone: "ok" | "error"; children: ReactNode }) {
-  const colours = tone === "ok" ? "border-teal-200 bg-teal-50 text-teal-900" : "border-red-200 bg-red-50 text-red-900";
+  const colours = tone === "ok" ? "border-brand-200 bg-brand-50 text-brand-900" : "border-red-200 bg-red-50 text-red-900";
   return <p className={`rounded-md border px-4 py-3 text-sm ${colours}`}>{children}</p>;
 }
 
@@ -235,7 +235,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
         )}
         {test !== "drafted" && (
           <details>
-            <summary className="cursor-pointer font-medium text-teal-800">Or try it with an email of your own</summary>
+            <summary className="cursor-pointer font-medium text-brand-800">Or try it with an email of your own</summary>
             <p className="mt-2">
               {microsoft
                 ? `From another address (a private one, not a colleague's), send this to ${microsoft.emailAddress}:`

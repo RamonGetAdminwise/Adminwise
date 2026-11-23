@@ -49,7 +49,7 @@ const TAX_LINES: Record<TaxTreatment, string> = {
 };
 
 function Notice({ tone, children }: { tone: "ok" | "error"; children: ReactNode }) {
-  const colours = tone === "ok" ? "border-teal-200 bg-teal-50 text-teal-900" : "border-red-200 bg-red-50 text-red-900";
+  const colours = tone === "ok" ? "border-brand-200 bg-brand-50 text-brand-900" : "border-red-200 bg-red-50 text-red-900";
   return <p className={`mb-6 rounded-md border px-4 py-3 text-sm ${colours}`}>{children}</p>;
 }
 
@@ -79,7 +79,7 @@ export default async function SettingsPage({
     <div className="space-y-8">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{config.appName}</h1>
+          <h1 className="text-2xl font-semibold">Settings</h1>
           <p className="text-sm text-stone-600">Signed in as {session.email}</p>
         </div>
         <form action={signOutAction}>
@@ -90,7 +90,7 @@ export default async function SettingsPage({
       </header>
 
       {!customer.setupFinishedAt && (
-        <p className="rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+        <p className="rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
           New here?{" "}
           <a className="font-medium underline" href="/start">
             Open the Getting started guide
@@ -144,7 +144,7 @@ export default async function SettingsPage({
           {config.billingEnabled && config.stripe && (customer.billingStatus === "trial" || customer.billingStatus === "read_only") && (
             <div className="grid gap-4 pt-2 sm:grid-cols-2">
               {PLANS.map((plan) => (
-                <div key={plan.name} className={`rounded-md border p-4 ${plan.highlighted ? "border-teal-700" : "border-stone-200"}`}>
+                <div key={plan.name} className={`rounded-md border p-4 ${plan.highlighted ? "border-brand-700" : "border-stone-200"}`}>
                   <p className="font-semibold">{plan.name}</p>
                   <p className="text-stone-600">{plan.tagline}</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-stone-700">
@@ -406,7 +406,7 @@ export default async function SettingsPage({
         )}
 
         <details className="mt-6" open={!customer.voiceProfile}>
-          <summary className="cursor-pointer text-sm font-medium text-teal-800">
+          <summary className="cursor-pointer text-sm font-medium text-brand-800">
             {customer.voiceProfile ? "Rebuild from three sent emails" : "Build from three sent emails"}
           </summary>
           <form action={generateVoiceProfile} className="mt-4 space-y-4">
