@@ -27,16 +27,20 @@ describe("time zones", () => {
 describe("config", () => {
   it("keeps region and per-task models in configuration, with EU defaults", () => {
     const config = loadConfig({ DATABASE_URL: "postgres://x", TOKEN_ENCRYPTION_KEY: "k" } as NodeJS.ProcessEnv);
+    const haiku = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
+    // Writing jobs use the default model; the sorting jobs (mail, follow-up check, document type) use the classify model.
     expect(config.aws).toEqual({
       region: "eu-central-1",
-      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: "eu.anthropic.claude-haiku-4-5-20251001-v1:0" },
+      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: haiku, "chaser-check": haiku, "file-type": haiku },
     });
+    expect(config.alertEmail).toBeNull();
     const base = { DATABASE_URL: "x", TOKEN_ENCRYPTION_KEY: "k" };
     // Switching a task to another model is one line of configuration.
     expect(loadConfig({ ...base, BEDROCK_MODEL_DRAFT: "eu.anthropic.claude-sonnet-5", AWS_REGION: "eu-west-1" } as NodeJS.ProcessEnv).aws).toEqual({
       region: "eu-west-1",
-      models: { default: "eu.anthropic.claude-sonnet-5", classify: "eu.anthropic.claude-haiku-4-5-20251001-v1:0" },
+      models: { default: "eu.anthropic.claude-sonnet-5", classify: haiku, "chaser-check": haiku, "file-type": haiku },
     });
+    expect(loadConfig({ ...base, ALERT_EMAIL: " ops@adminwise.example " } as NodeJS.ProcessEnv).alertEmail).toBe("ops@adminwise.example");
     // The global endpoint is refused: it may process requests outside the EU.
     expect(() => loadConfig({ ...base, BEDROCK_MODEL_CLASSIFY: "global.anthropic.claude-haiku-4-5-20251001-v1:0" } as NodeJS.ProcessEnv)).toThrow(/global inference profile/);
     expect(() => loadConfig({} as NodeJS.ProcessEnv)).toThrow(/DATABASE_URL/);

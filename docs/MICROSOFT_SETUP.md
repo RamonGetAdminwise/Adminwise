@@ -31,8 +31,17 @@ Status 2026-11-10: steps 1, 3 and 4 are done (app "Adminwise" in your own tenant
 | `Mail.Read` | read incoming mail |
 | `Mail.ReadWrite` | create reply drafts in the Drafts folder |
 | `offline_access` | keep working after the customer closes the browser (refresh token) |
+| `Files.ReadWrite.AppFolder` | phase 2 filing: save attachments in the app's own OneDrive folder, `Apps/Adminwise` |
 
-Do **not** add `Mail.Send`: the product never sends from a customer's mailbox in phase 1. `Files.ReadWrite` (OneDrive filing) comes in phase 2.
+Do **not** add `Mail.Send`: the product never sends from a customer's mailbox. Do **not** add `Files.ReadWrite`: the app-folder permission is enough and keeps the rest of the customer's OneDrive closed to us.
+
+### The OneDrive permission (added in phase 2)
+
+`Files.ReadWrite.AppFolder` lets the app read and write one folder that Microsoft creates for it, `Apps/Adminwise` in the customer's OneDrive, and nothing else in their drive. Microsoft's documentation is contradictory about work accounts and labels the permission "preview", so it was tested on a real work mailbox on 2026-11-23 with `pnpm check:drive`: granted without administrator approval; uploads into nested folders, refusal of a second file with the same name, and large uploads all work; listing the rest of the drive returns nothing; searching and writing outside the folder are refused. Run `pnpm check:drive` again (it needs port 3000 free and the localhost redirect URI) before the first outside customer, and whenever Microsoft changes the permission.
+
+To add it to the app registration: **API-machtigingen** > **Een machtiging toevoegen** > **Microsoft Graph** > **Gedelegeerde machtigingen** > search `Files.ReadWrite.AppFolder` > tick it > **Machtigingen toevoegen**. No administrator consent is needed.
+
+Mailboxes that were connected before this permission existed keep working exactly as before. Filing stays off for them until the customer clicks **Reconnect Microsoft 365** once; the Settings page says so, and the daily brief says so on a day an attachment could not be filed.
 
 These are delegated permissions that an ordinary user can approve for their own mailbox, unless their organisation requires administrator approval; in that case their IT administrator approves once.
 
@@ -54,6 +63,7 @@ MS_TENANT=common
 
 - **Change notifications (webhook).** After connecting, the worker subscribes to "message created in Inbox" and Microsoft calls `https://app.getadminwise.com/api/webhooks/graph` within seconds. Microsoft only calls public https addresses, so this is off on localhost. Subscriptions expire; the worker renews them daily.
 - **Polling fallback.** Every 5 minutes the worker asks each mailbox what arrived since last time. This works everywhere, including localhost, and catches anything a notification missed. The same mail seen by both is stored once.
+- **Sent Items (phase 2).** The same 5-minute poll also notes what the customer sent, so the follow-up chaser knows who wrote last in a conversation. Sent mail never gets a draft and is never filed.
 
 ## When a connection breaks
 

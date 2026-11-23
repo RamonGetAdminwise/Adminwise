@@ -49,6 +49,35 @@ export function startOfLocalDay(date: string, timeZone: string): Date {
   return new Date(guess);
 }
 
+/** 0 = Sunday ... 6 = Saturday, for a calendar date. */
+function weekday(date: string): number {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+export function isWeekend(date: string): boolean {
+  const day = weekday(date);
+  return day === 0 || day === 6;
+}
+
+/**
+ * Working days (Monday to Friday) that have passed between two instants, on
+ * the customer's own calendar: the days after the day of `from`, up to and
+ * including the day of `to`. Sent on Monday, checked the next Monday = 5.
+ * Public holidays are not known and count as working days.
+ */
+export function workingDaysBetween(from: Date, to: Date, timeZone: string): number {
+  const end = localClock(to, timeZone).date;
+  let day = localClock(from, timeZone).date;
+  let count = 0;
+  // 400 days is far beyond any follow-up period; it only bounds the loop.
+  for (let i = 0; i < 400 && day < end; i++) {
+    day = addDays(day, 1);
+    if (!isWeekend(day)) count++;
+  }
+  return count;
+}
+
 export function addDays(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);

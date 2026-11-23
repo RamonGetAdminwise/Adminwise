@@ -1,7 +1,10 @@
-import { ConnectionUnavailableError, ingestInbound, QUEUES } from "@adminwise/core";
-import { forCustomer, system } from "@adminwise/db";
+import { ConnectionUnavailableError, ingestInbound, ingestOutbound, QUEUES } from "@adminwise/core";
+import { canFile, forCustomer, system } from "@adminwise/db";
 import { GraphAuthError, GraphError } from "@adminwise/mail";
 import { describeError, type Deps } from "../deps";
+
+/** Attachments waiting for OneDrive are tried again at most this often. */
+const FILING_RETRY_MINUTES = 30;
 
 /** Every 5 minutes: queue a poll for each connected Microsoft 365 mailbox. */
 export async function pollTick(deps: Deps): Promise<number> {
@@ -13,9 +16,12 @@ export async function pollTick(deps: Deps): Promise<number> {
 }
 
 /**
- * Polling fallback for one mailbox: take in anything that arrived since the
- * last poll (a missed notification is caught here within 5 minutes), then keep
- * the notification subscription alive.
+ * Polling for one mailbox:
+ *   - Inbox: take in anything that arrived since the last poll (a missed
+ *     notification is caught here within 5 minutes),
+ *   - Sent Items: note what the customer sent, so the chaser knows who wrote last,
+ *   - try attachments again that were waiting for OneDrive,
+ *   - keep the notification subscription alive.
  */
 export async function syncMailbox(deps: Deps, job: { customerId: string; connectionId: string }): Promise<number> {
   const scope = forCustomer(deps.db, job.customerId);
@@ -28,6 +34,27 @@ export async function syncMailbox(deps: Deps, job: { customerId: string; connect
       if ((await ingestInbound(scope, deps.queue, job.connectionId, message)).stored) stored++;
     }
     await scope.markSynced(job.connectionId, deltaLink);
+
+    const sent = await deps.outlook.listNewSentMessageIds(scope, job.connectionId);
+    for (const id of sent.messageIds) {
+      try {
+        await ingestOutbound(scope, job.connectionId, await deps.outlook.fetchMessage(scope, job.connectionId, id));
+      } catch (error) {
+        // Moved or deleted between listing and reading: nothing to note.
+        if (!(error instanceof GraphError && error.status === 404)) throw error;
+      }
+    }
+    await scope.markSentSynced(job.connectionId, sent.deltaLink);
+
+    const connection = await scope.getConnection(job.connectionId);
+    if (connection && canFile(connection)) {
+      const now = deps.now?.() ?? new Date();
+      const before = new Date(now.getTime() - FILING_RETRY_MINUTES * 60_000);
+      for (const messageId of await scope.listQueuedFilingMessageIds(job.connectionId, before)) {
+        await deps.queue.send(QUEUES.fileAttachments, { customerId: job.customerId, messageId });
+      }
+    }
+
     await deps.outlook.ensureSubscription(scope, job.connectionId);
     await scope.finishJobRun(runId, { status: "succeeded", outcome: `new_mail:${stored}` });
     return stored;

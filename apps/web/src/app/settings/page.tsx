@@ -1,4 +1,4 @@
-import { forCustomer } from "@adminwise/db";
+import { canFile, forCustomer } from "@adminwise/db";
 import type { ReactNode } from "react";
 import { describeRun, jobName } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
@@ -7,9 +7,13 @@ import { generateVoiceProfile, saveSettings, saveVoiceProfile, signOutAction } f
 
 export const dynamic = "force-dynamic";
 
+/** The folder Microsoft creates for the app in the customer's OneDrive. */
+const APP_FOLDER = "Apps/Adminwise";
+
 const ERRORS: Record<string, string> = {
   languages: "Enter at least one language code, for example: pl, en",
   timezone: "Choose a time zone from the list.",
+  followup: "Follow-up days must be a whole number from 1 to 30.",
   samples: "Paste three complete sent emails (each at least a few lines).",
   ai: "The voice profile could not be built right now. Your emails were not stored; please try again.",
   microsoft: "Microsoft sign-in did not complete. Please try again.",
@@ -35,10 +39,11 @@ export default async function SettingsPage({
   const params = await searchParams;
   const config = getConfig();
   const scope = forCustomer(getDb(), session.customerId);
-  const [customer, connections, runs] = await Promise.all([
+  const [customer, connections, runs, queuedFiling] = await Promise.all([
     scope.getCustomer(),
     scope.listConnections(),
     scope.listJobRuns(10),
+    scope.countQueuedFiling(),
   ]);
   const microsoft = connections.find((c) => c.provider === "microsoft");
   const timeZones = Intl.supportedValuesOf("timeZone");
@@ -91,6 +96,24 @@ export default async function SettingsPage({
             <textarea id="signatureText" name="signatureText" rows={5} defaultValue={customer.signatureText} />
             <p className="hint">Added to the end of every draft.</p>
           </div>
+          <div>
+            <label htmlFor="followUpDays">Follow up after (working days)</label>
+            <input
+              id="followUpDays"
+              name="followUpDays"
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              defaultValue={customer.followUpDays}
+              required
+            />
+            <p className="hint">
+              When you wrote last in a conversation and got no answer for this many working days (Monday to Friday), a
+              follow-up draft is placed in your Outlook Drafts. At most two per conversation; nothing is sent for you.
+              Follow-ups need a connected Microsoft 365 mailbox.
+            </p>
+          </div>
           <button className="btn" type="submit">
             Save
           </button>
@@ -124,6 +147,41 @@ export default async function SettingsPage({
             <p className="hint">Drafts appear in your Outlook Drafts folder. Nothing is ever sent for you.</p>
           </div>
           <div className="border-t border-stone-200 pt-5">
+            <p className="font-medium">Filing to OneDrive</p>
+            {(!microsoft || microsoft.status !== "active") && (
+              <p className="mt-1 text-stone-600">
+                Off. Filing needs a connected Microsoft 365 account: attachments are saved in that account&apos;s OneDrive.
+              </p>
+            )}
+            {microsoft?.status === "active" && !canFile(microsoft) && (
+              <p className="mt-1">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-amber-500" />
+                Off. Your mailbox was connected before filing existed. Click <strong>Reconnect Microsoft 365</strong>{" "}
+                above once to switch it on; everything else keeps working in the meantime.
+              </p>
+            )}
+            {microsoft?.status === "active" && canFile(microsoft) && !microsoft.driveError && (
+              <p className="mt-1">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-green-600" />
+                On. Attachments are saved to <code className="rounded bg-stone-100 px-1">{APP_FOLDER}</code> in your
+                OneDrive.
+              </p>
+            )}
+            {microsoft?.status === "active" && canFile(microsoft) && microsoft.driveError && (
+              <p className="mt-1">
+                <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-600" />
+                Your OneDrive could not be reached{queuedFiling > 0 ? `, ${queuedFiling} attachment(s) are waiting` : ""}.
+                They are filed automatically once it works again. If this stays, reconnect Microsoft 365 above.
+              </p>
+            )}
+            <p className="hint">
+              Invoices, orders, contracts and offers from incoming mail go to {APP_FOLDER}/&lt;sender&gt;/&lt;year-month&gt;.
+              {" "}
+              {config.appName} can only see that one folder, nothing else in your OneDrive. The same file is never saved
+              twice.
+            </p>
+          </div>
+          <div className="border-t border-stone-200 pt-5">
             <p className="font-medium">Forwarding address (Gmail and everything else)</p>
             <p className="mt-1">
               <code className="rounded bg-stone-100 px-2 py-1">
@@ -132,6 +190,8 @@ export default async function SettingsPage({
             </p>
             <p className="hint">
               Forward an email to this address and the draft reply comes back to you by email within a minute or two.
+              With the forwarding address you get reply drafts only: follow-ups and filing need a connected Microsoft
+              365 mailbox.
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import type { Classification, Message } from "@adminwise/db";
 
 /** Mailbox providers where "same domain" says nothing about being a colleague. */
-const FREE_MAIL = new Set([
+export const FREE_MAIL = new Set([
   "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "proton.me",
   "protonmail.com", "wp.pl", "o2.pl", "onet.pl", "interia.pl", "op.pl", "gazeta.pl", "ziggo.nl", "kpnmail.nl",
   "gmx.de", "web.de", "seznam.cz",
@@ -9,7 +9,7 @@ const FREE_MAIL = new Set([
 
 const AUTO_REPLY_SUBJECT =
   /^\s*(automatic reply|auto(matic)?[- ]?reply|out of office|autoodpowied[zź]|odpowied[zź] automatyczna|poza biurem|abwesenheit|automatische antwort|afwezig|automatisch antwoord)/i;
-const SYSTEM_SENDER = /^(no[-_.]?reply|do[-_.]?not[-_.]?reply|noreply|mailer-daemon|postmaster|notifications?|alerts?|bounce)[^@]*@/i;
+export const SYSTEM_SENDER =/^(no[-_.]?reply|do[-_.]?not[-_.]?reply|noreply|mailer-daemon|postmaster|notifications?|alerts?|bounce)[^@]*@/i;
 
 /** Domains that count as "inside the company": taken from the customer's own addresses. */
 export function ownDomains(addresses: string[]): Set<string> {

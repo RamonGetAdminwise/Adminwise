@@ -9,6 +9,7 @@
   "scripts": {
     "dev:db": "tsx scripts/dev-db.ts",
     "check:ai": "tsx scripts/check-ai.ts",
+    "check:drive": "tsx scripts/check-drive.ts",
     "dev:web": "pnpm --filter @adminwise/web dev",
     "dev:worker": "pnpm --filter @adminwise/worker dev",
     "db:migrate": "pnpm --filter @adminwise/db migrate",

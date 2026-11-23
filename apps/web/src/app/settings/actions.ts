@@ -25,14 +25,17 @@ export async function saveSettings(formData: FormData) {
   const timeZone = text(formData.get("timeZone"), 64);
   if (languages.length === 0) redirect("/settings?error=languages");
   if (!isValidTimeZone(timeZone)) redirect("/settings?error=timezone");
+  const followUpDays = Number(text(formData.get("followUpDays"), 3));
+  if (!Number.isInteger(followUpDays) || followUpDays < 1 || followUpDays > 30) redirect("/settings?error=followup");
 
   await scope.updateSettings({
     name: text(formData.get("name"), 200),
     languages,
     timeZone,
     signatureText: text(formData.get("signatureText"), 2000),
+    followUpDays,
   });
-  await scope.audit("settings.updated", { languages, timeZone }, session.userId);
+  await scope.audit("settings.updated", { languages, timeZone, followUpDays }, session.userId);
   redirect("/settings?saved=settings");
 }
 

@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       tokenExpiresAt: tokens.expiresAt,
+      // What Microsoft granted: with the OneDrive app-folder permission in it, filing is on.
+      scopes: tokens.scopes,
     });
     await scope.audit("mailbox.connected", { provider: "microsoft", connectionId: connection.id }, session.userId);
     // First poll now: it also registers the change-notification subscription.

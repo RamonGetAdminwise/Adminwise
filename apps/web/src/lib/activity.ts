@@ -5,7 +5,25 @@ const JOB_NAMES: Record<string, string> = {
   "sync-mailbox": "Mailbox check",
   "voice-profile": "Voice profile",
   "daily-brief": "Daily brief",
+  chaser: "Follow-up check",
+  filing: "Filing",
 };
+
+const FILING_OUTCOMES: Record<string, string> = {
+  no_drive: "Not filed: filing needs a connected Microsoft 365 account",
+  filing_off: "Not filed: reconnect Microsoft 365 once to switch filing on",
+  mailbox_disconnected: "Not filed: the mailbox needs to be reconnected",
+  message_gone: "Not filed: the email is no longer in the mailbox",
+  "not_filed:internal": "Not filed: it came from your own company",
+  "not_filed:newsletter": "Not filed: it is a newsletter or mailing list",
+  "not_filed:auto_reply": "Not filed: it is an automatic reply",
+};
+
+/** "filed:2,duplicate:1,queued:0" -> { filed: 2, duplicate: 1, queued: 0 } */
+function counts(outcome: string): Record<string, number> {
+  return Object.fromEntries(outcome.split(",").map((part) => [part.split(":")[0], Number(part.split(":")[1])]));
+}
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 const NO_DRAFT_REASONS: Record<string, string> = {
   internal: "it came from your own company",
@@ -39,6 +57,29 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     if (code === "new_mail") {
       const count = Number(detail);
       return count === 0 ? "No new mail" : `${count} new ${count === 1 ? "email" : "emails"} taken in`;
+    }
+  }
+  if (run.job === "chaser") {
+    if (run.outcome === "no_mailbox" || run.status === "skipped") return "Skipped: no connected Microsoft 365 mailbox";
+    if (code === "chasers") {
+      const c = counts(run.outcome ?? "");
+      if (!c.chasers && !c.listed) return "No conversation needs a follow-up";
+      const parts = [];
+      if (c.chasers) parts.push(`${plural(c.chasers, "follow-up draft", "follow-up drafts")} in your Outlook Drafts`);
+      if (c.listed) parts.push(`${plural(c.listed, "conversation", "conversations")} quiet after two follow-ups`);
+      return parts.join("; ");
+    }
+  }
+  if (run.job === "filing") {
+    const fixed = FILING_OUTCOMES[run.outcome ?? ""];
+    if (fixed) return fixed;
+    if (code === "filed") {
+      const c = counts(run.outcome ?? "");
+      const parts = [];
+      if (c.filed) parts.push(`${plural(c.filed, "document", "documents")} saved to OneDrive`);
+      if (c.duplicate) parts.push(`${plural(c.duplicate, "file", "files")} already filed earlier`);
+      if (c.queued) parts.push(`${plural(c.queued, "file", "files")} waiting: OneDrive could not be reached`);
+      return parts.length ? parts.join("; ") : "No documents to file (only pictures or small files)";
     }
   }
   return run.status === "succeeded" ? "Done" : "Skipped";

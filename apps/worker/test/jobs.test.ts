@@ -39,7 +39,7 @@ describe("24-hour body purge", () => {
   });
 });
 
-describe("Daily brief (phase-1 version)", () => {
+describe("Daily brief: timing, sending once, retry", () => {
   const base = { appName: "Adminwise", appBaseUrl: "https://app.test", localDate: "2026-11-10" };
 
   it("is one line when nothing happened", () => {
@@ -53,7 +53,7 @@ describe("Daily brief (phase-1 version)", () => {
       drafts: [{ id: "1", subject: "Quote request", senderDomain: "halvorsen-maskin.example", language: "en", languageListed: true, destination: "outlook_drafts" }],
       problems: [],
     });
-    expect(draftsOnly.textBody).toContain("DRAFTS PREPARED YESTERDAY (1)");
+    expect(draftsOnly.textBody).toContain("NEEDS YOU TODAY (1)");
     expect(draftsOnly.textBody).toContain('"Quote request" (from halvorsen-maskin.example) - in your Outlook Drafts');
     expect(draftsOnly.textBody).not.toContain("CONNECTION PROBLEMS");
 
@@ -62,7 +62,7 @@ describe("Daily brief (phase-1 version)", () => {
       drafts: [],
       problems: [{ provider: "microsoft", emailAddress: "biuro@nordpart.example", status: "needs_reconnect" }],
     });
-    expect(problemsOnly.textBody).not.toContain("DRAFTS PREPARED");
+    expect(problemsOnly.textBody).not.toContain("NEEDS YOU TODAY");
     expect(problemsOnly.textBody).toContain("Reconnect it here: https://app.test/settings");
   });
 
@@ -110,7 +110,7 @@ describe("Daily brief (phase-1 version)", () => {
     await sendBrief(world.deps, { customerId: nordpart.customerId, localDate: tomorrow });
 
     const brief = world.mailer.sent.at(-1)!;
-    expect(brief.textBody).toContain("DRAFTS PREPARED YESTERDAY (1)");
+    expect(brief.textBody).toContain("NEEDS YOU TODAY (1)");
     expect(brief.textBody).toContain("Datasheet and lead time for gear motor GM-75");
     expect(brief.textBody).toContain("CONNECTION PROBLEMS");
     expect(brief.textBody).toContain("biuro@nordpart.example");

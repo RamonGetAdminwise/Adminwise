@@ -11,6 +11,19 @@ export interface InboundMessage {
   bodyText: string;
   headerFlags: HeaderFlags;
   attachmentNames: string[];
+  /** Addresses the message was sent to (lower case). Filled for Microsoft 365; used for the customer's own sent mail. */
+  to?: string[];
+  cc?: string[];
+}
+
+/** One file attached to a message, without its content. */
+export interface AttachmentInfo {
+  id: string;
+  name: string;
+  contentType: string;
+  sizeBytes: number;
+  /** Pictures placed inside the mail text (logos in signatures). */
+  isInline: boolean;
 }
 
 export interface HeaderFlags {

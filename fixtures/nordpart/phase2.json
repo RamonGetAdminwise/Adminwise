@@ -1,0 +1,166 @@
+{
+  "_comment": "Phase 2 fixtures for Nordpart (invented company, invented people, .example domains). sentMessages = mail Nordpart sent itself (Sent Items). attachments = files; their bytes are generated in the tests from 'seed', so two files with the same seed have the same content. filingMails = incoming mail that carries those attachments.",
+
+  "sentMessages": [
+    {
+      "id": "s01",
+      "messageId": "<s01.20261110@nordpart.example>",
+      "threadKey": "thr-s01-oferta-pz40",
+      "to": ["anna.kowalczyk@rolmet.example"],
+      "cc": [],
+      "subject": "Oferta na pompy hydrauliczne PZ-40",
+      "sentAt": "2026-11-10T09:00:00Z",
+      "bodyText": "Dzień dobry Pani Anno,\n\nw załączeniu przesyłam ofertę na 12 szt. pomp PZ-40. Czy mogę prosić o informację, czy oferta jest dla Państwa akceptowalna i na kiedy planują Państwo zamówienie?\n\nPozdrawiam\nTomasz",
+      "expectsReply": true,
+      "note": "scenario 7: asks a question, no answer"
+    },
+    {
+      "id": "s02",
+      "messageId": "<s02.20261110@nordpart.example>",
+      "threadKey": "thr-s02-termin-serwisu",
+      "to": ["anna.kowalczyk@rolmet.example"],
+      "cc": ["serwis@rolmet.example"],
+      "subject": "Termin przeglądu serwisowego prasy",
+      "sentAt": "2026-11-10T11:30:00Z",
+      "bodyText": "Dzień dobry Pani Anno,\n\nproponuję przegląd prasy w dniu 2 grudnia. Czy ten termin Państwu odpowiada?\n\nPozdrawiam\nTomasz",
+      "expectsReply": true,
+      "note": "scenario 10: second thread with the same person on the same day"
+    },
+    {
+      "id": "s03",
+      "messageId": "<s03.20261110@nordpart.example>",
+      "threadKey": "thr-s03-dziekuje",
+      "to": ["marek.wojcik@stalbud.example"],
+      "cc": [],
+      "subject": "Re: Potwierdzenie dostawy",
+      "sentAt": "2026-11-10T13:00:00Z",
+      "bodyText": "Dzień dobry,\n\ndziękuję za potwierdzenie, wszystko dotarło w komplecie.\n\nPozdrawiam\nTomasz",
+      "expectsReply": false,
+      "note": "a thank-you that closes the conversation: never chased"
+    },
+    {
+      "id": "s04",
+      "messageId": "<s04.20261110@nordpart.example>",
+      "threadKey": "thr-s04-noreply",
+      "to": ["no-reply@kurier-polnoc.example"],
+      "cc": [],
+      "subject": "Re: Twoja przesyłka 4471-PL została nadana",
+      "sentAt": "2026-11-10T14:00:00Z",
+      "bodyText": "Proszę o zmianę adresu dostawy na magazyn nr 2. Czy to możliwe?",
+      "expectsReply": true,
+      "note": "sent to a no-reply address: never chased, the model is not asked"
+    },
+    {
+      "id": "s05",
+      "messageId": "<s05.20261110@nordpart.example>",
+      "threadKey": "thr-s05-internal",
+      "to": ["magazyn@nordpart.example"],
+      "cc": [],
+      "subject": "Stan magazynowy uszczelek",
+      "sentAt": "2026-11-10T15:00:00Z",
+      "bodyText": "Cześć, możesz sprawdzić, ile mamy uszczelek U-22?",
+      "expectsReply": true,
+      "note": "sent to a colleague: never chased"
+    },
+    {
+      "id": "s06",
+      "messageId": "<s06.20261110@nordpart.example>",
+      "threadKey": "thr-s06-quote-en",
+      "to": ["lars@halvorsen-maskin.example"],
+      "cc": [],
+      "subject": "Quote for gear motor GM-75",
+      "sentAt": "2026-11-10T16:00:00Z",
+      "bodyText": "Hello Lars,\n\nplease find our quote for 4 gear motors GM-75 attached. Could you let me know whether you would like to go ahead?\n\nBest regards\nTomasz",
+      "expectsReply": true,
+      "note": "English thread, used for the out-of-office case"
+    }
+  ],
+
+  "attachments": [
+    { "id": "a01", "name": "FV_2026_11_0457.pdf", "contentType": "application/pdf", "sizeBytes": 48213, "inline": false, "seed": "Rolmet invoice FV/2026/11/0457", "expectedType": "invoice", "decidedBy": "rule" },
+    { "id": "a02", "name": "Zamowienie_ZK-2211.pdf", "contentType": "application/pdf", "sizeBytes": 31077, "inline": false, "seed": "Stalbud order ZK-2211", "expectedType": "order", "decidedBy": "rule" },
+    { "id": "a03", "name": "Oferta_2026-118_lozyska.pdf", "contentType": "application/pdf", "sizeBytes": 55120, "inline": false, "seed": "Lozyska-Hurt offer 2026-118", "expectedType": "offer", "decidedBy": "rule" },
+    { "id": "a04", "name": "Umowa_ramowa_2027.pdf", "contentType": "application/pdf", "sizeBytes": 120444, "inline": false, "seed": "Stalbud framework contract 2027", "expectedType": "contract", "decidedBy": "rule" },
+    { "id": "a05", "name": "scan_0042.pdf", "contentType": "application/pdf", "sizeBytes": 210930, "inline": false, "seed": "scanned page 42", "expectedType": "invoice", "decidedBy": "model" },
+    { "id": "a06", "name": "logo-rolmet.png", "contentType": "image/png", "sizeBytes": 24630, "inline": true, "seed": "Rolmet signature logo", "expectedType": null, "decidedBy": "skipped" },
+    { "id": "a07", "name": "image001.png", "contentType": "image/png", "sizeBytes": 3120, "inline": false, "seed": "small icon", "expectedType": null, "decidedBy": "skipped" },
+    { "id": "a08", "name": "FV_2026_11_0457_kopia.pdf", "contentType": "application/pdf", "sizeBytes": 48213, "inline": false, "seed": "Rolmet invoice FV/2026/11/0457", "expectedType": "invoice", "decidedBy": "duplicate" },
+    { "id": "a09", "name": "FV_2026_11_0457.pdf", "contentType": "application/pdf", "sizeBytes": 47990, "inline": false, "seed": "Rolmet corrected invoice FV/2026/11/0457", "expectedType": "invoice", "decidedBy": "rule" },
+    { "id": "a10", "name": "large_drawing_set.pdf", "contentType": "application/pdf", "sizeBytes": 5242880, "inline": false, "seed": "drawing set, 5 MB", "expectedType": "other", "decidedBy": "model" }
+  ],
+
+  "filingMails": [
+    {
+      "id": "f01",
+      "messageId": "<f01.20261117@rolmet.example>",
+      "threadKey": "thr-f01-faktura-0457",
+      "from": { "address": "ksiegowosc@rolmet.example", "name": "Rolmet Księgowość" },
+      "subject": "Faktura FV/2026/11/0457",
+      "receivedAt": "2026-11-17T08:00:00Z",
+      "headers": [],
+      "bodyText": "Dzień dobry,\n\nw załączeniu przesyłamy fakturę za listopad. Termin płatności 14 dni.\n\nPozdrawiamy\nDział księgowości Rolmet",
+      "attachments": ["a01", "a06", "a07"],
+      "note": "scenario 21: one invoice, plus a signature logo and a small icon that are skipped"
+    },
+    {
+      "id": "f02",
+      "messageId": "<f02.20261117@rolmet.example>",
+      "threadKey": "thr-f02-faktura-ponownie",
+      "from": { "address": "anna.kowalczyk@rolmet.example", "name": "Anna Kowalczyk" },
+      "subject": "Fwd: Faktura FV/2026/11/0457 - ponownie",
+      "receivedAt": "2026-11-17T09:10:00Z",
+      "headers": [],
+      "bodyText": "Dzień dobry, przesyłam fakturę jeszcze raz na wszelki wypadek.\n\nAnna Kowalczyk",
+      "attachments": ["a08"],
+      "note": "scenario 22: the same file again under another name"
+    },
+    {
+      "id": "f03",
+      "messageId": "<f03.20261117@rolmet.example>",
+      "threadKey": "thr-f03-korekta",
+      "from": { "address": "ksiegowosc@rolmet.example", "name": "Rolmet Księgowość" },
+      "subject": "Korekta faktury FV/2026/11/0457",
+      "receivedAt": "2026-11-17T12:00:00Z",
+      "headers": [],
+      "bodyText": "Dzień dobry,\n\nw poprzedniej fakturze był błąd w ilości. W załączeniu poprawiony dokument.\n\nDział księgowości Rolmet",
+      "attachments": ["a09"],
+      "note": "scenario 23: a different file with the same name on the same day"
+    },
+    {
+      "id": "f04",
+      "messageId": "<f04.20261117@stalbud.example>",
+      "threadKey": "thr-f04-dokumenty",
+      "from": { "address": "marek.wojcik@stalbud.example", "name": "Marek Wójcik" },
+      "subject": "Dokumenty do współpracy w 2027",
+      "receivedAt": "2026-11-17T13:30:00Z",
+      "headers": [],
+      "bodyText": "Dzień dobry Panie Tomaszu,\n\nprzesyłam zamówienie, umowę ramową na przyszły rok oraz skan faktury za transport.\n\nPozdrawiam\nMarek Wójcik",
+      "attachments": ["a02", "a04", "a05"],
+      "note": "three documents in one mail; the scan has a name that says nothing, so the model decides"
+    },
+    {
+      "id": "f05",
+      "messageId": "<f05.20261117@nordpart.example>",
+      "threadKey": "thr-f05-internal",
+      "from": { "address": "magazyn@nordpart.example", "name": "Magazyn Nordpart" },
+      "subject": "Oferta od dostawcy - do wglądu",
+      "receivedAt": "2026-11-17T14:00:00Z",
+      "headers": [],
+      "bodyText": "Cześć, podsyłam ofertę od dostawcy łożysk.",
+      "attachments": ["a03"],
+      "note": "from a colleague: not filed"
+    },
+    {
+      "id": "f06",
+      "messageId": "<f06.20261117@lozyska-hurt.example>",
+      "threadKey": "thr-f06-oferta-rysunki",
+      "from": { "address": "biuro@lozyska-hurt.example", "name": "Łożyska Hurt" },
+      "subject": "Oferta 2026-118 i komplet rysunków",
+      "receivedAt": "2026-11-17T15:00:00Z",
+      "headers": [],
+      "bodyText": "Dzień dobry,\n\nw załączeniu oferta oraz komplet rysunków technicznych.\n\nBiuro Łożyska Hurt",
+      "attachments": ["a03", "a10"],
+      "note": "an offer and a 5 MB file that goes up through an upload session"
+    }
+  ]
+}

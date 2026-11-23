@@ -15,6 +15,8 @@ export interface Deps {
   outlook: OutlookGateway;
   appName: string;
   appBaseUrl: string;
+  /** Where operator alerts go; unset = no alerts. */
+  alertEmail?: string | null;
   now?: () => Date;
 }
 

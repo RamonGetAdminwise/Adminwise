@@ -5,7 +5,15 @@ import { fileURLToPath } from "node:url";
 import type { AiClient, AiRequest, AiResult } from "@adminwise/ai";
 import { QUEUES, type JobPayloads, type JobQueue, type OutlookGateway, type QueueName } from "@adminwise/core";
 import { createDb, forCustomer, system, type CustomerScope, type Db } from "@adminwise/db";
-import { domainOf, flagsFromHeaders, type InboundMessage, type OutboundEmail, type OutboundMailer } from "@adminwise/mail";
+import {
+  domainOf,
+  flagsFromHeaders,
+  GraphError,
+  type AttachmentInfo,
+  type InboundMessage,
+  type OutboundEmail,
+  type OutboundMailer,
+} from "@adminwise/mail";
 import { inject } from "vitest";
 import type { Deps } from "../src/deps";
 import { processMessage } from "../src/jobs/process-message";
@@ -46,6 +54,95 @@ export const longThread = readJson<{
   messages: { messageId: string; direction: "inbound" | "outbound"; from: string; receivedAt: string; bodyText: string }[];
 }>("thread-long.json");
 
+// ---- phase 2 fixtures: sent mail and attachments --------------------------------
+
+export interface FixtureSent {
+  id: string;
+  messageId: string;
+  threadKey: string;
+  to: string[];
+  cc: string[];
+  subject: string;
+  sentAt: string;
+  bodyText: string;
+  expectsReply: boolean;
+}
+export interface FixtureAttachment {
+  id: string;
+  name: string;
+  contentType: string;
+  sizeBytes: number;
+  inline: boolean;
+  seed: string;
+  expectedType: string | null;
+  decidedBy: "rule" | "model" | "skipped" | "duplicate";
+}
+export interface FixtureFilingMail {
+  id: string;
+  messageId: string;
+  threadKey: string;
+  from: { address: string; name: string };
+  subject: string;
+  receivedAt: string;
+  headers: { name: string; value: string }[];
+  bodyText: string;
+  attachments: string[];
+}
+export const phase2 = readJson<{
+  sentMessages: FixtureSent[];
+  attachments: FixtureAttachment[];
+  filingMails: FixtureFilingMail[];
+}>("phase2.json");
+
+const byId = <T extends { id: string }>(list: T[], id: string): T => {
+  const found = list.find((item) => item.id === id);
+  if (!found) throw new Error(`No fixture ${id}`);
+  return found;
+};
+export const sentFixture = (id: string) => byId(phase2.sentMessages, id);
+export const attachmentFixture = (id: string) => byId(phase2.attachments, id);
+export const filingMail = (id: string) => byId(phase2.filingMails, id);
+
+/** A message Nordpart sent itself, as the mailbox adapter returns it from Sent Items. */
+export function toSent(f: FixtureSent, overrides: Partial<InboundMessage> = {}): InboundMessage {
+  return {
+    providerMessageId: `graph-${f.id}`,
+    internetMessageId: f.messageId,
+    threadKey: f.threadKey,
+    subject: f.subject,
+    from: { address: company.mailbox, name: company.name },
+    receivedAt: new Date(f.sentAt),
+    bodyText: f.bodyText,
+    headerFlags: {},
+    attachmentNames: [],
+    to: f.to,
+    cc: f.cc,
+    ...overrides,
+  };
+}
+
+export function toFilingInbound(f: FixtureFilingMail): InboundMessage {
+  return {
+    providerMessageId: `graph-${f.id}`,
+    internetMessageId: f.messageId,
+    threadKey: f.threadKey,
+    subject: f.subject,
+    from: f.from,
+    receivedAt: new Date(f.receivedAt),
+    bodyText: f.bodyText,
+    headerFlags: flagsFromHeaders(f.headers),
+    attachmentNames: f.attachments.map((id) => attachmentFixture(id).name),
+  };
+}
+
+/** The bytes of a fixture file: the right size and the right first bytes, and the same for the same seed. */
+export function attachmentBytes(a: FixtureAttachment): Uint8Array {
+  const header = a.contentType === "application/pdf" ? "%PDF-1.4\n" : "\u0089PNG\r\n";
+  const line = `% Adminwise test fixture: ${a.seed}\n`;
+  const text = header + line.repeat(Math.ceil(a.sizeBytes / line.length));
+  return new Uint8Array(Buffer.from(text, "latin1").subarray(0, a.sizeBytes));
+}
+
 export const fixture = (id: string): FixtureEmail => {
   const found = inbound.find((f) => f.id === id);
   if (!found) throw new Error(`No fixture ${id}`);
@@ -74,6 +171,8 @@ const CANNED_DRAFTS: Record<string, string> = {
   en: "Hello,\n\nThank you for your message. [confirm date]\n\nBest regards",
 };
 
+export const CANNED_CHASER = "Dzień dobry,\n\nczy mogę prosić o krótką odpowiedź na moją poprzednią wiadomość?\n\nPozdrawiam";
+
 /**
  * Stands in for the model. Classification answers are the ones recorded in the
  * fixtures ("expected"); drafts are a fixed text per language. It records every
@@ -97,6 +196,19 @@ export class RecordedAi implements AiClient {
       const language = /Write in this language: ([a-z]{2})/.exec(request.system)?.[1] ?? "en";
       return { text: CANNED_DRAFTS[language] ?? CANNED_DRAFTS.en!, inputTokens: 700, outputTokens: 90 };
     }
+    if (request.job === "chaser-check") {
+      const match = phase2.sentMessages.find((s) => request.user.includes(s.subject));
+      if (!match) throw new Error("No recorded follow-up check for this message");
+      return { text: JSON.stringify({ expects_reply: match.expectsReply ? "yes" : "no" }), inputTokens: 120, outputTokens: 8 };
+    }
+    if (request.job === "chaser-draft") {
+      return { text: CANNED_CHASER, inputTokens: 500, outputTokens: 60 };
+    }
+    if (request.job === "file-type") {
+      const match = phase2.attachments.find((a) => a.decidedBy === "model" && request.user.includes(a.name));
+      if (!match) throw new Error("No recorded document type for this file");
+      return { text: JSON.stringify({ type: match.expectedType }), inputTokens: 90, outputTokens: 6 };
+    }
     return { text: "Greets with \"Dzień dobry,\". Short, direct sentences.", inputTokens: 900, outputTokens: 60 };
   }
 
@@ -105,10 +217,22 @@ export class RecordedAi implements AiClient {
   }
 }
 
+/** A stand-in for the customer's Microsoft 365 account: mailbox, Sent Items, Drafts folder and the OneDrive app folder. */
 export class FakeOutlook implements OutlookGateway {
   drafts: { connectionId: string; providerMessageId: string; text: string }[] = [];
   mailbox = new Map<string, InboundMessage>();
   pending: string[] = [];
+  sentPending: string[] = [];
+  /** Follow-up drafts written into the Drafts folder. */
+  chaserDrafts: { id: string; sentMessageId: string; text: string; to: string[]; cc: string[] }[] = [];
+  /** Drafts still sitting unsent. Remove an id to play "the customer deleted it" or "sent it". */
+  waitingDrafts = new Set<string>();
+  deletedDrafts: string[] = [];
+  attachments = new Map<string, { info: AttachmentInfo; bytes: Uint8Array }[]>();
+  /** The app folder in OneDrive: path -> content. */
+  drive = new Map<string, Uint8Array>();
+  driveDown = false;
+  uploads = 0;
 
   async fetchMessage(_scope: CustomerScope, _connectionId: string, providerMessageId: string) {
     const message = this.mailbox.get(providerMessageId);
@@ -120,11 +244,68 @@ export class FakeOutlook implements OutlookGateway {
     this.pending = [];
     return { messageIds, deltaLink: `delta-${Date.now()}` };
   }
+  async listNewSentMessageIds() {
+    const messageIds = this.sentPending;
+    this.sentPending = [];
+    return { messageIds, deltaLink: `sent-delta-${Date.now()}` };
+  }
   async createReplyDraft(_scope: CustomerScope, connectionId: string, providerMessageId: string, text: string) {
     this.drafts.push({ connectionId, providerMessageId, text });
     return `draft-${this.drafts.length}`;
   }
+  async createChaserDraft(
+    _scope: CustomerScope,
+    _connectionId: string,
+    sentMessageId: string,
+    text: string,
+    to: string[],
+    cc: string[],
+  ) {
+    const id = `chaser-draft-${this.chaserDrafts.length + 1}`;
+    this.chaserDrafts.push({ id, sentMessageId, text, to, cc });
+    this.waitingDrafts.add(id);
+    return id;
+  }
+  async isDraftWaiting(_scope: CustomerScope, _connectionId: string, draftId: string) {
+    return this.waitingDrafts.has(draftId);
+  }
+  async deleteDraft(_scope: CustomerScope, _connectionId: string, draftId: string) {
+    this.waitingDrafts.delete(draftId);
+    this.deletedDrafts.push(draftId);
+  }
+  async listAttachments(_scope: CustomerScope, _connectionId: string, providerMessageId: string) {
+    return (this.attachments.get(providerMessageId) ?? []).map((a) => a.info);
+  }
+  async downloadAttachment(_scope: CustomerScope, _connectionId: string, providerMessageId: string, attachmentId: string) {
+    const found = (this.attachments.get(providerMessageId) ?? []).find((a) => a.info.id === attachmentId);
+    if (!found) throw new GraphError("Graph GET failed: 404 ErrorItemNotFound", 404);
+    return found.bytes;
+  }
+  async uploadFile(_scope: CustomerScope, _connectionId: string, path: string, content: Uint8Array) {
+    if (this.driveDown) throw new GraphError("Graph PUT failed: 503 serviceNotAvailable", 503);
+    if (this.drive.has(path)) throw new GraphError("Graph PUT failed: 409 nameAlreadyExists", 409);
+    this.drive.set(path, content);
+    this.uploads++;
+    return { itemId: `item-${this.drive.size}` };
+  }
   async ensureSubscription() {}
+
+  /** Puts a fixture mail with its attachments into the mailbox, as if it had just arrived. */
+  deliver(mail: FixtureFilingMail): InboundMessage {
+    const message = toFilingInbound(mail);
+    this.mailbox.set(message.providerMessageId, message);
+    this.attachments.set(
+      message.providerMessageId,
+      mail.attachments.map((id) => {
+        const a = attachmentFixture(id);
+        return {
+          info: { id: `att-${mail.id}-${a.id}`, name: a.name, contentType: a.contentType, sizeBytes: a.sizeBytes, isInline: a.inline },
+          bytes: attachmentBytes(a),
+        };
+      }),
+    );
+    return message;
+  }
 }
 
 export class FakeMailer implements OutboundMailer {
@@ -169,10 +350,19 @@ export function makeWorld(db: Db) {
   return { ai, outlook, mailer, queue, deps };
 }
 
+/** What a mailbox connected before phase 2 was granted: no OneDrive. */
+export const PHASE1_SCOPES = "Mail.Read Mail.ReadWrite User.Read profile openid email";
+
 /** A fresh copy of the Nordpart customer, so tests never see each other's data. */
 export async function createNordpart(
   db: Db,
-  options: { languages?: string[]; timeZone?: string; briefStartDate?: string } = {},
+  options: {
+    languages?: string[];
+    timeZone?: string;
+    briefStartDate?: string;
+    /** What Microsoft granted. Default: everything, including the OneDrive app folder. */
+    scopes?: string;
+  } = {},
 ) {
   const tag = randomBytes(4).toString("hex");
   const email = `tomasz.${tag}@${company.domain}`;
@@ -196,6 +386,7 @@ export async function createNordpart(
     accessToken: "test-access-token",
     refreshToken: "test-refresh-token",
     tokenExpiresAt: new Date(Date.now() + 3_600_000),
+    scopes: options.scopes ?? `${PHASE1_SCOPES} Files.ReadWrite.AppFolder`,
   });
   const forwarding = (await scope.getConnectionByProvider("forwarding"))!;
   return { customerId, userId, email, scope, microsoftId: microsoft.id, forwardingId: forwarding.id };

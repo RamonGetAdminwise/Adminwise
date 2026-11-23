@@ -1,9 +1,17 @@
 import { randomBytes } from "node:crypto";
 import type { CustomerScope, MailboxConnection } from "@adminwise/db";
-import { GraphAuthError, GraphClient, refreshTokens, type GraphOAuthConfig, type InboundMessage } from "@adminwise/mail";
+import {
+  GraphAuthError,
+  GraphClient,
+  refreshTokens,
+  type AttachmentInfo,
+  type GraphOAuthConfig,
+  type InboundMessage,
+} from "@adminwise/mail";
 
 /**
- * Everything the jobs need from a customer's Microsoft 365 mailbox.
+ * Everything the jobs need from a customer's Microsoft 365 account: the
+ * mailbox and the app's own OneDrive folder.
  * The gateway owns token handling: it refreshes access tokens before they
  * expire and, when Microsoft says the sign-in is no longer valid, marks the
  * connection "needs_reconnect" so the daily brief can show a reconnect link.
@@ -15,8 +23,41 @@ export interface OutlookGateway {
    * store (scope.markSynced) once those messages have been taken in.
    */
   listNewMessageIds(scope: CustomerScope, connectionId: string): Promise<{ messageIds: string[]; deltaLink: string }>;
+  /** The same for the Sent Items folder: what the customer sent since the last poll. */
+  listNewSentMessageIds(scope: CustomerScope, connectionId: string): Promise<{ messageIds: string[]; deltaLink: string }>;
   /** Writes a reply into the Drafts folder. Returns the draft's id. Never sends. */
   createReplyDraft(scope: CustomerScope, connectionId: string, providerMessageId: string, text: string): Promise<string>;
+  /** Writes a follow-up on the customer's own sent message into the Drafts folder, addressed to its recipients. Never sends. */
+  createChaserDraft(
+    scope: CustomerScope,
+    connectionId: string,
+    sentMessageId: string,
+    text: string,
+    to: string[],
+    cc: string[],
+  ): Promise<string>;
+  /** Is a draft we created still waiting unsent? False once it was sent or deleted. */
+  isDraftWaiting(scope: CustomerScope, connectionId: string, draftId: string): Promise<boolean>;
+  /** Removes a draft we created ourselves. */
+  deleteDraft(scope: CustomerScope, connectionId: string, draftId: string): Promise<void>;
+  listAttachments(scope: CustomerScope, connectionId: string, providerMessageId: string): Promise<AttachmentInfo[]>;
+  downloadAttachment(
+    scope: CustomerScope,
+    connectionId: string,
+    providerMessageId: string,
+    attachmentId: string,
+  ): Promise<Uint8Array>;
+  /**
+   * Saves a file in the app's own OneDrive folder; `path` is relative to it.
+   * Throws a GraphError with status 409 when a file of that name exists.
+   */
+  uploadFile(
+    scope: CustomerScope,
+    connectionId: string,
+    path: string,
+    content: Uint8Array,
+    contentType: string,
+  ): Promise<{ itemId: string }>;
   /** Creates or renews the change-notification subscription. */
   ensureSubscription(scope: CustomerScope, connectionId: string): Promise<void>;
 }
@@ -46,6 +87,7 @@ export function createOutlookGateway(options: {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         tokenExpiresAt: tokens.expiresAt,
+        scopes: tokens.scopes,
       });
       return tokens.accessToken;
     } catch (error) {
@@ -90,8 +132,31 @@ export function createOutlookGateway(options: {
         client.listInboxDelta({ deltaLink: connection.deltaLink, since: connection.createdAt }),
       ),
 
+    listNewSentMessageIds: (scope, connectionId) =>
+      withClient(scope, connectionId, (client, connection) =>
+        client.listSentDelta({ deltaLink: connection.sentDeltaLink, since: connection.createdAt }),
+      ),
+
     createReplyDraft: (scope, connectionId, providerMessageId, text) =>
       withClient(scope, connectionId, (client) => client.createReplyDraft(providerMessageId, text)),
+
+    createChaserDraft: (scope, connectionId, sentMessageId, text, to, cc) =>
+      withClient(scope, connectionId, (client) => client.createChaserDraft(sentMessageId, text, to, cc)),
+
+    isDraftWaiting: (scope, connectionId, draftId) =>
+      withClient(scope, connectionId, (client) => client.isDraftWaiting(draftId)),
+
+    deleteDraft: (scope, connectionId, draftId) =>
+      withClient(scope, connectionId, (client) => client.deleteDraft(draftId)),
+
+    listAttachments: (scope, connectionId, providerMessageId) =>
+      withClient(scope, connectionId, (client) => client.listAttachments(providerMessageId)),
+
+    downloadAttachment: (scope, connectionId, providerMessageId, attachmentId) =>
+      withClient(scope, connectionId, (client) => client.downloadAttachment(providerMessageId, attachmentId)),
+
+    uploadFile: (scope, connectionId, path, content, contentType) =>
+      withClient(scope, connectionId, (client) => client.uploadToAppFolder(path, content, contentType)),
 
     ensureSubscription: (scope, connectionId) =>
       withClient(scope, connectionId, async (client, connection) => {

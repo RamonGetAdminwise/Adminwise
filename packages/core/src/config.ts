@@ -11,8 +11,14 @@ export interface Config {
   mailFrom: string;
   databaseUrl: string;
   tokenEncryptionKey: string;
-  /** `models.default` writes (drafts, voice profile, later quotes); `models.classify` sorts mail. */
-  aws: { region: string; models: { default: string; classify: string } };
+  /**
+   * `models.default` writes (drafts, follow-ups, voice profile, later quotes);
+   * `models.classify` sorts (mail, "does this expect a reply?", document types).
+   * The other keys are job names that use the sorting model.
+   */
+  aws: { region: string; models: { default: string; classify: string } & Record<string, string> };
+  /** Where operator alerts go (job failures, stuck queue). Null = no alerts. */
+  alertEmail: string | null;
   microsoft: { clientId: string; clientSecret: string; tenant: string } | null;
   postmark: { serverToken: string | null; inboundSecret: string | null };
   workerConcurrency: number;
@@ -39,6 +45,7 @@ function euModel(env: NodeJS.ProcessEnv, name: string, fallback: string): string
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const appName = env.APP_NAME || "Adminwise";
+  const classify = euModel(env, "BEDROCK_MODEL_CLASSIFY", DEFAULT_MODEL_CLASSIFY);
   return {
     appName,
     appBaseUrl: (env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, ""),
@@ -50,9 +57,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       region: env.AWS_REGION || "eu-central-1",
       models: {
         default: euModel(env, "BEDROCK_MODEL_DRAFT", DEFAULT_MODEL_DRAFT),
-        classify: euModel(env, "BEDROCK_MODEL_CLASSIFY", DEFAULT_MODEL_CLASSIFY),
+        classify,
+        "chaser-check": classify,
+        "file-type": classify,
       },
     },
+    alertEmail: env.ALERT_EMAIL?.trim() || null,
     microsoft:
       env.MS_CLIENT_ID && env.MS_CLIENT_SECRET
         ? { clientId: env.MS_CLIENT_ID, clientSecret: env.MS_CLIENT_SECRET, tenant: env.MS_TENANT || "common" }

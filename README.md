@@ -1,6 +1,6 @@
 # Adminwise - code repository
 
-A hosted back-office service for small companies. Phase 1: sign-in, settings, voice profile, Microsoft 365 connection, forwarding-address intake, reply drafts, a first daily brief. Drafts only; nothing is sent to a customer's contacts.
+A hosted back-office service for small companies. Phase 1: sign-in, settings, voice profile, Microsoft 365 connection, forwarding-address intake, reply drafts. Phase 2: follow-up chaser, filing of attachments to OneDrive, the full daily brief, operator alerts. Drafts only; nothing is sent to a customer's contacts.
 
 - What the folders are and how a mail flows through: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Accounts, model ids and the AWS key: [docs/ACCOUNTS_SETUP.md](docs/ACCOUNTS_SETUP.md)
@@ -58,7 +58,7 @@ What works at which point:
 | --- | --- |
 | nothing but `.env` with the encryption key | sign in, edit settings, see your forwarding address, run all tests |
 | + AWS keys (`pnpm check:ai` confirms them) | build a voice profile; business mail gets real drafts |
-| + Microsoft app registration | connect an Outlook mailbox; drafts appear in its Drafts folder (polling every 5 minutes on localhost) |
+| + Microsoft app registration | connect an Outlook mailbox; drafts appear in its Drafts folder (polling every 5 minutes on localhost); follow-up drafts after the follow-up period; attachments filed to `Apps/Adminwise` in its OneDrive (`pnpm check:drive` proves the OneDrive permission) |
 | + Postmark and a domain | real sign-in emails, the forwarding address, the daily brief by email |
 
 ## Tests
@@ -67,7 +67,7 @@ What works at which point:
 pnpm test
 ```
 
-Starts its own throw-away Postgres (no Docker, nothing to set up) and runs all tests, including acceptance scenarios 1-6 against the Nordpart fixtures in `fixtures/nordpart`. To use an existing database instead, set `TEST_DATABASE_URL`.
+Starts its own throw-away Postgres (no Docker, nothing to set up) and runs all tests, including acceptance scenarios 1-10 and 21-27 against the Nordpart fixtures in `fixtures/nordpart`. To use an existing database instead, set `TEST_DATABASE_URL`.
 
 Other checks, all run by GitHub Actions on every push:
 

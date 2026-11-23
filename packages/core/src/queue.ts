@@ -16,6 +16,14 @@ export const QUEUES = {
   briefTick: "brief-tick",
   /** Build and send one customer's daily brief. */
   sendBrief: "send-daily-brief",
+  /** Save the attachments of one stored message to the customer's OneDrive app folder. */
+  fileAttachments: "file-attachments",
+  /** Every minute: find customers whose local time has reached the nightly chaser scan. */
+  chaseTick: "chase-tick",
+  /** Find one customer's threads that went quiet and draft follow-ups. */
+  chaseCustomer: "chase-customer",
+  /** Hourly: email the operator a summary of failures, if there were any. */
+  alertTick: "alert-tick",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -28,6 +36,10 @@ export interface JobPayloads {
   "purge-bodies": Record<string, never>;
   "brief-tick": Record<string, never>;
   "send-daily-brief": { customerId: string; localDate: string };
+  "file-attachments": { customerId: string; messageId: string };
+  "chase-tick": Record<string, never>;
+  "chase-customer": { customerId: string; localDate: string };
+  "alert-tick": Record<string, never>;
 }
 
 /** What the web app and jobs need: a way to hand work to the worker. */

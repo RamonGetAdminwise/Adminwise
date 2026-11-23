@@ -125,11 +125,66 @@ export function system(db: Db) {
     },
 
     /** Each customer's time zone and the local date their last daily brief was for (YYYY-MM-DD or null). */
-    async listCustomerClocks(): Promise<{ id: string; timeZone: string; briefLastSentOn: string | null }[]> {
+    async listCustomerClocks(): Promise<
+      { id: string; timeZone: string; briefLastSentOn: string | null; chaseLastRunOn: string | null }[]
+    > {
       const { rows } = await db.pool.query(
-        "SELECT id, time_zone, brief_last_sent_on::text AS brief_last_sent_on FROM customers",
+        `SELECT id, time_zone, brief_last_sent_on::text AS brief_last_sent_on,
+                chase_last_run_on::text AS chase_last_run_on
+         FROM customers`,
       );
       return rows.map((r) => camel(r));
+    },
+
+    // ---- operator alerts -------------------------------------------------------
+
+    /**
+     * Failed job runs since `since`, counted per customer, job and error type.
+     * The error type is the error's class name only (the text before the first
+     * colon), so nothing a customer or their mail wrote can end up in an alert.
+     */
+    async failureSummary(since: Date): Promise<{ customerId: string | null; job: string; errorType: string; count: number }[]> {
+      const { rows } = await db.pool.query<{ customer_id: string | null; job: string; error_type: string; n: string }>(
+        `SELECT customer_id, job, split_part(COALESCE(error, ''), ':', 1) AS error_type, count(*) AS n
+         FROM job_runs
+         WHERE status = 'failed' AND finished_at >= $1 AND job <> 'operator-alert'
+         GROUP BY 1, 2, 3
+         ORDER BY n DESC, job`,
+        [since],
+      );
+      return rows.map((r) => ({
+        customerId: r.customer_id,
+        job: r.job,
+        errorType: /^[A-Za-z]{1,40}$/.test(r.error_type) ? r.error_type : "Error",
+        count: Number(r.n),
+      }));
+    },
+
+    /**
+     * Queue health straight from pg-boss's own table: jobs that should have
+     * started more than `stuckMinutes` ago, and jobs that failed for good since
+     * `since`. Returns nothing when the queue schema is not there (unit tests).
+     */
+    async queueProblems(since: Date, stuckMinutes: number): Promise<{ queue: string; stuck: number; failed: number }[]> {
+      try {
+        const { rows } = await db.pool.query<{ name: string; stuck: string; failed: string }>(
+          `SELECT name,
+                  count(*) FILTER (WHERE state IN ('created', 'retry')
+                                   AND start_after < now() - make_interval(mins => $2)) AS stuck,
+                  count(*) FILTER (WHERE state = 'failed' AND completed_on >= $1) AS failed
+           FROM pgboss.job
+           GROUP BY name`,
+          [since, stuckMinutes],
+        );
+        return rows
+          .map((r) => ({ queue: r.name, stuck: Number(r.stuck), failed: Number(r.failed) }))
+          .filter((r) => r.stuck > 0 || r.failed > 0);
+      } catch (error) {
+        // 3F000 = schema missing, 42P01 = table missing, 42703 = column missing (queue not started or changed)
+        const code = (error as { code?: string }).code;
+        if (code === "3F000" || code === "42P01" || code === "42703") return [];
+        throw error;
+      }
     },
 
     /**

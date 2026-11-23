@@ -1,14 +1,23 @@
-import { addDays, localClock, QUEUES, startOfLocalDay } from "@adminwise/core";
-import { forCustomer, system, type DraftSummary, type MailboxConnection } from "@adminwise/db";
+import { addDays, localClock, QUEUES, startOfLocalDay, workingDaysBetween } from "@adminwise/core";
+import {
+  canFile,
+  forCustomer,
+  signLinkToken,
+  system,
+  type DraftSummary,
+  type FiledDocument,
+  type MailboxConnection,
+  type QuietThread,
+} from "@adminwise/db";
+import { briefStrings } from "../brief-strings";
 import { describeError, type Deps } from "../deps";
+import { chaseCustomer, MAX_CHASERS } from "./chaser";
+import { APP_FOLDER } from "./filing";
 
 /** 07:30 in the customer's own time zone. */
 export const BRIEF_MINUTE_OF_DAY = 7 * 60 + 30;
-
-const LANGUAGE_NAMES: Record<string, string> = {
-  en: "English", pl: "Polish", de: "German", cs: "Czech", nl: "Dutch", fr: "French", es: "Spanish", it: "Italian",
-  sk: "Slovak", uk: "Ukrainian", hu: "Hungarian", ro: "Romanian",
-};
+/** How long the "not this time" / "never" links in a brief keep working. */
+const LINK_DAYS = 30;
 
 /**
  * Runs every minute. Queues a brief for each customer whose local clock has
@@ -27,39 +36,83 @@ export async function briefTick(deps: Deps): Promise<number> {
   return queued;
 }
 
-/** The brief's text. Sections with nothing in them are left out. */
-export function composeBrief(input: {
+export interface BriefInput {
   appName: string;
   appBaseUrl: string;
   localDate: string;
+  /** Reply drafts prepared yesterday. */
   drafts: DraftSummary[];
+  /** Threads that went quiet, each with how long and the two links for the customer. */
+  quiet?: (QuietThread & { workingDaysQuiet: number; skipUrl: string; neverUrl: string })[];
+  /** Documents filed yesterday. */
+  filed?: Pick<FiledDocument, "docType" | "storedPath">[];
+  /** Mailboxes that must be reconnected. */
   problems: Pick<MailboxConnection, "provider" | "emailAddress" | "status">[];
-}): { subject: string; textBody: string } {
-  const subject = `Your daily brief - ${input.localDate}`;
-  if (input.drafts.length === 0 && input.problems.length === 0) {
-    return { subject, textBody: `Nothing needed your attention yesterday. ${input.appName} is running.\n` };
-  }
+  /** Attachments that arrived yesterday and were not filed because the mailbox was connected before filing existed. */
+  filingOffCount?: number;
+  /** Attachments waiting because OneDrive cannot be reached; 0 = no problem. */
+  driveQueuedCount?: number;
+  /** Language of the brief's own texts. Only "en" exists for now. */
+  language?: string;
+}
 
+/** The brief's text. Sections with nothing in them are left out; with nothing at all it is one line. */
+export function composeBrief(input: BriefInput): { subject: string; textBody: string } {
+  const t = briefStrings(input.language);
+  const settingsUrl = `${input.appBaseUrl}/settings`;
+  const quiet = input.quiet ?? [];
+  const filed = input.filed ?? [];
   const sections: string[] = [];
+
   if (input.drafts.length > 0) {
     const lines = input.drafts.map((d) => {
-      const where = d.destination === "outlook_drafts" ? "in your Outlook Drafts" : "emailed to you";
-      const flag = d.languageListed
-        ? ""
-        : ` [written in ${LANGUAGE_NAMES[d.language ?? ""] ?? d.language}, a language not on your list: please check it]`;
-      return `- "${d.subject}" (from ${d.senderDomain}) - ${where}${flag}`;
+      const line =
+        d.destination === "outlook_drafts"
+          ? t.needsYou.replyInOutlook(d.subject, d.senderDomain)
+          : t.needsYou.replyByEmail(d.subject, d.senderDomain);
+      const flag = d.languageListed ? "" : t.needsYou.unlistedLanguage(t.languageNames[d.language ?? ""] ?? d.language ?? "?");
+      return line + flag;
     });
-    sections.push(`DRAFTS PREPARED YESTERDAY (${input.drafts.length})\n${lines.join("\n")}`);
+    sections.push([t.needsYou.heading(input.drafts.length), ...lines].join("\n"));
   }
-  if (input.problems.length > 0) {
-    const lines = input.problems.map(
-      (p) =>
-        `- Your Microsoft 365 mailbox ${p.emailAddress} is disconnected, so new mail is not being read. ` +
-        `Reconnect it here: ${input.appBaseUrl}/settings`,
+
+  if (quiet.length > 0) {
+    const lines = quiet.flatMap((q) =>
+      q.chaserReady
+        ? [
+            t.wentQuiet.chaserReady(q.subject, q.counterpartDomain, q.workingDaysQuiet),
+            t.wentQuiet.notThisTime(q.skipUrl),
+            t.wentQuiet.neverForThread(q.neverUrl),
+          ]
+        : [t.wentQuiet.noMoreChasers(q.subject, q.counterpartDomain, MAX_CHASERS)],
     );
-    sections.push(`CONNECTION PROBLEMS\n${lines.join("\n")}`);
+    if (quiet.some((q) => q.chaserReady)) lines.push(t.wentQuiet.deleteHint);
+    sections.push([t.wentQuiet.heading(quiet.length), ...lines].join("\n"));
   }
-  return { subject, textBody: `Good morning,\n\n${sections.join("\n\n")}\n\n${input.appName}\n` };
+
+  if (filed.length > 0) {
+    const lines = filed.map((f) => {
+      const path = f.storedPath ?? "";
+      const slash = path.lastIndexOf("/");
+      return t.filed.document(
+        t.documentTypes[f.docType ?? "other"] ?? t.documentTypes.other!,
+        path.slice(slash + 1),
+        `${APP_FOLDER}/${path.slice(0, Math.max(slash, 0))}`,
+      );
+    });
+    sections.push([t.filed.heading(filed.length), ...lines].join("\n"));
+  }
+
+  const problems = [
+    ...input.problems.map((p) => t.problems.mailboxDisconnected(p.emailAddress, settingsUrl)),
+    ...(input.filingOffCount ? [t.problems.filingOff(input.filingOffCount, settingsUrl)] : []),
+    ...(input.driveQueuedCount ? [t.problems.driveUnreachable(input.driveQueuedCount, settingsUrl)] : []),
+  ];
+  if (problems.length > 0) sections.push([t.problems.heading, ...problems].join("\n"));
+
+  const subject = t.subject(input.localDate);
+  if (sections.length === 0) return { subject, textBody: `${t.nothingHappened(input.appName)}\n` };
+  return { subject, textBody: `${t.greeting}\n\n${sections.join("\n\n")}\n\n${input.appName}\n` };
 }
 
 /** Builds and sends one customer's brief for a local date. Sends at most once per date. */
@@ -72,20 +125,46 @@ export async function sendBrief(
 
   const runId = await scope.startJobRun("daily-brief", job.localDate);
   try {
+    // The follow-up scan normally ran at 06:00. If it has not (worker was down), do it now so the
+    // brief can list its results; if it fails, the brief still goes out and the failure is in the job log.
+    await chaseCustomer(deps, job).catch(() => undefined);
+
+    const now = deps.now?.() ?? new Date();
     const customer = await scope.getCustomer();
-    const from = startOfLocalDay(addDays(job.localDate, -1), customer.timeZone);
-    const to = startOfLocalDay(job.localDate, customer.timeZone);
-    const [drafts, connections, users] = await Promise.all([
-      scope.listDraftSummaries(from, to),
+    const today = startOfLocalDay(job.localDate, customer.timeZone);
+    const yesterday = startOfLocalDay(addDays(job.localDate, -1), customer.timeZone);
+    const [drafts, quiet, filed, connections, users, filingOffCount, queuedCount] = await Promise.all([
+      scope.listDraftSummaries(yesterday, today),
+      scope.listQuietThreads(today, job.localDate),
+      scope.listFiledBetween(yesterday, today),
       scope.listConnections(),
       scope.listUsers(),
+      scope.countJobOutcomes("filing", "filing_off", yesterday, today),
+      scope.countQueuedFiling(),
     ]);
+    const microsoft = connections.find((c) => c.provider === "microsoft");
+    const linkExpiry = new Date(now.getTime() + LINK_DAYS * 86_400_000);
+    const link = (threadId: string, action: "skip" | "never") => {
+      const token = signLinkToken({ c: job.customerId, t: threadId }, linkExpiry, deps.db.encryptionKey);
+      return `${deps.appBaseUrl}/thread?do=${action}&token=${token}`;
+    };
+
     const brief = composeBrief({
       appName: deps.appName,
       appBaseUrl: deps.appBaseUrl,
       localDate: job.localDate,
       drafts,
+      quiet: quiet.map((q) => ({
+        ...q,
+        workingDaysQuiet: workingDaysBetween(q.lastOutboundAt, now, customer.timeZone),
+        skipUrl: link(q.threadId, "skip"),
+        neverUrl: link(q.threadId, "never"),
+      })),
+      filed,
       problems: connections.filter((c) => c.status === "needs_reconnect" || c.status === "revoked"),
+      // Asked only on days it mattered, and only while the mailbox still lacks the permission.
+      filingOffCount: microsoft && microsoft.status === "active" && !canFile(microsoft) ? filingOffCount : 0,
+      driveQueuedCount: microsoft?.driveError ? queuedCount : 0,
     });
     await deps.mailer.send({ to: users.map((u) => u.email), ...brief });
     await scope.finishJobRun(runId, { status: "succeeded" });

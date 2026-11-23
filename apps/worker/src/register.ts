@@ -1,7 +1,10 @@
 import { QUEUES, type JobPayloads, type QueueName } from "@adminwise/core";
 import type { PgBoss } from "pg-boss";
 import type { Deps } from "./deps";
+import { sendOperatorAlert } from "./jobs/alerts";
 import { briefTick, sendBrief } from "./jobs/brief";
+import { chaseCustomer, chaseTick } from "./jobs/chaser";
+import { fileAttachments } from "./jobs/filing";
 import { processMessage } from "./jobs/process-message";
 import { purgeBodies } from "./jobs/purge";
 import { fetchGraphMessage, pollTick, syncMailbox } from "./jobs/sync";
@@ -23,10 +26,14 @@ export async function registerWorkers(boss: PgBoss, deps: Deps, concurrency: num
   await on(QUEUES.processMessage, concurrency, (data) => processMessage(deps, data));
   await on(QUEUES.fetchGraphMessage, concurrency, (data) => fetchGraphMessage(deps, data));
   await on(QUEUES.syncMailbox, concurrency, (data) => syncMailbox(deps, data));
+  await on(QUEUES.fileAttachments, concurrency, (data) => fileAttachments(deps, data));
   await on(QUEUES.sendBrief, 2, (data) => sendBrief(deps, data));
+  await on(QUEUES.chaseCustomer, 2, (data) => chaseCustomer(deps, data));
   await on(QUEUES.pollTick, 1, () => pollTick(deps));
   await on(QUEUES.purgeBodies, 1, () => purgeBodies(deps));
   await on(QUEUES.briefTick, 1, () => briefTick(deps));
+  await on(QUEUES.chaseTick, 1, () => chaseTick(deps));
+  await on(QUEUES.alertTick, 1, () => sendOperatorAlert(deps));
 }
 
 /** The recurring schedules (stored in Postgres by pg-boss; one worker fires each tick). */
@@ -34,4 +41,6 @@ export async function registerSchedules(boss: PgBoss): Promise<void> {
   await boss.schedule(QUEUES.pollTick, "*/5 * * * *");
   await boss.schedule(QUEUES.purgeBodies, "7 * * * *");
   await boss.schedule(QUEUES.briefTick, "* * * * *");
+  await boss.schedule(QUEUES.chaseTick, "* * * * *");
+  await boss.schedule(QUEUES.alertTick, "3 * * * *");
 }

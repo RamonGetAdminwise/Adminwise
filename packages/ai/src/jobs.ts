@@ -1,4 +1,7 @@
+import { chaserCheckPrompt, type ChaserCheckInput } from "../prompts/chaser-check";
+import { chaserDraftPrompt, type ChaserDraftInput } from "../prompts/chaser-draft";
 import { classifyPrompt, type ClassifyInput } from "../prompts/classify";
+import { fileTypePrompt, type FileTypeInput } from "../prompts/file-type";
 import { replyDraftPrompt, type ReplyDraftInput } from "../prompts/reply-draft";
 import { voiceProfilePrompt, type VoiceProfileInput } from "../prompts/voice-profile";
 import { AiError, type AiClient, type AiUsage } from "./client";
@@ -45,6 +48,50 @@ export async function draftReply(
   const body = result.text.trim();
   if (!body) throw new AiError("Model returned an empty draft");
   return { body, usage: result };
+}
+
+function firstJson(text: string): Record<string, unknown> {
+  const json = /\{[^{}]*\}/.exec(text)?.[0];
+  try {
+    return json ? (JSON.parse(json) as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Does the company's own last message expect an answer? Anything but a clear "yes" is no. */
+export async function checkExpectsReply(
+  ai: AiClient,
+  input: ChaserCheckInput,
+): Promise<{ expectsReply: boolean; usage: AiUsage }> {
+  const prompt = chaserCheckPrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
+  const result = await ai.complete({ job: "chaser-check", ...prompt, maxTokens: 2000 });
+  const answer = firstJson(result.text).expects_reply;
+  if (answer !== "yes" && answer !== "no") throw new AiError("Follow-up check answer was not in the expected format");
+  return { expectsReply: answer === "yes", usage: result };
+}
+
+export async function draftChaser(ai: AiClient, input: ChaserDraftInput): Promise<{ body: string; usage: AiUsage }> {
+  const prompt = chaserDraftPrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
+  const result = await ai.complete({ job: "chaser-draft", ...prompt, maxTokens: 4000 });
+  const body = result.text.trim();
+  if (!body) throw new AiError("Model returned an empty follow-up");
+  return { body, usage: result };
+}
+
+export const DOCUMENT_TYPES = ["invoice", "order", "contract", "offer", "other"] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+/** What kind of document an attachment is, from its name and the email around it. Unclear = "other". */
+export async function classifyDocument(
+  ai: AiClient,
+  input: FileTypeInput,
+): Promise<{ type: DocumentType; usage: AiUsage }> {
+  const prompt = fileTypePrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_HISTORY_CHARS) });
+  const result = await ai.complete({ job: "file-type", ...prompt, maxTokens: 2000 });
+  const type = DOCUMENT_TYPES.find((t) => t === firstJson(result.text).type);
+  if (!type) throw new AiError("Document type answer was not in the expected format");
+  return { type, usage: result };
 }
 
 export async function buildVoiceProfile(
