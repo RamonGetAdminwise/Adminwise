@@ -1,5 +1,5 @@
 import "server-only";
-import { createBedrockClient, type AiClient } from "@adminwise/ai";
+import { createBedrockClient, WEB_PATIENCE, withPatience, type AiClient } from "@adminwise/ai";
 import {
   createOutlookGateway,
   createStripeClient,
@@ -49,7 +49,8 @@ export function getQueue(): Promise<StartedQueue> {
 }
 
 export function getAi(): AiClient {
-  return (store.ai ??= createBedrockClient(getConfig().aws));
+  // A person is waiting for the page: one more try when the model is busy, then an honest "try again".
+  return (store.ai ??= withPatience(createBedrockClient(getConfig().aws), WEB_PATIENCE));
 }
 
 export function getMailer(): OutboundMailer {

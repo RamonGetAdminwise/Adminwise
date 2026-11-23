@@ -1,4 +1,4 @@
-import { createBedrockClient } from "@adminwise/ai";
+import { createBedrockClient, withPatience, WORKER_PATIENCE } from "@adminwise/ai";
 import { createOutlookGateway, loadConfig, startQueue } from "@adminwise/core";
 import { createDb, migrate } from "@adminwise/db";
 import { ConsoleMailer, PostmarkMailer } from "@adminwise/mail";
@@ -20,7 +20,8 @@ const isPublic = config.appBaseUrl.startsWith("https://");
 const deps: Deps = {
   db,
   queue,
-  ai: createBedrockClient(config.aws),
+  // A refused request ("too many at once") waits and is tried again, instead of failing the job.
+  ai: withPatience(createBedrockClient(config.aws), WORKER_PATIENCE),
   mailer: config.postmark.serverToken
     ? new PostmarkMailer({ serverToken: config.postmark.serverToken, from: config.mailFrom })
     : new ConsoleMailer(),

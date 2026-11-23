@@ -201,6 +201,10 @@ Three invented companies live in `fixtures/`: Nordpart (a parts trader, used by 
 
 `apps/worker/test/pack.ts` plays a pack's whole month through the real jobs, day by day, with a model stand-in that answers from the pack and fails the test when it is asked something that should never reach the model. `companies.test.ts` then checks every mail, sent mail, attachment and invoice. A new company is a new folder; no test code changes.
 
+## When the model provider is busy
+
+AWS allows a limited number of model requests a minute. `withPatience` (`packages/ai/src/patient.ts`) wraps the model client: a request refused as "too many at once" waits and is tried again, with a longer wait each time (2 seconds up to 45, seven tries in the worker), instead of failing the job. In the web app, where a person is waiting, it tries once more and then says so. `pnpm load:test` sends a burst of mail for several customers through the real queue, model and PDF printer and reports speed, refusals and cost.
+
 ## Golden set
 
 `pnpm check:golden` runs every decision the model makes for the two company packs through the real model and compares it with what the fixtures expect: sorting, hostile or not, quote requests and the price list items they lead to, acceptances, "paid" replies, whether a sent mail expects an answer, document types and invoice reading. About 250 decisions; a run takes some minutes and costs well under a euro. What the model answered is saved in `golden/<company>.json` and committed, so that after a change to a prompt `git diff golden/` shows exactly which answers moved. Run it after every prompt change, together with `check:quotes`, `check:invoices`, `check:setup` and `check:security` for the first company. It is run by hand for now; running it automatically on every prompt change needs an AWS key at GitHub.

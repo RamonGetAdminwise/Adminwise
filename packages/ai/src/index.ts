@@ -1,5 +1,6 @@
 export { AiError, type AiClient, type AiRequest, type AiResult, type AiUsage } from "./client";
 export { createBedrockClient, type BedrockConfig } from "./bedrock";
+export { isBusy, WEB_PATIENCE, withPatience, WORKER_PATIENCE, type PatienceOptions } from "./patient";
 export {
   classifyMessage,
   draftReply,

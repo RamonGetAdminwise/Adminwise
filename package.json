@@ -16,6 +16,7 @@
     "check:setup": "tsx scripts/check-setup.ts",
     "check:security": "tsx scripts/check-security.ts",
     "check:golden": "tsx scripts/check-golden.ts",
+    "load:test": "tsx scripts/load-test.ts",
     "check:stripe": "tsx scripts/check-stripe.ts",
     "stripe:setup": "tsx scripts/stripe-setup.ts",
     "dev:web": "pnpm --filter @adminwise/web dev",
