@@ -32,6 +32,12 @@ Last updated: 2026-11-23.
 
 ## Check before the first outside customer
 
+- [ ] **Hostile email: wider test.** Three invented mails were checked with the real model on 23 Nov (`pnpm check:security`): both hostile ones were flagged, the ordinary one was not, and the drafts did not carry out the hostile text. That is a first check. Before customers: twenty more variants in several languages, including instructions hidden in a forwarded mail and in a PDF's text, and count the false alarms on a hundred ordinary mails.
+- [ ] **Hidden text in HTML mail.** Mail is read as plain text. Text hidden in the HTML version (white on white, zero size) therefore reaches the model like any other text and is covered by the same defences, but this was tested with text only, not with a real HTML mail through Microsoft or Postmark.
+- [ ] **Suspicious mail and filing.** A flagged mail gets no draft, but its attachments are still filed to OneDrive (filing does not act on what a mail says). Decide whether attachments of flagged mail should be held back.
+- [ ] **Export format.** The spec asks for a zip; the export is one JSON file. Check with the first customers whether that is enough, or whether a spreadsheet per table is wanted.
+- [ ] **Deletion and backups.** Closing an account deletes the live data at once. Copies remain in the daily database backups until those expire; the retention period must be stated on the privacy page (a gap is marked there).
+
 - [ ] **Pay once in the Stripe sandbox, end to end.** Seen on 23 Nov: plans created in the sandbox, a subscription read correctly through the API (`pnpm check:stripe`), and "choose a plan" opening Stripe's payment page locally. NOT yet seen: a finished payment coming back to the app and making the account active, the "Manage subscription" page, and the webhook. Steps are in docs/DEPLOY.md.
 - [ ] **Going live with payments** needs, in this order: Stripe business verification and bank account; the accountant's answers (OSS, rate for EU customers without a VAT number, KSeF for Polish customers, invoice numbering); Stripe Tax set up and `STRIPE_AUTOMATIC_TAX=true`; `pnpm stripe:setup` with the live key; the live webhook endpoint; then `BILLING_ENABLED=true`. Until the last step every account is free with every feature.
 - [ ] **Cards only.** Decided on 23 Nov, but Stripe no longer lets the app restrict payment methods: the sandbox payment page also offered Apple Pay and Satispay. In Stripe, Settings, Payment methods, switch off everything except cards (sandbox and live).

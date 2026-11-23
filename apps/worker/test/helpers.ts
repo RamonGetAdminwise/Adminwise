@@ -46,6 +46,9 @@ export interface FixtureEmail {
     accepts?: boolean;
     /** Phase 4: whether this reply says an invoice was paid. */
     paid?: boolean;
+    /** Phase 5: whether the mail tries to instruct an automated assistant. */
+    suspicious?: boolean;
+    note?: string;
   };
 }
 
@@ -90,7 +93,13 @@ export const invoiceFixture = (id: string): FixtureInvoice => {
 export const invoicePdf = (id: string): Uint8Array => new Uint8Array(readFileSync(path.join(fixturesDir, "invoices", invoiceFixture(id).file)));
 export const cannedReminder = (level: number) => `Dzień dobry,\n\nprzypomnienie nr ${level} o płatności.\n\nPozdrawiam`;
 
-const recorded = (): FixtureEmail[] => [...inbound, ...quotes, ...payments];
+export const security = readJson<FixtureEmail[]>("security.json");
+export const securityFixture = (id: string): FixtureEmail => {
+  const found = security.find((f) => f.id === id);
+  if (!found) throw new Error(`No security fixture ${id}`);
+  return found;
+};
+const recorded = (): FixtureEmail[] => [...inbound, ...quotes, ...payments, ...security];
 /** The fixture a model request is about: the one whose subject it contains (the longest, as a reply's subject contains the original's). */
 const bySubject = (text: string, list: FixtureEmail[]): FixtureEmail | undefined =>
   list.filter((f) => text.includes(f.subject)).sort((a, b) => b.subject.length - a.subject.length)[0];
@@ -288,7 +297,11 @@ export class RecordedAi implements AiClient {
       const match = bySubject(request.user, recorded());
       if (!match?.expected.language) throw new Error("No recorded classification for this email");
       return {
-        text: JSON.stringify({ category: match.expected.category, language: match.expected.language }),
+        text: JSON.stringify({
+          category: match.expected.category,
+          language: match.expected.language,
+          instructs_assistant: match.expected.suspicious ? "yes" : "no",
+        }),
         inputTokens: 150,
         outputTokens: 15,
       };

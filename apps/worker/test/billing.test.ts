@@ -117,7 +117,9 @@ describe("Scenario 33: a trial without a card", () => {
       const { rows } = await db.pool.query(`SELECT count(*)::int AS n FROM ${table} WHERE customer_id = $1`, [nordpart.customerId]);
       expect(rows[0].n, table).toBe(0);
     }
-    expect(mailsTo(world, nordpart)).toHaveLength(3);
+    // Reminder, trial ended, warning, and a last mail confirming the deletion.
+    expect(mailsTo(world, nordpart)).toHaveLength(4);
+    expect(mailsTo(world, nordpart).at(-1)!.subject).toBe("Your Adminwise account has been deleted");
   });
 
   it("never deletes without a week's warning, and never an account that paid in the meantime", async () => {

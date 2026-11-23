@@ -31,6 +31,7 @@ function counts(outcome: string): Record<string, number> {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 const NO_DRAFT_REASONS: Record<string, string> = {
+  suspicious: "it contains text that tries to instruct an automated assistant; it is listed in your daily brief",
   switched_off: "reply drafts are switched off in your settings",
   not_selected: "it is not a quote request, an order or a payment reply, and you chose drafts for those only",
   internal: "it came from your own company",

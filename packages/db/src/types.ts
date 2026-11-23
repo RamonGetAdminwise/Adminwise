@@ -265,6 +265,8 @@ export interface Message {
   attachmentNames: string[];
   classification: Classification | null;
   language: string | null;
+  /** The mail contains text that tries to instruct an automated assistant: no draft, listed in the brief. */
+  suspicious: boolean;
   bodyText: string | null;
   bodyPurgedAt: Date | null;
 }

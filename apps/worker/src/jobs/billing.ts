@@ -90,7 +90,20 @@ export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
     const readOnlyBefore = daysAfter(now, -DELETE_AFTER_DAYS);
     const warnedBefore = daysAfter(now, -DELETE_WARNING_DAYS_BEFORE);
     for (const id of await sys.listAccountsToDelete(readOnlyBefore, warnedBefore)) {
-      if (await sys.deleteCustomer(id, true)) result.deleted++;
+      const to = await sys.listUserEmails(id);
+      if (!(await sys.deleteCustomer(id, true))) continue;
+      result.deleted++;
+      // The addresses were read before the deletion; nothing of the account is left to look them up in.
+      if (to.length > 0) {
+        await deps.mailer.send({
+          to,
+          subject: `Your ${deps.appName} account has been deleted`,
+          textBody:
+            `Your ${deps.appName} account was read-only for ${DELETE_AFTER_DAYS} days and has now been deleted, with everything we stored for it.\n\n` +
+            "Files in your own OneDrive and drafts in your own mailbox are yours and were not touched.\n\n" +
+            `You are welcome back at any time: ${deps.appBaseUrl}\n`,
+        });
+      }
     }
 
     await sys.finishJobRun(runId, "succeeded");

@@ -27,4 +27,4 @@ export {
   type Category,
   type DocumentType,
 } from "./jobs";
-export { stripQuotedHistory } from "./text";
+export { looksLikeInjection, stripQuotedHistory } from "./text";

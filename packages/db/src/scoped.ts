@@ -636,6 +636,30 @@ export function forCustomer(db: Db, customerId: string) {
       );
     },
 
+    /**
+     * Everything stored for this customer, for "download my data": one list of rows per table.
+     * Left out on purpose: sign-in tokens and sessions, the keys to the mailbox, bookmarks into
+     * the mailbox, any email or document text still waiting to be deleted, and file contents.
+     */
+    async exportData(): Promise<Record<string, Record<string, unknown>[]>> {
+      const SECRET = new Set([
+        "access_token_enc", "refresh_token_enc", "delta_link", "sent_delta_link", "subscription_id",
+        "body_text", "pending_text", "raw", "content",
+      ]);
+      const strip = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([key]) => !SECRET.has(key)));
+      const out: Record<string, Record<string, unknown>[]> = {};
+      out.customer = (await run("SELECT * FROM customers WHERE id = $1")).rows.map(strip);
+      // Fixed names, never taken from input.
+      const tables = [
+        "users", "mailbox_connections", "threads", "messages", "drafts", "filed_documents", "customer_logos",
+        "price_lists", "price_items", "sender_discounts", "offers", "offer_lines", "invoices", "job_runs", "audit_events",
+      ];
+      for (const table of tables) {
+        out[table] = (await run(`SELECT * FROM ${table} WHERE customer_id = $1`)).rows.map(strip);
+      }
+      return out;
+    },
+
     /** Remembers which Stripe customer this account is, once, the first time a plan is chosen. */
     async setStripeCustomerId(stripeCustomerId: string) {
       await run("UPDATE customers SET stripe_customer_id = $2 WHERE id = $1 AND stripe_customer_id IS NULL", [stripeCustomerId]);
@@ -924,12 +948,22 @@ export function forCustomer(db: Db, customerId: string) {
       return rows.map((r) => camel<Message>(r));
     },
 
-    async setClassification(messageId: string, classification: Classification, language: string | null) {
-      await run("UPDATE messages SET classification = $3, language = $4 WHERE customer_id = $1 AND id = $2", [
-        messageId,
-        classification,
-        language,
-      ]);
+    async setClassification(messageId: string, classification: Classification, language: string | null, suspicious = false) {
+      await run(
+        "UPDATE messages SET classification = $3, language = $4, suspicious = $5 WHERE customer_id = $1 AND id = $2",
+        [messageId, classification, language, suspicious],
+      );
+    },
+
+    /** Business mail received in the period that tried to instruct an automated assistant. */
+    async listSuspiciousBetween(from: Date, to: Date): Promise<{ subject: string; senderDomain: string }[]> {
+      const { rows } = await run(
+        `SELECT subject, sender_domain FROM messages
+         WHERE customer_id = $1 AND direction = 'inbound' AND suspicious AND received_at >= $2 AND received_at < $3
+         ORDER BY received_at`,
+        [from, to],
+      );
+      return rows.map((r) => camel<{ subject: string; senderDomain: string }>(r));
     },
 
     // ---- drafts ----------------------------------------------------------------

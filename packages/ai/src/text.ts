@@ -11,6 +11,28 @@ const QUOTE_MARKERS: RegExp[] = [
   /^\s*(from|od|von|van)\s*:\s.+$/i, // Outlook header block: From: ... / Sent: ...
 ];
 
+/**
+ * Wording that is typical of an attempt to instruct an automated assistant.
+ * A second line of defence next to the model's own judgement: these phrases
+ * flag a mail even when the model says nothing. Deliberately narrow, so that a
+ * person writing "please ignore my previous email" is not flagged.
+ */
+const INJECTION_PATTERNS: RegExp[] = [
+  /\b(ignore|disregard|forget)\s+(all\s+|any\s+|the\s+|your\s+)?(previous|prior|above|earlier)\s+(instructions|rules|prompts?|guidelines)/i,
+  /\b(system|developer)\s+prompt\b/i,
+  /^\s*\[?\s*(system|assistant)\s*\]?\s*:/im,
+  /\byou\s+are\s+(now\s+)?(an?\s+)?(ai|a\.i\.|language\s+model|chatbot)\b/i,
+  /\b(note|instructions?|message)\s+(for|to)\s+the\s+(ai|assistant|bot|language\s+model)\b/i,
+  /\b(do\s+not|don't|never)\s+(tell|inform|show|mention\s+(this|it)\s+to)\s+the\s+(user|owner|recipient)/i,
+  /\bzignoruj\s+(wszystkie\s+)?(poprzednie|wcześniejsze|powyższe)\s+(instrukcje|polecenia|zasady)\s+(asystent|system|i\s+(prześlij|wyślij))/i,
+  /\bignoriere\s+(alle\s+)?(vorherigen|bisherigen|obigen)\s+(anweisungen|regeln)/i,
+  /\bnegeer\s+(alle\s+)?(vorige|eerdere|bovenstaande)\s+(instructies|regels)/i,
+];
+
+export function looksLikeInjection(text: string): boolean {
+  return INJECTION_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 export function stripQuotedHistory(body: string): string {
   const lines = body.split(/\r?\n/);
   let cut = lines.length;

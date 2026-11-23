@@ -15,7 +15,7 @@ import { quoteRequestPrompt, type QuoteRequestInput } from "../prompts/quote-req
 import { replyDraftPrompt, type ReplyDraftInput } from "../prompts/reply-draft";
 import { voiceProfilePrompt, type VoiceProfileInput } from "../prompts/voice-profile";
 import { AiError, type AiClient, type AiUsage } from "./client";
-import { clip, stripQuotedHistory } from "./text";
+import { clip, looksLikeInjection, stripQuotedHistory } from "./text";
 
 export const CATEGORIES = ["business", "newsletter", "notification", "auto_reply", "internal"] as const;
 export type Category = (typeof CATEGORIES)[number];
@@ -26,11 +26,11 @@ const MAX_HISTORY_CHARS = 3_000;
 export async function classifyMessage(
   ai: AiClient,
   input: ClassifyInput,
-): Promise<{ category: Category; language: string; usage: AiUsage }> {
+): Promise<{ category: Category; language: string; suspicious: boolean; usage: AiUsage }> {
   const prompt = classifyPrompt({ ...input, body: clip(input.body, MAX_BODY_CHARS) });
   const result = await ai.complete({ job: "classify", ...prompt, maxTokens: 2000 });
   const json = /\{[^{}]*\}/.exec(result.text)?.[0];
-  let parsed: { category?: unknown; language?: unknown } = {};
+  let parsed: { category?: unknown; language?: unknown; instructs_assistant?: unknown } = {};
   try {
     parsed = json ? (JSON.parse(json) as typeof parsed) : {};
   } catch {
@@ -41,7 +41,9 @@ export async function classifyMessage(
   if (!category || !/^[a-z]{2}$/.test(language)) {
     throw new AiError("Classification answer was not in the expected format");
   }
-  return { category, language, usage: result };
+  // Flagged when the model says so OR the wording says so: neither can talk the other out of it.
+  const suspicious = parsed.instructs_assistant === "yes" || looksLikeInjection(`${input.subject}\n${input.body}`);
+  return { category, language, suspicious, usage: result };
 }
 
 export async function draftReply(

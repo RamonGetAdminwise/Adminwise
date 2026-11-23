@@ -54,6 +54,12 @@ export const en = {
       `- Invoice ${number} to ${who} (${amount}): the customer wrote that it has been paid. Reminders have stopped; please check your bank.`,
   },
 
+  suspicious: {
+    heading: (count: number) => `LOOKED SUSPICIOUS (${count})`,
+    mail: (subject: string, senderDomain: string) => `- "${subject}" (from ${senderDomain})`,
+    hint: "  These emails contain text that tries to give instructions to an automated assistant. Nothing in them was acted on and no reply was prepared. Read them with care before you answer.",
+  },
+
   wentQuiet: {
     heading: (count: number) => `WENT QUIET (${count})`,
     chaserReady: (subject: string, counterpartDomain: string, workingDays: number) =>

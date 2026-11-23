@@ -5,7 +5,7 @@ import { checkVatNumber, EU_COUNTRIES, isValidTimeZone, normalizeVatNumber, OTHE
 import { forCustomer, REPLY_DRAFT_MODES, system, type ReplyDraftMode } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
-import { getAi, getConfig, getDb, getStripe } from "@/lib/server";
+import { getAi, getConfig, getDb, getMailer, getStripe } from "@/lib/server";
 
 const text = (value: FormDataEntryValue | null, max: number) =>
   (typeof value === "string" ? value : "").trim().slice(0, max);
@@ -194,8 +194,21 @@ export async function closeAccount(formData: FormData) {
 
   const sys = system(getDb());
   const runId = await sys.startJobRun("account-closed");
+  const to = await sys.listUserEmails(session.customerId);
   await sys.deleteCustomer(session.customerId);
   await sys.finishJobRun(runId, "succeeded");
+  // Confirmation, to the addresses read before the deletion. A mail that fails must not undo anything.
+  const { appName } = getConfig();
+  await getMailer()
+    .send({
+      to,
+      subject: `Your ${appName} account is closed`,
+      textBody:
+        `Your ${appName} account is closed, and everything we stored for it has been deleted: settings, price list, offers, tracked invoices and activity.\n\n` +
+        "Files in your own OneDrive and drafts in your own mailbox are yours and were not touched. " +
+        "Copies in our database backups disappear as those backups expire.\n",
+    })
+    .catch(() => undefined);
   await signOut();
   redirect("/signin?closed=1");
 }

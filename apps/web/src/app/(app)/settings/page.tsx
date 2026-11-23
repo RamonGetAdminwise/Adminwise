@@ -424,6 +424,18 @@ export default async function SettingsPage({
         </details>
       </section>
 
+      <section className="card" id="data">
+        <h2 className="text-lg font-semibold">Your data</h2>
+        <p className="mt-2 text-sm text-stone-600">
+          Download everything {config.appName} stores for your account as one file: settings, price list, offers, tracked
+          invoices, the list of filed documents and the activity log. Email text is not in it, because it is deleted
+          within 24 hours.
+        </p>
+        <a className="btn-secondary mt-3" href="/api/export">
+          Download my data
+        </a>
+      </section>
+
       <section className="card" id="close">
         <details>
           <summary className="cursor-pointer text-sm font-medium text-stone-700">Close my account</summary>

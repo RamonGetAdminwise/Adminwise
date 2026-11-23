@@ -70,6 +70,8 @@ export interface BriefInput {
   quiet?: (QuietThread & { workingDaysQuiet: number; skipUrl: string; neverUrl: string })[];
   /** Documents filed yesterday. */
   filed?: Pick<FiledDocument, "docType" | "storedPath">[];
+  /** Mail from yesterday that tried to instruct an automated assistant: no draft was written for it. */
+  suspicious?: { subject: string; senderDomain: string }[];
   /** Mailboxes that must be reconnected. */
   problems: Pick<MailboxConnection, "provider" | "emailAddress" | "status">[];
   /** Attachments that arrived yesterday and were not filed because the mailbox was connected before filing existed. */
@@ -157,6 +159,11 @@ export function composeBrief(input: BriefInput): { subject: string; textBody: st
     sections.push([t.filed.heading(filed.length), ...lines].join("\n"));
   }
 
+  const suspicious = input.suspicious ?? [];
+  if (suspicious.length > 0) {
+    sections.push([t.suspicious.heading(suspicious.length), ...suspicious.map((s) => t.suspicious.mail(s.subject, s.senderDomain)), t.suspicious.hint].join("\n"));
+  }
+
   const problems = [
     ...input.problems.map((p) => t.problems.mailboxDisconnected(p.emailAddress, settingsUrl)),
     ...(input.filingOffCount ? [t.problems.filingOff(input.filingOffCount, settingsUrl)] : []),
@@ -188,8 +195,9 @@ export async function sendBrief(
     const customer = await scope.getCustomer();
     const today = startOfLocalDay(job.localDate, customer.timeZone);
     const yesterday = startOfLocalDay(addDays(job.localDate, -1), customer.timeZone);
-    const [drafts, offers, quiet, filed, connections, users, filingOffCount, queuedCount] = await Promise.all([
+    const [drafts, suspicious, offers, quiet, filed, connections, users, filingOffCount, queuedCount] = await Promise.all([
       scope.listDraftSummaries(yesterday, today),
+      scope.listSuspiciousBetween(yesterday, today),
       scope.listOffersBetween(yesterday, today),
       scope.listQuietThreads(today, job.localDate),
       scope.listFiledBetween(yesterday, today),
@@ -242,6 +250,7 @@ export async function sendBrief(
       appBaseUrl: deps.appBaseUrl,
       localDate: job.localDate,
       drafts,
+      suspicious,
       money,
       offers: offers.map((o) => ({
         kind: o.kind,
