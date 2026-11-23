@@ -6,6 +6,7 @@ A hosted back-office service for small companies. Phase 1: sign-in, settings, vo
 - Accounts, model ids and the AWS key: [docs/ACCOUNTS_SETUP.md](docs/ACCOUNTS_SETUP.md)
 - Microsoft app registration: [docs/MICROSOFT_SETUP.md](docs/MICROSOFT_SETUP.md)
 - Deployment: [docs/DEPLOY.md](docs/DEPLOY.md)
+- Built but not yet proven, to check later: [docs/TO_VERIFY.md](docs/TO_VERIFY.md)
 - Spec and decisions: `../01_Project_docs/`
 
 ## Run locally

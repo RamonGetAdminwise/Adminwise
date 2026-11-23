@@ -1,0 +1,49 @@
+# To verify later
+
+Things that are built but not yet proven, or that were proven only once or only in tests. Each line says what is unknown, how to check it, and when it matters. Tick an item off with the date and the result; add new ones as they come up.
+
+Last updated: 2026-11-23.
+
+## Seen working in production (for reference)
+
+- Sign-in mail, voice profile, Outlook mailbox connection, reply drafts (16 Nov)
+- Forwarding address: draft mailed back (16 Nov)
+- Filing an attachment to `Apps/Adminwise` in OneDrive (23 Nov)
+- Price list upload with the customer's own Excel, offer PDF attached to a draft, logo on the offer (23 Nov)
+
+## Check in the coming days
+
+- [ ] **Follow-up chaser, live.** Never seen in production. Check: with the follow-up period set to 1, a follow-up draft appears in Concepten the next working morning after 06:00 for an unanswered question sent from the connected mailbox. Then set the period back to 5.
+- [ ] **Full daily brief, live.** Check the 07:30 brief for the sections "went quiet", "filed yesterday" and "offers and orders prepared yesterday", and that the links in it open.
+- [ ] **"Not this time" and "Never for this thread" links.** Press each once from a real brief; the waiting draft should disappear from Concepten.
+- [ ] **Order confirmation, live.** Reply "please go ahead" to an offer from the private address; an order confirmation PDF should be attached to the next draft. Also press "prepare the order confirmation" from a brief once.
+- [ ] **Offers for forwarding-address customers, live.** Forward a quote request to the forwarding address; the draft and the PDF should come back by email.
+- [ ] **Railway backups.** Confirm on the Postgres Backups tab that the Daily schedule is switched on (the plan was upgraded to Pro on 23 Nov; the schedule itself was not confirmed). Do one test restore before real customer data exists.
+- [ ] **Mail to hello@getadminwise.com arrives.** The alias was added on 23 Nov and not tested; DMARC reports and replies to product mail go there.
+- [ ] **Operator alert mail.** Never seen live, because nothing has failed. Check once that a failure produces one mail to `ALERT_EMAIL` (for example after a deliberate failure in a test environment).
+- [ ] **`fixtures/random/price-list-random.xlsx` in the repository.** Committed by mistake on 23 Nov. Confirm it holds invented data only; if it holds real prices or real company names, remove it from the repository and its history.
+- [ ] **Worker memory on Railway with the PDF browser.** One offer at a time works. Watch the worker's memory and restarts when several offers are made close together.
+
+## Check before the first outside customer
+
+- [ ] **Speed and capacity with many customers.** Tested: 50 mails within one minute for one customer, with a stand-in model. Not tested: many customers at once, or the real model under load. Do a load test with the real model (for example 100 mails across 10 test customers) and note mails per minute and failures.
+- [ ] **AWS Bedrock request limits.** The account's requests-per-minute and tokens-per-minute limits for the two models are not known. Look them up in the AWS console under Service Quotas > Amazon Bedrock, compare with the expected peak (about 6 mails a minute at 100 customers, two to four model calls each), and ask AWS for an increase in time.
+- [ ] **Model cost per customer.** The estimate of 1 to 3 euros per active customer per month predates quotes, which add one to three model calls per business mail. Measure from the token counts in `job_runs` after two weeks of real use.
+- [ ] **OneDrive app-folder permission.** `Files.ReadWrite.AppFolder` was verified on one work account on 23 Nov; Microsoft labels it "preview" and documents it inconsistently. Run `pnpm check:drive` again, and once with an account in another Microsoft 365 organisation.
+- [ ] **"Shared" label on filed documents.** OneDrive showed "Shared" on a filed file although Manage access listed only the owner. Re-check with the first pilot mailbox.
+- [ ] **Quality of quote matching with the real model.** Nine invented quote mails agreed with expectations on 23 Nov (`pnpm check:quotes`). That is a first check. Widen it with the golden set in phase 5, including real-looking price lists without item codes.
+- [ ] **Price list columns found by the model.** For lists without clear column titles the model proposes the columns. Check with five real customer lists that the preview shows the right name and price columns, and note which layouts fail.
+- [ ] **Voice profile built from one language.** A profile built from English emails produced an English greeting on a Polish reply. Check after rebuilding the profile from mixed-language samples; decide whether the profile should be per language.
+- [ ] **Microsoft publisher verification.** Parked until customer zero. Needs the registered business details, a `getadminwise.com` contact address, and the privacy and terms pages.
+- [ ] **Inbound secrets.** The production and the local `POSTMARK_INBOUND_SECRET` were shown in chat; replace both.
+- [ ] **Point-in-time recovery** in Railway: decide whether to switch it on in addition to daily backups.
+- [ ] **DMARC.** Now `p=none`. After a few weeks of clean reports, tighten to `p=quarantine`.
+- [ ] **Real signature and offer details.** Settings still hold test values (signature "test").
+
+## Known limits, accepted for now
+
+- Docker images are large (worker 3.26 GB with the PDF browser, web about 1.8 GB); builds on Railway take around 10 minutes. Slimming is an open task.
+- Public holidays count as working days for follow-ups.
+- "Never follow up for this sender" and "choose the item yourself" for an unclear quote are not built.
+- Reading details from a sample offer (to prefill offer settings) is not built yet.
+- Filing reads the file name and the email, not the file's own content.
