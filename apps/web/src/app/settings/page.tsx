@@ -197,6 +197,16 @@ export default async function SettingsPage({
         </div>
       </section>
 
+      <section className="card">
+        <h2 className="text-lg font-semibold">Offers and price list</h2>
+        <p className="mt-2 text-sm text-stone-600">
+          Upload your price list, set your offer details and discounts. Offers are prepared from your own prices only.
+        </p>
+        <a className="btn mt-3" href="/settings/offers">
+          Open offers and price list
+        </a>
+      </section>
+
       <section className="card" id="voice">
         <h2 className="text-lg font-semibold">Voice profile</h2>
         <p className="mt-1 text-sm text-stone-600">How your drafts should sound. Built from three emails you sent; you can edit it.</p>

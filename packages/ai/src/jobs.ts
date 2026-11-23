@@ -2,6 +2,7 @@ import { chaserCheckPrompt, type ChaserCheckInput } from "../prompts/chaser-chec
 import { chaserDraftPrompt, type ChaserDraftInput } from "../prompts/chaser-draft";
 import { classifyPrompt, type ClassifyInput } from "../prompts/classify";
 import { fileTypePrompt, type FileTypeInput } from "../prompts/file-type";
+import { priceListColumnsPrompt, type PriceListColumnsInput } from "../prompts/price-list-columns";
 import { replyDraftPrompt, type ReplyDraftInput } from "../prompts/reply-draft";
 import { voiceProfilePrompt, type VoiceProfileInput } from "../prompts/voice-profile";
 import { AiError, type AiClient, type AiUsage } from "./client";
@@ -92,6 +93,41 @@ export async function classifyDocument(
   const type = DOCUMENT_TYPES.find((t) => t === firstJson(result.text).type);
   if (!type) throw new AiError("Document type answer was not in the expected format");
   return { type, usage: result };
+}
+
+export interface ProposedColumns {
+  name: number | null;
+  price: number | null;
+  code: number | null;
+  unit: number | null;
+  aliases: number | null;
+}
+
+/**
+ * Which column of a price list holds what, when the column titles do not say.
+ * Returns column numbers only (null = could not tell); the caller checks them
+ * against the sheet and the customer confirms.
+ */
+export async function proposePriceListColumns(
+  ai: AiClient,
+  input: PriceListColumnsInput,
+): Promise<{ columns: ProposedColumns; usage: AiUsage }> {
+  const result = await ai.complete({ job: "price-list-columns", ...priceListColumnsPrompt(input), maxTokens: 2000 });
+  const answer = firstJson(result.text);
+  const column = (value: unknown) => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null);
+  if (!("name" in answer) || !("price" in answer)) {
+    throw new AiError("Price list columns answer was not in the expected format");
+  }
+  return {
+    columns: {
+      name: column(answer.name),
+      price: column(answer.price),
+      code: column(answer.code),
+      unit: column(answer.unit),
+      aliases: column(answer.aliases),
+    },
+    usage: result,
+  };
 }
 
 export async function buildVoiceProfile(

@@ -7,6 +7,8 @@ export {
   checkExpectsReply,
   draftChaser,
   classifyDocument,
+  proposePriceListColumns,
+  type ProposedColumns,
   CATEGORIES,
   DOCUMENT_TYPES,
   type Category,

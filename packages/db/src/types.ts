@@ -14,7 +14,104 @@ export interface Customer {
   voiceProfile: string;
   /** Working days of silence before a follow-up is drafted (1 to 30). */
   followUpDays: number;
+  // ---- offers (phase 3) ----
+  /** Language of the offer document's own texts. */
+  offerLanguage: OfferLanguage;
+  offerLayout: OfferLayout;
+  /** ISO 4217 code; price list prices are net amounts in this currency. */
+  currency: string;
+  /** Percent, added in the totals. */
+  vatRate: number;
+  paymentTerms: string;
+  offerValidDays: number;
+  /** "OF/{YYYY}/{NNN}": {YYYY} is the year, {NNN} a counter that restarts each year. */
+  offerNumberPattern: string;
+  /** Address and tax number, printed in the offer header. */
+  companyDetails: string;
+  bankDetails: string;
+  offerFooter: string;
+  /** "#rrggbb" */
+  brandColor: string;
   createdAt: Date;
+}
+
+export type OfferLanguage = "en" | "pl";
+export type OfferLayout = "classic" | "modern" | "compact";
+export const OFFER_LANGUAGES: OfferLanguage[] = ["en", "pl"];
+export const OFFER_LAYOUTS: OfferLayout[] = ["classic", "modern", "compact"];
+
+export interface OfferSettings {
+  offerLanguage: OfferLanguage;
+  offerLayout: OfferLayout;
+  currency: string;
+  vatRate: number;
+  paymentTerms: string;
+  offerValidDays: number;
+  offerNumberPattern: string;
+  companyDetails: string;
+  bankDetails: string;
+  offerFooter: string;
+  brandColor: string;
+}
+
+/** Which sheet column holds what, as confirmed by the customer. Indexes are 0-based. */
+export interface PriceListMapping {
+  code: number | null;
+  name: number;
+  unit: number | null;
+  price: number;
+  aliases: number | null;
+  source: "headers" | "model" | "customer";
+}
+
+export interface PriceListRaw {
+  sheetName: string;
+  headerRow: number;
+  headers: string[];
+  rows: { row: number; cells: (string | number | null)[] }[];
+}
+
+export interface PriceList {
+  id: string;
+  customerId: string;
+  fileName: string;
+  status: "draft" | "active" | "replaced";
+  currency: string;
+  mapping: PriceListMapping | null;
+  /** The sheet as read; only while the list is a draft. */
+  raw: PriceListRaw | null;
+  itemCount: number;
+  skipped: { row: number; reason: string }[];
+  createdAt: Date;
+  activatedAt: Date | null;
+}
+
+export interface PriceListItem {
+  id: string;
+  priceListId: string;
+  position: number;
+  code: string;
+  name: string;
+  unit: string;
+  /** Net price in the smallest unit (grosz, cent). */
+  netPriceCents: number;
+  aliases: string[];
+}
+
+export interface NewPriceItem {
+  position: number;
+  code: string;
+  name: string;
+  unit: string;
+  netPriceCents: number;
+  aliases: string[];
+}
+
+export interface SenderDiscount {
+  id: string;
+  /** A domain or one address, lower case. */
+  match: string;
+  percent: number;
 }
 
 export interface User {

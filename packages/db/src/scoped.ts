@@ -20,7 +20,14 @@ import type {
   MailboxConnection,
   Message,
   NewMessage,
+  NewPriceItem,
+  OfferSettings,
+  PriceList,
+  PriceListItem,
+  PriceListMapping,
+  PriceListRaw,
   Provider,
+  SenderDiscount,
   User,
 } from "./types";
 
@@ -51,6 +58,25 @@ export function forCustomer(db: Db, customerId: string) {
     };
   }
 
+  function toPriceList(row: QueryResultRow): PriceList {
+    const list = camel<PriceList>(row);
+    // An empty mapping object means "not found yet".
+    const mapping = list.mapping && "name" in list.mapping ? list.mapping : null;
+    return { ...list, mapping };
+  }
+
+  /** All items of a list in one statement; the list travels as JSON so prices stay whole numbers. */
+  async function insertPriceItems(priceListId: string, items: NewPriceItem[]) {
+    if (items.length === 0) return;
+    await run(
+      `INSERT INTO price_items (customer_id, price_list_id, position, code, name, unit, net_price_cents, aliases)
+       SELECT $1, $2, x.position, x.code, x.name, x.unit, x."netPriceCents", x.aliases
+       FROM jsonb_to_recordset($3::jsonb)
+         AS x(position integer, code text, name text, unit text, "netPriceCents" bigint, aliases text[])`,
+      [priceListId, JSON.stringify(items)],
+    );
+  }
+
   return {
     customerId,
 
@@ -59,7 +85,178 @@ export function forCustomer(db: Db, customerId: string) {
     async getCustomer(): Promise<Customer> {
       const { rows } = await run("SELECT * FROM customers WHERE id = $1");
       if (!rows[0]) throw new Error("Customer not found");
-      return camel<Customer>(rows[0]);
+      const customer = camel<Customer>(rows[0]);
+      // numeric columns arrive as text
+      return { ...customer, vatRate: Number(customer.vatRate) };
+    },
+
+    // ---- offer settings (phase 3) ----------------------------------------------
+
+    async updateOfferSettings(s: OfferSettings) {
+      await run(
+        `UPDATE customers SET offer_language = $2, offer_layout = $3, currency = $4, vat_rate = $5,
+                payment_terms = $6, offer_valid_days = $7, offer_number_pattern = $8, company_details = $9,
+                bank_details = $10, offer_footer = $11, brand_color = $12
+         WHERE id = $1`,
+        [
+          s.offerLanguage,
+          s.offerLayout,
+          s.currency,
+          s.vatRate,
+          s.paymentTerms,
+          s.offerValidDays,
+          s.offerNumberPattern,
+          s.companyDetails,
+          s.bankDetails,
+          s.offerFooter,
+          s.brandColor,
+        ],
+      );
+    },
+
+    async setLogo(content: Uint8Array, contentType: string) {
+      await run(
+        `INSERT INTO customer_logos (customer_id, content, content_type) VALUES ($1, $2, $3)
+         ON CONFLICT (customer_id) DO UPDATE
+           SET content = EXCLUDED.content, content_type = EXCLUDED.content_type, updated_at = now()`,
+        [Buffer.from(content), contentType],
+      );
+    },
+
+    async removeLogo() {
+      await run("DELETE FROM customer_logos WHERE customer_id = $1");
+    },
+
+    async getLogo(): Promise<{ content: Uint8Array; contentType: string } | null> {
+      const { rows } = await run<{ content: Buffer; content_type: string }>(
+        "SELECT content, content_type FROM customer_logos WHERE customer_id = $1",
+      );
+      return rows[0] ? { content: new Uint8Array(rows[0].content), contentType: rows[0].content_type } : null;
+    },
+
+    // ---- price lists -----------------------------------------------------------
+
+    /**
+     * Stores an uploaded price list as a draft: the sheet as read, the proposed
+     * column mapping and the items that mapping gives. Nothing uses it until the
+     * customer confirms (activatePriceList). An earlier unconfirmed draft is dropped.
+     */
+    async createPriceListDraft(d: {
+      fileName: string;
+      currency: string;
+      mapping: PriceListMapping | null;
+      raw: PriceListRaw;
+      items: NewPriceItem[];
+      skipped: { row: number; reason: string }[];
+    }): Promise<string> {
+      await run("DELETE FROM price_lists WHERE customer_id = $1 AND status = 'draft'");
+      const { rows } = await run<{ id: string }>(
+        `INSERT INTO price_lists (customer_id, file_name, currency, mapping, raw, item_count, skipped)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [
+          d.fileName,
+          d.currency,
+          JSON.stringify(d.mapping ?? {}),
+          JSON.stringify(d.raw),
+          d.items.length,
+          JSON.stringify(d.skipped),
+        ],
+      );
+      const id = rows[0]!.id;
+      await insertPriceItems(id, d.items);
+      return id;
+    },
+
+    /** The customer chose other columns for a draft: replace its items with what the new mapping gives. */
+    async remapPriceListDraft(
+      id: string,
+      d: { mapping: PriceListMapping; items: NewPriceItem[]; skipped: { row: number; reason: string }[] },
+    ): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE price_lists SET mapping = $3, item_count = $4, skipped = $5
+         WHERE customer_id = $1 AND id = $2 AND status = 'draft'`,
+        [id, JSON.stringify(d.mapping), d.items.length, JSON.stringify(d.skipped)],
+      );
+      if (rowCount !== 1) return false;
+      await run("DELETE FROM price_items WHERE customer_id = $1 AND price_list_id = $2", [id]);
+      await insertPriceItems(id, d.items);
+      return true;
+    },
+
+    /**
+     * The customer confirmed the preview: the draft becomes the active list and
+     * the previous one is kept as "replaced" (old offers still point to it).
+     * The sheet as read is no longer needed and is removed.
+     */
+    async activatePriceList(id: string): Promise<boolean> {
+      const { rowCount } = await run(
+        `WITH previous AS (
+           UPDATE price_lists SET status = 'replaced'
+           WHERE customer_id = $1 AND status = 'active' AND id <> $2
+             AND EXISTS (SELECT 1 FROM price_lists
+                         WHERE customer_id = $1 AND id = $2 AND status = 'draft' AND item_count > 0)
+           RETURNING id
+         )
+         UPDATE price_lists SET status = 'active', raw = NULL, activated_at = now()
+         WHERE customer_id = $1 AND id = $2 AND status = 'draft' AND item_count > 0
+           AND (SELECT count(*) FROM previous) >= 0`,
+        [id],
+      );
+      return rowCount === 1;
+    },
+
+    async discardPriceListDraft() {
+      await run("DELETE FROM price_lists WHERE customer_id = $1 AND status = 'draft'");
+    },
+
+    async getPriceListByStatus(status: "draft" | "active"): Promise<PriceList | null> {
+      const { rows } = await run(
+        "SELECT * FROM price_lists WHERE customer_id = $1 AND status = $2 ORDER BY created_at DESC LIMIT 1",
+        [status],
+      );
+      return rows[0] ? toPriceList(rows[0]) : null;
+    },
+
+    async listPriceItems(priceListId: string, limit = 10_000): Promise<PriceListItem[]> {
+      const { rows } = await run(
+        `SELECT id, price_list_id, position, code, name, unit, net_price_cents, aliases FROM price_items
+         WHERE customer_id = $1 AND price_list_id = $2 ORDER BY position LIMIT $3`,
+        [priceListId, limit],
+      );
+      return rows.map((r) => {
+        const item = camel<PriceListItem>(r);
+        return { ...item, netPriceCents: Number(item.netPriceCents) };
+      });
+    },
+
+    // ---- discounts per sender --------------------------------------------------
+
+    async listDiscounts(): Promise<SenderDiscount[]> {
+      const { rows } = await run("SELECT id, match, percent FROM sender_discounts WHERE customer_id = $1 ORDER BY match");
+      return rows.map((r) => ({ id: r.id as string, match: r.match as string, percent: Number(r.percent) }));
+    },
+
+    async setDiscount(match: string, percent: number) {
+      await run(
+        `INSERT INTO sender_discounts (customer_id, match, percent) VALUES ($1, $2, $3)
+         ON CONFLICT (customer_id, match) DO UPDATE SET percent = EXCLUDED.percent`,
+        [match.trim().toLowerCase(), percent],
+      );
+    },
+
+    async deleteDiscount(id: string) {
+      await run("DELETE FROM sender_discounts WHERE customer_id = $1 AND id = $2", [id]);
+    },
+
+    /** The discount for a sender: a rule for their exact address wins over one for their domain. 0 = none. */
+    async discountFor(address: string | null, domain: string): Promise<number> {
+      const { rows } = await run<{ percent: string }>(
+        `SELECT percent FROM sender_discounts
+         WHERE customer_id = $1 AND match IN ($2, $3)
+         ORDER BY (match = $2) DESC LIMIT 1`,
+        [(address ?? "").toLowerCase(), domain.toLowerCase()],
+      );
+      return rows[0] ? Number(rows[0].percent) : 0;
     },
 
     async updateSettings(s: {
