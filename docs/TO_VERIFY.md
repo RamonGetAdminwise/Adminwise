@@ -18,10 +18,11 @@ Last updated: 2026-11-23.
 - [ ] **"Not this time" and "Never for this thread" links.** Press each once from a real brief; the waiting draft should disappear from Concepten.
 - [ ] **Order confirmation, live.** Reply "please go ahead" to an offer from the private address; an order confirmation PDF should be attached to the next draft. Also press "prepare the order confirmation" from a brief once.
 - [ ] **Offers for forwarding-address customers, live.** Forward a quote request to the forwarding address; the draft and the PDF should come back by email.
-- [ ] **Railway backups.** Confirm on the Postgres Backups tab that the Daily schedule is switched on (the plan was upgraded to Pro on 23 Nov; the schedule itself was not confirmed). Do one test restore before real customer data exists.
+- [x] **Railway backups switched on.** Daily schedule is on (confirmed by Ramon, 23 Nov).
+- [ ] **Railway backup restore.** Do one test restore before real customer data exists: a backup that was never restored is not proven.
 - [ ] **Mail to hello@getadminwise.com arrives.** The alias was added on 23 Nov and not tested; DMARC reports and replies to product mail go there.
 - [ ] **Operator alert mail.** Never seen live, because nothing has failed. Check once that a failure produces one mail to `ALERT_EMAIL` (for example after a deliberate failure in a test environment).
-- [ ] **`fixtures/random/price-list-random.xlsx` in the repository.** Committed by mistake on 23 Nov. Confirm it holds invented data only; if it holds real prices or real company names, remove it from the repository and its history.
+- [x] **`fixtures/random/price-list-random.xlsx` in the repository.** Committed by mistake on 23 Nov. It holds invented data only (confirmed by Ramon, 23 Nov), so it stays.
 - [ ] **Worker memory on Railway with the PDF browser.** One offer at a time works. Watch the worker's memory and restarts when several offers are made close together.
 
 ## Check before the first outside customer
