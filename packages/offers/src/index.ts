@@ -1,4 +1,8 @@
+export { escapeHtml, offerStrings, renderOfferHtml, type OfferDocument } from "./document";
 export { importPriceList, remapPriceList, type ImportSummary } from "./import";
+export { matchByCode, rankCandidates, words, type MatchableItem } from "./match";
+export { buildOffer, formatOfferNumber, formatQuantity, lineTotal, type OfferLine, type OfferTotals, type PricedItem } from "./offer";
+export type { OfferStrings } from "./strings/en";
 export { formatMoney, parseAmount, percentOf } from "./money";
 export {
   applyMapping,
