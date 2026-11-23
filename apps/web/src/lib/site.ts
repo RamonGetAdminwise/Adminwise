@@ -6,7 +6,7 @@ import { getConfig } from "./server";
  * length were confirmed on 2026-11-09; the plan contents on 2026-11-23.
  * The site must only promise what the product does today.
  */
-export const TRIAL_DAYS = 14;
+export { TRIAL_DAYS } from "@adminwise/core";
 
 export interface Plan {
   name: string;

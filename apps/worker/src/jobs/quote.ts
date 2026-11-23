@@ -28,7 +28,7 @@ import {
   renderOfferHtml,
   type OfferDocument,
 } from "@adminwise/offers";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 import { safeName } from "./filing";
 import { appendSignature } from "./signature";
 
@@ -253,6 +253,8 @@ export async function confirmOffer(deps: Deps, job: { customerId: string; offerI
       scope.getCustomer(),
       message.connectionId ? scope.getConnection(message.connectionId) : null,
     ]);
+    // Order confirmations belong to the Run plan.
+    if (!allowed(deps, customer).offers) return await skip("not_in_plan");
     const toOutlook = connection?.provider === "microsoft";
     const language = message.language ?? customer.languages[0] ?? "en";
 

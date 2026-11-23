@@ -11,6 +11,11 @@ export interface Config {
   mailFrom: string;
   /** ISO code of the country our own invoices are issued from; decides when VAT is reverse-charged. */
   sellerCountry: string;
+  /**
+   * False (the default): every account has every feature and no trial ends.
+   * True: trials end, plans are enforced and read-only accounts are deleted after 60 days.
+   */
+  billingEnabled: boolean;
   databaseUrl: string;
   tokenEncryptionKey: string;
   /**
@@ -54,6 +59,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     inboundDomain: (env.INBOUND_DOMAIN || "in.getadminwise.com").toLowerCase(),
     mailFrom: env.MAIL_FROM || `${appName} <hello@getadminwise.com>`,
     sellerCountry: (env.SELLER_COUNTRY || "PL").trim().toUpperCase(),
+    billingEnabled: (env.BILLING_ENABLED || "").trim().toLowerCase() === "true",
     databaseUrl: required(env, "DATABASE_URL"),
     tokenEncryptionKey: required(env, "TOKEN_ENCRYPTION_KEY"),
     aws: {

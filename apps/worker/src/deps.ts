@@ -1,5 +1,5 @@
 import type { AiClient } from "@adminwise/ai";
-import type { JobQueue, OutlookGateway } from "@adminwise/core";
+import { entitlements, type BillingState, type Entitlements, type JobQueue, type OutlookGateway } from "@adminwise/core";
 import type { Db } from "@adminwise/db";
 import type { OutboundMailer } from "@adminwise/mail";
 
@@ -23,7 +23,14 @@ export interface Deps {
   appBaseUrl: string;
   /** Where operator alerts go; unset = no alerts. */
   alertEmail?: string | null;
+  /** False or unset: every account has every feature (billing not live yet). */
+  billingEnabled?: boolean;
   now?: () => Date;
+}
+
+/** What this account may do right now: see packages/core/src/billing.ts. */
+export function allowed(deps: Deps, customer: BillingState): Entitlements {
+  return entitlements(customer, deps.now?.() ?? new Date(), deps.billingEnabled ?? false);
 }
 
 /** A short technical reason for the job log. Built from our own error messages, never from email content. */

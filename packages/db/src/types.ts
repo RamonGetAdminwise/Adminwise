@@ -50,6 +50,17 @@ export interface Customer {
   vatCheckedAt: Date | null;
   /** The name the EU register holds for the VAT number, when it gives one. */
   vatRegisteredName: string | null;
+  // ---- plan and trial ----
+  plan: "start" | "run";
+  billingStatus: "trial" | "active" | "read_only" | "internal";
+  trialEndsAt: Date;
+  readOnlySince: Date | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  /** End of the period that has been paid for. */
+  currentPeriodEnd: Date | null;
+  /** The owner cancelled: the subscription stops at currentPeriodEnd. */
+  cancelAtPeriodEnd: boolean;
   createdAt: Date;
 }
 

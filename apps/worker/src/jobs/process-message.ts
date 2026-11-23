@@ -1,6 +1,6 @@
 import { checkPaymentNotice, classifyMessage, draftReply } from "@adminwise/ai";
 import { forCustomer } from "@adminwise/db";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 import { ownDomains, prefilter } from "./prefilter";
 import { prepareOrderConfirmation, prepareQuoteReply } from "./quote";
 import { endInvoiceChain } from "./reminders";
@@ -42,6 +42,12 @@ export async function processMessage(
       return "skipped";
     }
     const customer = await scope.getCustomer();
+    // Mail that was already taken in when the trial ended or the subscription stopped.
+    const may = allowed(deps, customer);
+    if (!may.work) {
+      await finish("skipped", null, "read_only");
+      return "skipped";
+    }
 
     // 1. Classify (once: a retry reuses the stored answer).
     let classification = message.classification;
@@ -115,7 +121,10 @@ export async function processMessage(
       // 3. Write it. An acceptance of an open offer gets an order confirmation; a quote request (for
       //    customers with a price list) gets an offer; everything else an ordinary reply.
       const context = { customer, message, connection, language: draftLanguage };
-      const quote = (await prepareOrderConfirmation(deps, scope, context)) ?? (await prepareQuoteReply(deps, scope, context));
+      // Offers and order confirmations belong to the Run plan; on Start such mail gets an ordinary reply.
+      const quote = may.offers
+        ? ((await prepareOrderConfirmation(deps, scope, context)) ?? (await prepareQuoteReply(deps, scope, context)))
+        : null;
       // "Sales mail only": a draft for quote requests, acceptances and replies about an invoice
       // being chased; any other business mail is left to the owner.
       if (customer.replyDrafts === "sales" && !quote && chased.length === 0) {

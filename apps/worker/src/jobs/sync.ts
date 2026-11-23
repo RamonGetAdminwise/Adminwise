@@ -1,7 +1,7 @@
 import { ConnectionUnavailableError, ingestInbound, ingestOutbound, QUEUES } from "@adminwise/core";
 import { canFile, forCustomer, system } from "@adminwise/db";
 import { GraphAuthError, GraphError } from "@adminwise/mail";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 
 /** Attachments waiting for OneDrive are tried again at most this often. */
 const FILING_RETRY_MINUTES = 30;
@@ -25,6 +25,8 @@ export async function pollTick(deps: Deps): Promise<number> {
  */
 export async function syncMailbox(deps: Deps, job: { customerId: string; connectionId: string }): Promise<number> {
   const scope = forCustomer(deps.db, job.customerId);
+  // A read-only account (trial over, not paying): the mailbox is not read at all.
+  if (!allowed(deps, await scope.getCustomer()).work) return 0;
   const runId = await scope.startJobRun("sync-mailbox", job.connectionId);
   try {
     const { messageIds, deltaLink } = await deps.outlook.listNewMessageIds(scope, job.connectionId);
@@ -76,6 +78,7 @@ export async function fetchGraphMessage(
   job: { customerId: string; connectionId: string; providerMessageId: string },
 ): Promise<boolean> {
   const scope = forCustomer(deps.db, job.customerId);
+  if (!allowed(deps, await scope.getCustomer()).work) return false;
   try {
     const message = await deps.outlook.fetchMessage(scope, job.connectionId, job.providerMessageId);
     return (await ingestInbound(scope, deps.queue, job.connectionId, message)).stored;

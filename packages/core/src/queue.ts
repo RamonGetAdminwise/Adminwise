@@ -32,6 +32,8 @@ export const QUEUES = {
   readInvoice: "read-invoice",
   /** Draft payment reminders for one customer's overdue invoices. */
   remindCustomer: "remind-customer",
+  /** Hourly: trial reminders, trials that ended, and read-only accounts due for deletion. */
+  billingTick: "billing-tick",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -52,6 +54,7 @@ export interface JobPayloads {
   "track-invoices": { customerId: string; messageId: string };
   "read-invoice": { customerId: string; invoiceId: string };
   "remind-customer": { customerId: string; localDate: string };
+  "billing-tick": Record<string, never>;
 }
 
 /** What the web app and jobs need: a way to hand work to the worker. */

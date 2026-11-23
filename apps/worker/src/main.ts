@@ -38,6 +38,7 @@ const deps: Deps = {
   appName: config.appName,
   appBaseUrl: config.appBaseUrl,
   alertEmail: config.alertEmail,
+  billingEnabled: config.billingEnabled,
 };
 
 await registerWorkers(queue.boss, deps, config.workerConcurrency);

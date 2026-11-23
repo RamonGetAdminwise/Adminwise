@@ -13,4 +13,17 @@ export {
   type VatCheck,
   type VatStatus,
 } from "./vat";
+export {
+  daysAfter,
+  DELETE_AFTER_DAYS,
+  DELETE_WARNING_DAYS_BEFORE,
+  entitlements,
+  TRIAL_DAYS,
+  TRIAL_REMINDER_DAYS_BEFORE,
+  trialDaysLeft,
+  type BillingState,
+  type BillingStatus,
+  type Entitlements,
+  type Plan,
+} from "./billing";
 export { addDays, isValidTimeZone, isWeekend, localClock, startOfLocalDay, workingDaysBetween } from "./time";

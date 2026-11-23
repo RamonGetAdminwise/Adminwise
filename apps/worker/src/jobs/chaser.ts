@@ -2,7 +2,7 @@ import { checkExpectsReply, draftChaser } from "@adminwise/ai";
 import { ConnectionUnavailableError, isWeekend, localClock, QUEUES, workingDaysBetween } from "@adminwise/core";
 import { forCustomer, system } from "@adminwise/db";
 import { domainOf, GraphAuthError, GraphError } from "@adminwise/mail";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 import { ownDomains, SYSTEM_SENDER } from "./prefilter";
 import { appendSignature } from "./signature";
 
@@ -26,10 +26,12 @@ export async function chaseTick(deps: Deps): Promise<number> {
   const now = deps.now?.() ?? new Date();
   let queued = 0;
   for (const customer of await system(deps.db).listCustomerClocks()) {
+    const may = allowed(deps, customer);
+    if (!may.work) continue;
     const clock = localClock(now, customer.timeZone);
     if (clock.minutesOfDay < CHASE_MINUTE_OF_DAY) continue;
     // The payment reminders run at the same hour, with their own once-a-day marker.
-    if (!customer.remindLastRunOn || customer.remindLastRunOn < clock.date) {
+    if (may.reminders && (!customer.remindLastRunOn || customer.remindLastRunOn < clock.date)) {
       await deps.queue.send(QUEUES.remindCustomer, { customerId: customer.id, localDate: clock.date });
     }
     if (customer.chaseLastRunOn && customer.chaseLastRunOn >= clock.date) continue;

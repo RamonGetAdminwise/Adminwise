@@ -15,7 +15,7 @@ async function requestLink(formData: FormData) {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string }>;
+  searchParams: Promise<{ sent?: string; error?: string; closed?: string }>;
 }) {
   const session = await getSession();
   if (session) redirect(await landingPath(session));
@@ -27,6 +27,11 @@ export default async function SignInPage({
       <h1 className="text-2xl font-semibold">{appName}</h1>
       <p className="mt-1 text-stone-600">Your back office, handled.</p>
 
+      {params.closed && (
+        <p className="mt-6 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+          Your account is closed and its data has been deleted.
+        </p>
+      )}
       <div className="card mt-8">
         {params.sent ? (
           <p>

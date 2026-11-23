@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { ingestInbound, QUEUES } from "@adminwise/core";
+import { entitlements, ingestInbound, QUEUES } from "@adminwise/core";
 import { forCustomer, system } from "@adminwise/db";
 import { parsePostmarkInbound, type PostmarkInboundPayload } from "@adminwise/mail";
 import { extractPdfText } from "@adminwise/offers";
@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
     const customerId = await sys.findCustomerIdBySlug(slug);
     if (!customerId) continue; // unknown address: accept and drop, so Postmark does not retry
     const scope = forCustomer(db, customerId);
+    // A read-only account (trial over, not paying): accept and drop, nothing is stored.
+    if (!entitlements(await scope.getCustomer(), new Date(), config.billingEnabled).work) continue;
     const [users, connection] = await Promise.all([scope.listUsers(), scope.getConnectionByProvider("forwarding")]);
     const ownAddresses = new Set(users.map((u) => u.email));
     // Unwrap "Forwarded message" blocks only when the customer forwarded the mail by hand.

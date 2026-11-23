@@ -4,7 +4,7 @@ import { ConnectionUnavailableError } from "@adminwise/core";
 import { forCustomer, type Customer, type CustomerScope, type InvoiceStatus } from "@adminwise/db";
 import { GraphAuthError, GraphError, type AttachmentInfo } from "@adminwise/mail";
 import { checkInvoice, extractPdfText, offerStrings } from "@adminwise/offers";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 
 /** PDFs outside these sizes are not invoices worth reading (icons, or scans of whole folders). */
 const MIN_PDF_BYTES = 2 * 1024;
@@ -86,6 +86,8 @@ export async function trackSentInvoices(deps: Deps, job: { customerId: string; m
     return outcome;
   };
   try {
+    // Invoice tracking belongs to the Run plan.
+    if (!allowed(deps, await scope.getCustomer()).reminders) return await finish("not_in_plan", "skipped");
     const message = await scope.getMessage(job.messageId);
     if (!message || message.direction !== "outbound" || !message.connectionId) return await finish("no_message", "skipped");
     const connection = await scope.getConnection(message.connectionId);
@@ -145,6 +147,10 @@ export async function readForwardedInvoice(deps: Deps, job: { customerId: string
   const runId = await scope.startJobRun("invoice-tracking", job.invoiceId);
   try {
     const invoice = await scope.getInvoice(job.invoiceId);
+    if (!allowed(deps, await scope.getCustomer()).reminders) {
+      await scope.finishJobRun(runId, { status: "skipped", outcome: "not_in_plan" });
+      return "not_in_plan";
+    }
     if (!invoice || invoice.status !== "pending") {
       await scope.finishJobRun(runId, { status: "skipped", outcome: "nothing_new" });
       return "nothing_new";

@@ -3,12 +3,12 @@ import { ConnectionUnavailableError, isWeekend, localClock } from "@adminwise/co
 import { forCustomer, type Customer, type CustomerScope, type Invoice } from "@adminwise/db";
 import { GraphAuthError, GraphError } from "@adminwise/mail";
 import { daysBetween, formatMoney, reminderDue } from "@adminwise/offers";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 import { SYSTEM_SENDER } from "./prefilter";
 import { appendSignature } from "./signature";
 
 export interface RemindResult {
-  status: "done" | "already_ran" | "weekend";
+  status: "done" | "already_ran" | "weekend" | "not_in_plan";
   /** Reminder drafts written in this run. */
   reminders: number;
 }
@@ -59,6 +59,8 @@ export async function endInvoiceChain(
  */
 export async function remindCustomer(deps: Deps, job: { customerId: string; localDate: string }): Promise<RemindResult> {
   const scope = forCustomer(deps.db, job.customerId);
+  // Payment reminders belong to the Run plan.
+  if (!allowed(deps, await scope.getCustomer()).reminders) return { status: "not_in_plan", reminders: 0 };
   if (!(await scope.claimRemindForDate(job.localDate))) return { status: "already_ran", reminders: 0 };
   if (isWeekend(job.localDate)) return { status: "weekend", reminders: 0 };
 

@@ -1,10 +1,10 @@
-import { EU_COUNTRIES, OTHER_COUNTRY, taxTreatment, type TaxTreatment } from "@adminwise/core";
+import { DELETE_AFTER_DAYS, entitlements, EU_COUNTRIES, OTHER_COUNTRY, taxTreatment, trialDaysLeft, type TaxTreatment } from "@adminwise/core";
 import { canFile, forCustomer } from "@adminwise/db";
 import type { ReactNode } from "react";
 import { describeRun, jobName } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
-import { generateVoiceProfile, saveBilling, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
+import { closeAccount, generateVoiceProfile, saveBilling, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,8 @@ const ERRORS: Record<string, string> = {
   timezone: "Choose a time zone from the list.",
   followup: "Follow-up days must be a whole number from 1 to 30.",
   replydrafts: "Choose one of the three options for reply drafts.",
+  close_confirm: "To close your account, type DELETE in the box.",
+  close_subscription: "Cancel your subscription first (Manage subscription), then close the account.",
   billing_country: "Choose your country from the list.",
   vat_format: "That does not look like a VAT number of the country you chose. Check the country and the number.",
   samples: "Paste three complete sent emails (each at least a few lines).",
@@ -65,6 +67,9 @@ export default async function SettingsPage({
   const microsoft = connections.find((c) => c.provider === "microsoft");
   const timeZones = Intl.supportedValuesOf("timeZone");
   const tax = taxTreatment(config.sellerCountry, customer.billingCountry, customer.vatStatus);
+  const now = new Date();
+  const may = entitlements(customer, now, config.billingEnabled);
+  const date = (d: Date | null) => d?.toISOString().slice(0, 10) ?? "";
 
   return (
     <div className="space-y-8">
@@ -89,8 +94,43 @@ export default async function SettingsPage({
           and see your first draft in about ten minutes.
         </p>
       )}
+      {!may.work && (
+        <Notice tone="error">
+          Your account is read-only: nothing new is prepared and your mailbox is not read. Choose a plan below to switch
+          everything back on.
+        </Notice>
+      )}
       {params.saved && SAVED[params.saved] && <Notice tone="ok">{SAVED[params.saved]}</Notice>}
       {params.error && ERRORS[params.error] && <Notice tone="error">{ERRORS[params.error]}</Notice>}
+
+      <section className="card" id="plan">
+        <h2 className="text-lg font-semibold">Plan</h2>
+        <div className="mt-3 space-y-2 text-sm">
+          {!config.billingEnabled && <p>Paid plans have not started yet. Your account is free for now, with every feature.</p>}
+          {config.billingEnabled && customer.billingStatus === "internal" && <p>Internal account: free, with every feature.</p>}
+          {config.billingEnabled && customer.billingStatus === "trial" && may.work && (
+            <p>
+              Free trial with everything in the Run plan. It ends on <strong>{date(customer.trialEndsAt)}</strong> (
+              {trialDaysLeft(customer.trialEndsAt, now)} days left). Without a plan your account then becomes read-only.
+            </p>
+          )}
+          {config.billingEnabled && customer.billingStatus === "active" && (
+            <p>
+              You are on the <strong>{customer.plan === "run" ? "Run" : "Start"}</strong> plan.{" "}
+              {customer.cancelAtPeriodEnd
+                ? `Cancelled: it runs until ${date(customer.currentPeriodEnd)} and then becomes read-only.`
+                : customer.currentPeriodEnd && `Paid until ${date(customer.currentPeriodEnd)}; it renews by itself.`}
+              {customer.plan === "start" && " Offers, order confirmations and payment reminders are part of the Run plan."}
+            </p>
+          )}
+          {config.billingEnabled && !may.work && (
+            <p>
+              Read-only{customer.readOnlySince ? ` since ${date(customer.readOnlySince)}` : ""}. Your settings are kept. An
+              account that stays read-only is deleted after {DELETE_AFTER_DAYS} days; you get a warning by email a week before.
+            </p>
+          )}
+        </div>
+      </section>
 
       <section className="card">
         <h2 className="text-lg font-semibold">Company</h2>
@@ -339,6 +379,28 @@ export default async function SettingsPage({
             </button>
             <p className="hint">The three emails are read once to describe your style and are not stored.</p>
           </form>
+        </details>
+      </section>
+
+      <section className="card" id="close">
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-stone-700">Close my account</summary>
+          <div className="mt-3 space-y-3 text-sm">
+            <p>
+              This deletes your account and everything {config.appName} stores for it, at once and for good: settings,
+              price list, offers, tracked invoices and activity. Files in your own OneDrive and drafts in your own mailbox
+              are yours and stay where they are.
+            </p>
+            <form action={closeAccount} className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="confirm">Type DELETE to confirm</label>
+                <input id="confirm" name="confirm" type="text" autoComplete="off" required />
+              </div>
+              <button className="btn-secondary border-red-300 text-red-800 hover:bg-red-50" type="submit">
+                Close account and delete everything
+              </button>
+            </form>
+          </div>
         </details>
       </section>
 

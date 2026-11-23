@@ -2,7 +2,7 @@
 
 import { buildVoiceProfile } from "@adminwise/ai";
 import { checkVatNumber, EU_COUNTRIES, isValidTimeZone, normalizeVatNumber, OTHER_COUNTRY } from "@adminwise/core";
-import { forCustomer, REPLY_DRAFT_MODES, type ReplyDraftMode } from "@adminwise/db";
+import { forCustomer, REPLY_DRAFT_MODES, system, type ReplyDraftMode } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
 import { getAi, getDb } from "@/lib/server";
@@ -106,6 +106,27 @@ export async function saveVoiceProfile(formData: FormData) {
   await scope.setVoiceProfile(text(formData.get("voiceProfile"), 4000));
   await scope.audit("voice_profile.edited", {}, session.userId);
   redirect("/settings?saved=voice#voice");
+}
+
+/**
+ * Closes the account: deletes the customer and everything stored for them, at once.
+ * Files in their own OneDrive and drafts in their own mailbox are theirs and stay.
+ */
+export async function closeAccount(formData: FormData) {
+  const session = await requireSession();
+  const scope = forCustomer(getDb(), session.customerId);
+  const customer = await scope.getCustomer();
+  // A typed confirmation, so this cannot happen by a stray click.
+  if (text(formData.get("confirm"), 20).toUpperCase() !== "DELETE") redirect("/settings?error=close_confirm#close");
+  // A running subscription has to be cancelled first, or the customer would keep paying for nothing.
+  if (customer.billingStatus === "active" && !customer.cancelAtPeriodEnd) redirect("/settings?error=close_subscription#close");
+
+  const sys = system(getDb());
+  const runId = await sys.startJobRun("account-closed");
+  await sys.deleteCustomer(session.customerId);
+  await sys.finishJobRun(runId, "succeeded");
+  await signOut();
+  redirect("/signin?closed=1");
 }
 
 export async function signOutAction() {

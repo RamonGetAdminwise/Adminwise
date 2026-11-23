@@ -2,6 +2,7 @@ import { QUEUES, type JobPayloads, type QueueName } from "@adminwise/core";
 import type { PgBoss } from "pg-boss";
 import type { Deps } from "./deps";
 import { sendOperatorAlert } from "./jobs/alerts";
+import { billingTick } from "./jobs/billing";
 import { briefTick, sendBrief } from "./jobs/brief";
 import { chaseCustomer, chaseTick } from "./jobs/chaser";
 import { fileAttachments } from "./jobs/filing";
@@ -41,6 +42,7 @@ export async function registerWorkers(boss: PgBoss, deps: Deps, concurrency: num
   await on(QUEUES.briefTick, 1, () => briefTick(deps));
   await on(QUEUES.chaseTick, 1, () => chaseTick(deps));
   await on(QUEUES.alertTick, 1, () => sendOperatorAlert(deps));
+  await on(QUEUES.billingTick, 1, () => billingTick(deps));
 }
 
 /** The recurring schedules (stored in Postgres by pg-boss; one worker fires each tick). */
@@ -50,4 +52,5 @@ export async function registerSchedules(boss: PgBoss): Promise<void> {
   await boss.schedule(QUEUES.briefTick, "* * * * *");
   await boss.schedule(QUEUES.chaseTick, "* * * * *");
   await boss.schedule(QUEUES.alertTick, "3 * * * *");
+  await boss.schedule(QUEUES.billingTick, "11 * * * *");
 }

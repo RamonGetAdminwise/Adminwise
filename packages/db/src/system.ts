@@ -132,14 +132,84 @@ export function system(db: Db) {
         briefLastSentOn: string | null;
         chaseLastRunOn: string | null;
         remindLastRunOn: string | null;
+        plan: "start" | "run";
+        billingStatus: "trial" | "active" | "read_only" | "internal";
+        trialEndsAt: Date;
       }[]
     > {
       const { rows } = await db.pool.query(
         `SELECT id, time_zone, brief_last_sent_on::text AS brief_last_sent_on,
-                chase_last_run_on::text AS chase_last_run_on, remind_last_run_on::text AS remind_last_run_on
+                chase_last_run_on::text AS chase_last_run_on, remind_last_run_on::text AS remind_last_run_on,
+                plan, billing_status, trial_ends_at
          FROM customers`,
       );
       return rows.map((r) => camel(r));
+    },
+
+    // ---- trial and read-only accounts -----------------------------------------
+    // Each step is one UPDATE that only succeeds once, so two workers never send the same mail twice.
+
+    /** Trials ending at or before `before` that have not had their reminder: marks them and returns them. */
+    async claimTrialReminders(before: Date, now: Date): Promise<{ id: string; trialEndsAt: Date }[]> {
+      const { rows } = await db.pool.query(
+        `UPDATE customers SET trial_reminder_sent_at = $2
+         WHERE billing_status = 'trial' AND trial_reminder_sent_at IS NULL AND trial_ends_at <= $1 AND trial_ends_at > $2
+         RETURNING id, trial_ends_at`,
+        [before, now],
+      );
+      return rows.map((r) => camel(r));
+    },
+
+    /** Trials that have run out: made read-only from `now`. */
+    async endExpiredTrials(now: Date): Promise<{ id: string }[]> {
+      const { rows } = await db.pool.query(
+        `UPDATE customers SET billing_status = 'read_only', read_only_since = $1
+         WHERE billing_status = 'trial' AND trial_ends_at <= $1
+         RETURNING id`,
+        [now],
+      );
+      return rows.map((r) => ({ id: r.id as string }));
+    },
+
+    /** Accounts read-only since `since` or longer that have not been warned about deletion: marks and returns them. */
+    async claimDeletionWarnings(since: Date, now: Date): Promise<{ id: string; readOnlySince: Date }[]> {
+      const { rows } = await db.pool.query(
+        `UPDATE customers SET deletion_warning_sent_at = $2
+         WHERE billing_status = 'read_only' AND deletion_warning_sent_at IS NULL AND read_only_since <= $1
+         RETURNING id, read_only_since`,
+        [since, now],
+      );
+      return rows.map((r) => camel(r));
+    },
+
+    /** Read-only accounts due for deletion: read-only since `since` or longer AND warned at `warnedBefore` or earlier. */
+    async listAccountsToDelete(since: Date, warnedBefore: Date): Promise<string[]> {
+      const { rows } = await db.pool.query(
+        `SELECT id FROM customers
+         WHERE billing_status = 'read_only' AND read_only_since <= $1 AND deletion_warning_sent_at <= $2`,
+        [since, warnedBefore],
+      );
+      return rows.map((r) => r.id as string);
+    },
+
+    async listUserEmails(customerId: string): Promise<string[]> {
+      const { rows } = await db.pool.query("SELECT email FROM users WHERE customer_id = $1 ORDER BY created_at", [customerId]);
+      return rows.map((r) => r.email as string);
+    },
+
+    /**
+     * Deletes a customer and everything stored for them: every table hangs off
+     * customers with ON DELETE CASCADE. Files in the customer's own OneDrive and
+     * drafts in their own mailbox are theirs and stay where they are.
+     * `onlyIfReadOnly` guards the automatic clean-up: an account that paid in
+     * the meantime is not touched.
+     */
+    async deleteCustomer(customerId: string, onlyIfReadOnly = false): Promise<boolean> {
+      const { rowCount } = await db.pool.query(
+        `DELETE FROM customers WHERE id = $1 AND ($2::boolean = false OR billing_status = 'read_only')`,
+        [customerId, onlyIfReadOnly],
+      );
+      return (rowCount ?? 0) > 0;
     },
 
     // ---- operator alerts -------------------------------------------------------

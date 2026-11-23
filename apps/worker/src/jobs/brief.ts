@@ -11,7 +11,7 @@ import {
 } from "@adminwise/db";
 import { daysBetween, formatMoney } from "@adminwise/offers";
 import { briefStrings } from "../brief-strings";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 import { chaseCustomer, MAX_CHASERS } from "./chaser";
 import { APP_FOLDER } from "./filing";
 import { invoiceAmount, remindCustomer } from "./reminders";
@@ -32,6 +32,7 @@ export async function briefTick(deps: Deps): Promise<number> {
   const now = deps.now?.() ?? new Date();
   let queued = 0;
   for (const customer of await system(deps.db).listCustomerClocks()) {
+    if (!allowed(deps, customer).work) continue;
     const clock = localClock(now, customer.timeZone);
     if (clock.minutesOfDay < BRIEF_MINUTE_OF_DAY) continue;
     if (customer.briefLastSentOn && customer.briefLastSentOn >= clock.date) continue;

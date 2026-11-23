@@ -66,6 +66,7 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
       const reason = NO_DRAFT_REASONS[detail ?? ""] ?? "it is not a business email that needs a reply";
       return `No draft needed: ${reason}`;
     }
+    if (run.outcome === "read_only") return "Not handled: your account is read-only";
     if (run.status === "skipped") return "Skipped: already handled";
   }
   if (run.job === "sync-mailbox") {
@@ -78,6 +79,7 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
   if (run.job === "order-confirmation") {
     if (code === "order") return detail === "email" ? "Order confirmation emailed to you" : "Order confirmation attached to a draft in your Outlook Drafts folder";
     if (run.outcome === "already_confirmed") return "This offer already had its order confirmation";
+    if (run.outcome === "not_in_plan") return "Not prepared: order confirmations are part of the Run plan";
     return "Skipped: the offer could not be found";
   }
   if (run.job === "payment-reminders") {
@@ -85,6 +87,7 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     return n === 0 ? "No reminder is due today" : `${plural(n, "payment reminder", "payment reminders")} prepared as drafts`;
   }
   if (run.job === "invoice-tracking") {
+    if (run.outcome === "not_in_plan") return "Not tracked: payment reminders are part of the Run plan";
     if (run.status === "skipped" || run.outcome === "nothing_new") return "Nothing new to track";
     const c = counts(run.outcome ?? "");
     const parts = [];
