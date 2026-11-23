@@ -166,6 +166,15 @@ export class PostmarkMailer implements OutboundMailer {
         Subject: email.subject,
         TextBody: email.textBody,
         MessageStream: this.options.messageStream ?? "outbound",
+        ...(email.attachments?.length
+          ? {
+              Attachments: email.attachments.map((a) => ({
+                Name: a.name,
+                ContentType: a.contentType,
+                Content: Buffer.from(a.content).toString("base64"),
+              })),
+            }
+          : {}),
       }),
     });
     if (!response.ok) {
@@ -181,7 +190,8 @@ export class PostmarkMailer implements OutboundMailer {
  */
 export class ConsoleMailer implements OutboundMailer {
   async send(email: OutboundEmail): Promise<void> {
-    console.log(`[mail not sent: no POSTMARK_SERVER_TOKEN] to=${email.to.join(",")} subject="${email.subject}"`);
+    const files = email.attachments?.length ? ` attachments=${email.attachments.length}` : "";
+    console.log(`[mail not sent: no POSTMARK_SERVER_TOKEN] to=${email.to.join(",")} subject="${email.subject}"${files}`);
     if (email.devPrintBody) console.log(email.textBody);
   }
 }

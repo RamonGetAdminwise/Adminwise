@@ -3,6 +3,10 @@ import type { JobQueue, OutlookGateway } from "@adminwise/core";
 import type { Db } from "@adminwise/db";
 import type { OutboundMailer } from "@adminwise/mail";
 
+export interface PdfRenderer {
+  render(html: string): Promise<Uint8Array>;
+}
+
 /**
  * Everything a job needs from the outside world. Production wires in the real
  * services (main.ts); tests wire in fakes, so the same job code runs in both.
@@ -13,6 +17,8 @@ export interface Deps {
   ai: AiClient;
   mailer: OutboundMailer;
   outlook: OutlookGateway;
+  /** Prints an HTML page to PDF (offers, order confirmations). */
+  pdf: PdfRenderer;
   appName: string;
   appBaseUrl: string;
   /** Where operator alerts go; unset = no alerts. */

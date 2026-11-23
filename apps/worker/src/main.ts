@@ -3,6 +3,7 @@ import { createOutlookGateway, loadConfig, startQueue } from "@adminwise/core";
 import { createDb, migrate } from "@adminwise/db";
 import { ConsoleMailer, PostmarkMailer } from "@adminwise/mail";
 import type { Deps } from "./deps";
+import { createPdfRenderer } from "./pdf";
 import { registerSchedules, registerWorkers } from "./register";
 
 /** The worker process: runs every background job. Start with `pnpm dev:worker`. */
@@ -14,6 +15,7 @@ if (applied.length) console.log(`[worker] applied migrations: ${applied.join(", 
 const db = createDb({ connectionString: config.databaseUrl, encryptionKey: config.tokenEncryptionKey });
 const queue = await startQueue(config.databaseUrl, "worker");
 
+const pdf = createPdfRenderer();
 const isPublic = config.appBaseUrl.startsWith("https://");
 const deps: Deps = {
   db,
@@ -32,6 +34,7 @@ const deps: Deps = {
     // Microsoft only delivers notifications to a public https address; locally we rely on polling.
     notificationUrl: isPublic ? `${config.appBaseUrl}/api/webhooks/graph` : null,
   }),
+  pdf,
   appName: config.appName,
   appBaseUrl: config.appBaseUrl,
   alertEmail: config.alertEmail,
@@ -44,6 +47,7 @@ console.log(`[worker] running (drafts: ${config.aws.models.default}, classificat
 async function shutdown(signal: string) {
   console.log(`[worker] ${signal}: finishing current jobs`);
   await queue.stop();
+  await pdf.close();
   await db.close();
   process.exit(0);
 }

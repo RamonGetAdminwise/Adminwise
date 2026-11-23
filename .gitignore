@@ -13,3 +13,6 @@ next-env.d.ts
 # local databases and logs
 .pgdata/
 *.log
+
+# Sample PDFs written by pnpm check:pdf
+sample-offers/

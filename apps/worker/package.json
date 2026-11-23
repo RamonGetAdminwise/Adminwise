@@ -13,6 +13,8 @@
     "@adminwise/core": "workspace:*",
     "@adminwise/db": "workspace:*",
     "@adminwise/mail": "workspace:*",
-    "pg-boss": "^12.38.1"
+    "@adminwise/offers": "workspace:*",
+    "pg-boss": "^12.38.1",
+    "playwright": "^1.65.1"
   }
 }

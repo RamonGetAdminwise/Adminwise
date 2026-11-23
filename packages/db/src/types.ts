@@ -107,6 +107,48 @@ export interface NewPriceItem {
   aliases: string[];
 }
 
+export type OfferKind = "offer" | "order_confirmation";
+
+export interface OfferLineRow {
+  position: number;
+  code: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  unitPriceCents: number;
+  lineTotalCents: number;
+}
+
+/** An offer or order confirmation as it was made: its own lines and prices, independent of later price lists. */
+export interface Offer {
+  id: string;
+  customerId: string;
+  kind: OfferKind;
+  number: string;
+  threadId: string | null;
+  messageId: string | null;
+  sourceOfferId: string | null;
+  priceListId: string | null;
+  status: "prepared" | "accepted";
+  recipientDomain: string;
+  language: string;
+  layout: OfferLayout;
+  currency: string;
+  vatRate: number;
+  discountPercent: number;
+  netCents: number;
+  discountCents: number;
+  vatCents: number;
+  grossCents: number;
+  /** YYYY-MM-DD */
+  validUntil: string | null;
+  storedPath: string | null;
+  createdAt: Date;
+  lines: OfferLineRow[];
+}
+
+export type NewOffer = Omit<Offer, "id" | "customerId" | "status" | "storedPath" | "createdAt"> & { createdAt?: Date };
+
 export interface SenderDiscount {
   id: string;
   /** A domain or one address, lower case. */

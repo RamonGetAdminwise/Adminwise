@@ -4,18 +4,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AiClient, AiRequest, AiResult } from "@adminwise/ai";
 import { QUEUES, type JobPayloads, type JobQueue, type OutlookGateway, type QueueName } from "@adminwise/core";
-import { createDb, forCustomer, system, type CustomerScope, type Db } from "@adminwise/db";
+import { createDb, forCustomer, system, type CustomerScope, type Db, type OfferSettings } from "@adminwise/db";
+import { importPriceList } from "@adminwise/offers";
 import {
   domainOf,
   flagsFromHeaders,
   GraphError,
   type AttachmentInfo,
   type InboundMessage,
+  type OutboundAttachment,
   type OutboundEmail,
   type OutboundMailer,
 } from "@adminwise/mail";
 import { inject } from "vitest";
-import type { Deps } from "../src/deps";
+import type { Deps, PdfRenderer } from "../src/deps";
 import { processMessage } from "../src/jobs/process-message";
 
 // ---- fixtures ----------------------------------------------------------------
@@ -33,7 +35,14 @@ export interface FixtureEmail {
   headers: { name: string; value: string }[];
   attachmentNames: string[];
   bodyText: string;
-  expected: { category: string; language: string | null; decidedBy: "rule" | "model" };
+  expected: {
+    category: string;
+    language: string | null;
+    decidedBy: "rule" | "model";
+    /** Phase 3: what the model reports for a quote request, and which candidate it picks for items without a code. */
+    quote?: { isQuote: boolean; items: { request: string; quantity: number | null; unit: string | null }[] };
+    matches?: { request: string; result: "match" | "ambiguous" | "none"; code: string | null }[];
+  };
 }
 
 export const company = readJson<{
@@ -47,6 +56,14 @@ export const company = readJson<{
   voiceProfile: string;
 }>("company.json");
 export const inbound = readJson<FixtureEmail[]>("inbound.json");
+/** Phase 3: quote requests, with the answers the recorded model gives for them. */
+export const quotes = readJson<FixtureEmail[]>("quotes.json");
+export const quoteFixture = (id: string): FixtureEmail => {
+  const found = quotes.find((f) => f.id === id);
+  if (!found) throw new Error(`No quote fixture ${id}`);
+  return found;
+};
+const recorded = (): FixtureEmail[] => [...inbound, ...quotes];
 export const sentEmails = readJson<{ id: string; language: string; bodyText: string }[]>("sent-emails.json");
 export const longThread = readJson<{
   threadKey: string;
@@ -171,7 +188,13 @@ const CANNED_DRAFTS: Record<string, string> = {
   en: "Hello,\n\nThank you for your message. [confirm date]\n\nBest regards",
 };
 
-export const CANNED_CHASER = "Dzień dobry,\n\nczy mogę prosić o krótką odpowiedź na moją poprzednią wiadomość?\n\nPozdrawiam";
+export const CANNED_QUOTE_REPLIES: Record<string, string> = {
+  pl: "Dzień dobry,\n\ndziękuję za zapytanie, odpowiedź przesyłam poniżej.\n\nPozdrawiam",
+  en: "Hello,\n\nThank you for your enquiry, please see my reply below.\n\nBest regards",
+  cs: "Dobrý den,\n\nděkuji za poptávku, odpověď posílám níže.\n\nS pozdravem",
+};
+
+export const CANNED_CHASER ="Dzień dobry,\n\nczy mogę prosić o krótką odpowiedź na moją poprzednią wiadomość?\n\nPozdrawiam";
 
 /**
  * Stands in for the model. Classification answers are the ones recorded in the
@@ -183,8 +206,34 @@ export class RecordedAi implements AiClient {
 
   async complete(request: AiRequest): Promise<AiResult> {
     this.requests.push(request);
+    if (request.job === "quote-request") {
+      const match = recorded().find((f) => request.user.includes(f.subject));
+      const quote = match?.expected.quote ?? { isQuote: false, items: [] };
+      return {
+        text: JSON.stringify({ is_quote_request: quote.isQuote ? "yes" : "no", items: quote.items }),
+        inputTokens: 300,
+        outputTokens: 40,
+      };
+    }
+    if (request.job === "match-items") {
+      // Each block is "Requested item N: <email_data ...> request </email_data> Candidates ...: 1. CODE | name | ...".
+      const blocks = request.user.split(/\n\n(?=Requested item \d+:)/);
+      const known = quotes.flatMap((f) => f.expected.matches ?? []);
+      const matches = blocks.map((block, index) => {
+        const answer = known.find((m) => block.includes(`\n${m.request}\n`));
+        if (!answer) throw new Error("No recorded match for this requested item");
+        const line = answer.code ? new RegExp(`^\\s+(\\d+)\\. ${answer.code} \\|`, "m").exec(block) : null;
+        if (answer.result === "match" && !line) throw new Error(`Candidate ${answer.code} was not offered to the model`);
+        return { item: index + 1, result: answer.result, candidate: line ? Number(line[1]) : null };
+      });
+      return { text: JSON.stringify({ matches }), inputTokens: 400, outputTokens: 30 };
+    }
+    if (request.job === "quote-reply") {
+      const language = /Write in this language: ([a-z]{2})/.exec(request.system)?.[1] ?? "en";
+      return { text: CANNED_QUOTE_REPLIES[language] ?? CANNED_QUOTE_REPLIES.en!, inputTokens: 600, outputTokens: 80 };
+    }
     if (request.job === "classify") {
-      const match = inbound.find((f) => request.user.includes(f.subject));
+      const match = recorded().find((f) => request.user.includes(f.subject));
       if (!match?.expected.language) throw new Error("No recorded classification for this email");
       return {
         text: JSON.stringify({ category: match.expected.category, language: match.expected.language }),
@@ -218,8 +267,17 @@ export class RecordedAi implements AiClient {
 }
 
 /** A stand-in for the customer's Microsoft 365 account: mailbox, Sent Items, Drafts folder and the OneDrive app folder. */
+/** Stands in for Chromium: remembers each page it was asked to print and returns bytes that start like a PDF. */
+export class FakePdf implements PdfRenderer {
+  pages: string[] = [];
+  async render(html: string) {
+    this.pages.push(html);
+    return new Uint8Array(Buffer.from(`%PDF-1.7 test document ${this.pages.length}\n${html}`, "utf8"));
+  }
+}
+
 export class FakeOutlook implements OutlookGateway {
-  drafts: { connectionId: string; providerMessageId: string; text: string }[] = [];
+  drafts: { connectionId: string; providerMessageId: string; text: string; attachments: OutboundAttachment[] }[] = [];
   mailbox = new Map<string, InboundMessage>();
   pending: string[] = [];
   sentPending: string[] = [];
@@ -249,8 +307,14 @@ export class FakeOutlook implements OutlookGateway {
     this.sentPending = [];
     return { messageIds, deltaLink: `sent-delta-${Date.now()}` };
   }
-  async createReplyDraft(_scope: CustomerScope, connectionId: string, providerMessageId: string, text: string) {
-    this.drafts.push({ connectionId, providerMessageId, text });
+  async createReplyDraft(
+    _scope: CustomerScope,
+    connectionId: string,
+    providerMessageId: string,
+    text: string,
+    attachments: OutboundAttachment[] = [],
+  ) {
+    this.drafts.push({ connectionId, providerMessageId, text, attachments });
     return `draft-${this.drafts.length}`;
   }
   async createChaserDraft(
@@ -346,8 +410,39 @@ export function makeWorld(db: Db) {
   const outlook = new FakeOutlook();
   const mailer = new FakeMailer();
   const queue = new MemoryQueue();
-  const deps: Deps = { db, queue, ai, mailer, outlook, appName: "Adminwise", appBaseUrl: "https://app.test" };
-  return { ai, outlook, mailer, queue, deps };
+  const pdf = new FakePdf();
+  const deps: Deps = { db, queue, ai, mailer, outlook, pdf, appName: "Adminwise", appBaseUrl: "https://app.test" };
+  return { ai, outlook, mailer, queue, pdf, deps };
+}
+
+/** Gives a test customer Nordpart's confirmed price list (120 items) and its offer details. */
+export async function giveNordpartPriceList(scope: CustomerScope, settings: Partial<OfferSettings> = {}) {
+  const unusedModel: AiClient = {
+    async complete() {
+      throw new Error("the Nordpart price list is read from its column titles, without the model");
+    },
+  };
+  const { priceListId } = await importPriceList(scope, unusedModel, {
+    fileName: "Cennik 2026.xlsx",
+    bytes: new Uint8Array(readFileSync(path.join(fixturesDir, "price-list.xlsx"))),
+    currency: "PLN",
+  });
+  await scope.activatePriceList(priceListId);
+  await scope.updateOfferSettings({
+    offerLanguage: "pl",
+    offerLayout: "classic",
+    currency: "PLN",
+    vatRate: 23,
+    paymentTerms: "14 dni od daty faktury",
+    offerValidDays: 14,
+    offerNumberPattern: "OF/{YYYY}/{NNN}",
+    companyDetails: "Nordpart sp. z o.o.\nul. Przykładowa 1\n40-001 Katowice\nNIP 0000000000",
+    bankDetails: "PL00 0000 0000 0000 0000 0000 0000",
+    offerFooter: "Dziękujemy za zapytanie.",
+    brandColor: "#1f6f6b",
+    ...settings,
+  });
+  return priceListId;
 }
 
 /** What a mailbox connected before phase 2 was granted: no OneDrive. */

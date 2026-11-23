@@ -2,6 +2,7 @@ import { classifyMessage, draftReply } from "@adminwise/ai";
 import { forCustomer } from "@adminwise/db";
 import { describeError, type Deps } from "../deps";
 import { ownDomains, prefilter } from "./prefilter";
+import { prepareQuoteReply } from "./quote";
 
 /** How many earlier messages of the thread the model sees as background. */
 const HISTORY_LIMIT = 8;
@@ -86,30 +87,48 @@ export async function processMessage(
       return "skipped";
     }
 
+    let what: "drafted" | "offer" | "clarify" = "drafted";
     try {
-      // 3. Write it.
-      const earlier = await scope.listThreadMessagesBefore(message.threadId, message.receivedAt, HISTORY_LIMIT);
-      const draft = await draftReply(deps.ai, {
-        companyName: customer.name,
-        voiceProfile: customer.voiceProfile,
-        language: draftLanguage,
-        latest: { senderDomain: message.senderDomain, subject: message.subject, body: message.bodyText },
-        history: earlier
-          .filter((m) => m.bodyText)
-          .map((m) => ({
-            direction: m.direction,
-            date: m.receivedAt.toISOString().slice(0, 10),
-            body: m.bodyText!,
-          })),
-      });
-      inputTokens += draft.usage.inputTokens;
-      outputTokens += draft.usage.outputTokens;
-      const text = appendSignature(draft.body, customer.signatureText);
+      // 3. Write it. A quote request (for customers with a price list) gets an offer; everything else an ordinary reply.
+      const quote = await prepareQuoteReply(deps, scope, { customer, message, connection, language: draftLanguage });
+      let body: string;
+      if (quote) {
+        inputTokens += quote.inputTokens;
+        outputTokens += quote.outputTokens;
+        body = quote.body;
+        what = quote.outcome;
+      } else {
+        const earlier = await scope.listThreadMessagesBefore(message.threadId, message.receivedAt, HISTORY_LIMIT);
+        const draft = await draftReply(deps.ai, {
+          companyName: customer.name,
+          voiceProfile: customer.voiceProfile,
+          language: draftLanguage,
+          latest: { senderDomain: message.senderDomain, subject: message.subject, body: message.bodyText },
+          history: earlier
+            .filter((m) => m.bodyText)
+            .map((m) => ({
+              direction: m.direction,
+              date: m.receivedAt.toISOString().slice(0, 10),
+              body: m.bodyText!,
+            })),
+        });
+        inputTokens += draft.usage.inputTokens;
+        outputTokens += draft.usage.outputTokens;
+        body = draft.body;
+      }
+      const text = appendSignature(body, customer.signatureText);
+      const attachments = quote?.attachments ?? [];
 
       // 4. Deliver it to the customer. Never to the outside sender.
       let providerDraftId: string | null = null;
       if (toOutlook) {
-        providerDraftId = await deps.outlook.createReplyDraft(scope, connection!.id, message.providerMessageId, text);
+        providerDraftId = await deps.outlook.createReplyDraft(
+          scope,
+          connection!.id,
+          message.providerMessageId,
+          text,
+          attachments,
+        );
       } else {
         const users = await scope.listUsers();
         await deps.mailer.send({
@@ -117,8 +136,10 @@ export async function processMessage(
           subject: `Draft reply: ${message.subject}`,
           textBody:
             `${deps.appName} prepared this draft reply to the email from ${message.senderDomain}. ` +
+            (attachments.length ? "The offer is attached: send it along with your reply. " : "") +
             "Nothing was sent: review it and paste it into your reply.\n\n" +
             `--------------------\n\n${text}\n`,
+          attachments,
         });
       }
       await scope.completeDraft(draftId, text, providerDraftId);
@@ -127,7 +148,7 @@ export async function processMessage(
       throw error;
     }
 
-    await finish("succeeded", null, toOutlook ? "drafted:outlook" : "drafted:email");
+    await finish("succeeded", null, `${what}:${toOutlook ? "outlook" : "email"}`);
     return "drafted";
   } catch (error) {
     await finish("failed", describeError(error));

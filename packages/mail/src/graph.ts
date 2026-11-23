@@ -1,4 +1,4 @@
-import { flagsFromHeaders, type AttachmentInfo, type InboundMessage } from "./types";
+import { flagsFromHeaders, type AttachmentInfo, type InboundMessage, type OutboundAttachment } from "./types";
 
 /**
  * Microsoft 365 adapter (Microsoft Graph, delegated permissions).
@@ -15,6 +15,8 @@ export const GRAPH_SCOPES = ["offline_access", "User.Read", "Mail.Read", "Mail.R
 const GRAPH = "https://graph.microsoft.com/v1.0";
 /** Above this size a file goes up through an upload session instead of one plain request. */
 const SIMPLE_UPLOAD_LIMIT = 4 * 1024 * 1024;
+/** Microsoft takes attachments up to 3 MB in one request; an offer PDF is far below that. */
+const MAX_DRAFT_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 /** One request of an upload session must stay under 60 MiB; larger files are not filed. */
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 /** Subscriptions on mail expire; we ask for 2 days and renew daily from the polling job. */
@@ -349,11 +351,26 @@ export class GraphClient {
    * Creates a reply in the customer's Drafts folder, on the original thread,
    * with our text above the quoted original. Nothing is sent.
    */
-  async createReplyDraft(messageId: string, text: string): Promise<string> {
+  async createReplyDraft(messageId: string, text: string, attachments: OutboundAttachment[] = []): Promise<string> {
     const draft = await this.request<GraphMessage>(`/me/messages/${encodeURIComponent(messageId)}/createReply`, {
       method: "POST",
       body: "{}",
     });
+    // Files we made ourselves (an offer PDF), added to the draft. Small files only: one plain request each.
+    for (const attachment of attachments) {
+      if (attachment.content.byteLength > MAX_DRAFT_ATTACHMENT_BYTES) {
+        throw new GraphError("Attachment too large for a draft", 413);
+      }
+      await this.request(`/me/messages/${encodeURIComponent(draft.id)}/attachments`, {
+        method: "POST",
+        body: JSON.stringify({
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: attachment.name,
+          contentType: attachment.contentType,
+          contentBytes: Buffer.from(attachment.content).toString("base64"),
+        }),
+      });
+    }
     const html = `<div>${escapeHtml(text).replace(/\r?\n/g, "<br>")}</div><br>`;
     const quoted = draft.body?.content ?? "";
     // Put our text right after <body ...> when the quoted reply is a full HTML document.

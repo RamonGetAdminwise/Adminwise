@@ -7,6 +7,7 @@ import {
   type AttachmentInfo,
   type GraphOAuthConfig,
   type InboundMessage,
+  type OutboundAttachment,
 } from "@adminwise/mail";
 
 /**
@@ -25,8 +26,14 @@ export interface OutlookGateway {
   listNewMessageIds(scope: CustomerScope, connectionId: string): Promise<{ messageIds: string[]; deltaLink: string }>;
   /** The same for the Sent Items folder: what the customer sent since the last poll. */
   listNewSentMessageIds(scope: CustomerScope, connectionId: string): Promise<{ messageIds: string[]; deltaLink: string }>;
-  /** Writes a reply into the Drafts folder. Returns the draft's id. Never sends. */
-  createReplyDraft(scope: CustomerScope, connectionId: string, providerMessageId: string, text: string): Promise<string>;
+  /** Writes a reply into the Drafts folder, with files we made ourselves attached. Returns the draft's id. Never sends. */
+  createReplyDraft(
+    scope: CustomerScope,
+    connectionId: string,
+    providerMessageId: string,
+    text: string,
+    attachments?: OutboundAttachment[],
+  ): Promise<string>;
   /** Writes a follow-up on the customer's own sent message into the Drafts folder, addressed to its recipients. Never sends. */
   createChaserDraft(
     scope: CustomerScope,
@@ -137,8 +144,8 @@ export function createOutlookGateway(options: {
         client.listSentDelta({ deltaLink: connection.sentDeltaLink, since: connection.createdAt }),
       ),
 
-    createReplyDraft: (scope, connectionId, providerMessageId, text) =>
-      withClient(scope, connectionId, (client) => client.createReplyDraft(providerMessageId, text)),
+    createReplyDraft: (scope, connectionId, providerMessageId, text, attachments) =>
+      withClient(scope, connectionId, (client) => client.createReplyDraft(providerMessageId, text, attachments)),
 
     createChaserDraft: (scope, connectionId, sentMessageId, text, to, cc) =>
       withClient(scope, connectionId, (client) => client.createChaserDraft(sentMessageId, text, to, cc)),

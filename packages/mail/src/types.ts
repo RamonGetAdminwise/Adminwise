@@ -35,10 +35,18 @@ export interface HeaderFlags {
   list?: boolean;
 }
 
+/** A file we made ourselves (an offer PDF) to go with a draft or one of our own emails. */
+export interface OutboundAttachment {
+  name: string;
+  contentType: string;
+  content: Uint8Array;
+}
+
 export interface OutboundEmail {
   to: string[];
   subject: string;
   textBody: string;
+  attachments?: OutboundAttachment[];
   /** Development only: lets the console mailer print the text (used for the sign-in link, never for customer mail). */
   devPrintBody?: boolean;
 }

@@ -1,0 +1,153 @@
+[
+  {
+    "id": "q01",
+    "messageId": "<q01.20261124@rolmet.example>",
+    "threadKey": "thr-q01-oferta-pompy",
+    "from": { "address": "anna.kowalczyk@rolmet.example", "name": "Anna Kowalczyk" },
+    "subject": "Zapytanie ofertowe: pompy i uszczelki",
+    "receivedAt": "2026-11-24T08:15:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nproszę o ofertę na 12 szt. pomp PZ-40 oraz 30 szt. uszczelek U-22.\n\nPozdrawiam\nAnna Kowalczyk\nRolmet",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "quote": {
+        "isQuote": true,
+        "items": [
+          { "request": "pomp PZ-40", "quantity": 12, "unit": "szt." },
+          { "request": "uszczelek U-22", "quantity": 30, "unit": "szt." }
+        ]
+      },
+      "matches": [],
+      "note": "scenario 11: both items are on the price list and named by code"
+    }
+  },
+  {
+    "id": "q02",
+    "messageId": "<q02.20261124@halvorsen-maskin.example>",
+    "threadKey": "thr-q02-quote-gm75",
+    "from": { "address": "lars@halvorsen-maskin.example", "name": "Lars Halvorsen" },
+    "subject": "Request for quotation: gear motors and inverters",
+    "receivedAt": "2026-11-24T09:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Hello,\n\ncould you quote 4 gear motors GM-75 and 2 frequency inverters 5 kW?\n\nBest regards\nLars Halvorsen",
+    "expected": {
+      "category": "business",
+      "language": "en",
+      "decidedBy": "model",
+      "quote": {
+        "isQuote": true,
+        "items": [
+          { "request": "gear motors GM-75", "quantity": 4, "unit": null },
+          { "request": "frequency inverters 5 kW", "quantity": 2, "unit": null }
+        ]
+      },
+      "matches": [],
+      "note": "scenario 12: one item matches, the other is not on the price list at all"
+    }
+  },
+  {
+    "id": "q03",
+    "messageId": "<q03.20261124@stalbud.example>",
+    "threadKey": "thr-q03-silniki",
+    "from": { "address": "marek.wojcik@stalbud.example", "name": "Marek Wójcik" },
+    "subject": "Wycena silników elektrycznych",
+    "receivedAt": "2026-11-24T09:30:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nproszę o wycenę 3 szt. silników elektrycznych 7,5 kW.\n\nPozdrawiam\nMarek Wójcik",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "quote": { "isQuote": true, "items": [{ "request": "silników elektrycznych 7,5 kW", "quantity": 3, "unit": "szt." }] },
+      "matches": [],
+      "note": "scenario 13: only an item that is not on the price list"
+    }
+  },
+  {
+    "id": "q04",
+    "messageId": "<q04.20261124@strojirna-morava.example>",
+    "threadKey": "thr-q04-nabidka",
+    "from": { "address": "petr.novak@strojirna-morava.example", "name": "Petr Novák" },
+    "subject": "Poptávka: ložiska a hydraulická hadice",
+    "receivedAt": "2026-11-24T10:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dobrý den,\n\nprosím o cenovou nabídku na 20 ks kuličkových ložisek LK-6203 a 15 m hydraulické hadice DN16.\n\nS pozdravem\nPetr Novák",
+    "expected": {
+      "category": "business",
+      "language": "cs",
+      "decidedBy": "model",
+      "quote": {
+        "isQuote": true,
+        "items": [
+          { "request": "kuličkových ložisek LK-6203", "quantity": 20, "unit": "ks" },
+          { "request": "hydraulické hadice DN16", "quantity": 15, "unit": "m" }
+        ]
+      },
+      "matches": [{ "request": "hydraulické hadice DN16", "result": "match", "code": "WH-16" }],
+      "note": "scenario 14: a request in Czech; one item by code, one the model has to recognise"
+    }
+  },
+  {
+    "id": "q06",
+    "messageId": "<q06.20261124@rolmet.example>",
+    "threadKey": "thr-q06-pompa",
+    "from": { "address": "biuro@rolmet.example", "name": "Rolmet Biuro" },
+    "subject": "Cena pompy hydraulicznej",
+    "receivedAt": "2026-11-24T11:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nile kosztuje pompa hydrauliczna? Potrzebujemy 2 szt.\n\nPozdrawiam",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "quote": { "isQuote": true, "items": [{ "request": "pompa hydrauliczna", "quantity": 2, "unit": "szt." }] },
+      "matches": [{ "request": "pompa hydrauliczna", "result": "ambiguous", "code": null }],
+      "note": "fifteen pumps fit and no size is given: the sender is asked which one"
+    }
+  },
+  {
+    "id": "q07",
+    "messageId": "<q07.20261124@stalbud.example>",
+    "threadKey": "thr-q07-cena-pz40",
+    "from": { "address": "zakupy@stalbud.example", "name": "Stalbud Zakupy" },
+    "subject": "Cena PZ-40",
+    "receivedAt": "2026-11-24T11:30:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nproszę o cenę pompy PZ-40.\n\nPozdrawiam",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "quote": { "isQuote": true, "items": [{ "request": "pompy PZ-40", "quantity": null, "unit": null }] },
+      "matches": [],
+      "note": "the item is clear but no quantity is given: asked, never assumed"
+    }
+  },
+  {
+    "id": "q08",
+    "messageId": "<q08.20261124@rolmet.example>",
+    "threadKey": "thr-q08-termin",
+    "from": { "address": "anna.kowalczyk@rolmet.example", "name": "Anna Kowalczyk" },
+    "subject": "Termin dostawy zamówienia ZK-2190",
+    "receivedAt": "2026-11-24T12:00:00Z",
+    "headers": [],
+    "attachmentNames": [],
+    "bodyText": "Dzień dobry,\n\nkiedy możemy spodziewać się dostawy zamówienia ZK-2190?\n\nPozdrawiam\nAnna Kowalczyk",
+    "expected": {
+      "category": "business",
+      "language": "pl",
+      "decidedBy": "model",
+      "quote": { "isQuote": false, "items": [] },
+      "matches": [],
+      "note": "business mail that is not a quote request: an ordinary reply draft"
+    }
+  }
+]

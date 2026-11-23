@@ -20,7 +20,10 @@ import type {
   MailboxConnection,
   Message,
   NewMessage,
+  NewOffer,
   NewPriceItem,
+  Offer,
+  OfferKind,
   OfferSettings,
   PriceList,
   PriceListItem,
@@ -63,6 +66,36 @@ export function forCustomer(db: Db, customerId: string) {
     // An empty mapping object means "not found yet".
     const mapping = list.mapping && "name" in list.mapping ? list.mapping : null;
     return { ...list, mapping };
+  }
+
+  /** An offer with its lines as one JSON column, so one query returns the whole document. */
+  const OFFER_SELECT = `
+    SELECT o.*, o.valid_until::text AS valid_until,
+           COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                       'position', l.position, 'code', l.code, 'name', l.name, 'unit', l.unit,
+                       'quantity', l.quantity, 'unitPriceCents', l.unit_price_cents,
+                       'lineTotalCents', l.line_total_cents) ORDER BY l.position)
+                     FROM offer_lines l WHERE l.customer_id = o.customer_id AND l.offer_id = o.id), '[]'::jsonb) AS lines
+    FROM offers o`;
+
+  function toOffer(row: QueryResultRow): Offer {
+    const offer = camel<Offer>(row);
+    // bigint and numeric columns arrive as text
+    return {
+      ...offer,
+      vatRate: Number(offer.vatRate),
+      discountPercent: Number(offer.discountPercent),
+      netCents: Number(offer.netCents),
+      discountCents: Number(offer.discountCents),
+      vatCents: Number(offer.vatCents),
+      grossCents: Number(offer.grossCents),
+      lines: (row.lines as Offer["lines"]).map((l) => ({
+        ...l,
+        quantity: Number(l.quantity),
+        unitPriceCents: Number(l.unitPriceCents),
+        lineTotalCents: Number(l.lineTotalCents),
+      })),
+    };
   }
 
   /** All items of a list in one statement; the list travels as JSON so prices stay whole numbers. */
@@ -227,6 +260,113 @@ export function forCustomer(db: Db, customerId: string) {
         const item = camel<PriceListItem>(r);
         return { ...item, netPriceCents: Number(item.netPriceCents) };
       });
+    },
+
+    // ---- offers and order confirmations ----------------------------------------
+
+    /**
+     * Takes the next offer number for a year. The counter restarts each year and
+     * two offers can never get the same number, even when made at the same moment.
+     */
+    async nextOfferCounter(year: number): Promise<{ counter: number; pattern: string }> {
+      const { rows } = await run<{ offer_counter: number; offer_number_pattern: string }>(
+        `UPDATE customers
+         SET offer_counter = CASE WHEN offer_counter_year = $2 THEN offer_counter + 1 ELSE 1 END,
+             offer_counter_year = $2
+         WHERE id = $1
+         RETURNING offer_counter, offer_number_pattern`,
+        [year],
+      );
+      return { counter: rows[0]!.offer_counter, pattern: rows[0]!.offer_number_pattern };
+    },
+
+    /**
+     * Stores an offer with its lines in one step. Returns null when a document of
+     * this kind already exists for the same message: one offer per request, ever.
+     */
+    async createOffer(o: NewOffer): Promise<string | null> {
+      const { rows } = await run<{ offer_id: string }>(
+        `WITH created AS (
+           INSERT INTO offers
+             (customer_id, kind, number, thread_id, message_id, source_offer_id, price_list_id, recipient_domain,
+              language, layout, currency, vat_rate, discount_percent, net_cents, discount_cents, vat_cents,
+              gross_cents, valid_until, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::date,
+                   COALESCE($19::timestamptz, now()))
+           ON CONFLICT (customer_id, kind, message_id) DO NOTHING
+           RETURNING id
+         )
+         INSERT INTO offer_lines
+           (customer_id, offer_id, position, code, name, unit, quantity, unit_price_cents, line_total_cents)
+         SELECT $1, created.id, x.position, x.code, x.name, x.unit, x.quantity, x."unitPriceCents", x."lineTotalCents"
+         FROM created, jsonb_to_recordset($20::jsonb)
+           AS x(position integer, code text, name text, unit text, quantity numeric,
+                "unitPriceCents" bigint, "lineTotalCents" bigint)
+         RETURNING offer_id`,
+        [
+          o.kind,
+          o.number,
+          o.threadId,
+          o.messageId,
+          o.sourceOfferId,
+          o.priceListId,
+          o.recipientDomain,
+          o.language,
+          o.layout,
+          o.currency,
+          o.vatRate,
+          o.discountPercent,
+          o.netCents,
+          o.discountCents,
+          o.vatCents,
+          o.grossCents,
+          o.validUntil,
+          o.createdAt ?? null,
+          JSON.stringify(o.lines),
+        ],
+      );
+      return rows[0]?.offer_id ?? null;
+    },
+
+    async getOffer(id: string): Promise<Offer | null> {
+      const { rows } = await run(`${OFFER_SELECT} WHERE o.customer_id = $1 AND o.id = $2`, [id]);
+      return rows[0] ? toOffer(rows[0]) : null;
+    },
+
+    /** The offer (or order confirmation) that was made for a message, if any. */
+    async getOfferForMessage(kind: OfferKind, messageId: string): Promise<Offer | null> {
+      const { rows } = await run(`${OFFER_SELECT} WHERE o.customer_id = $1 AND o.kind = $2 AND o.message_id = $3`, [
+        kind,
+        messageId,
+      ]);
+      return rows[0] ? toOffer(rows[0]) : null;
+    },
+
+    /** The most recent offer in a conversation that has not been accepted yet. */
+    async latestOpenOfferForThread(threadId: string): Promise<Offer | null> {
+      const { rows } = await run(
+        `${OFFER_SELECT} WHERE o.customer_id = $1 AND o.thread_id = $2 AND o.kind = 'offer' AND o.status = 'prepared'
+         ORDER BY o.created_at DESC LIMIT 1`,
+        [threadId],
+      );
+      return rows[0] ? toOffer(rows[0]) : null;
+    },
+
+    async markOfferAccepted(id: string) {
+      await run("UPDATE offers SET status = 'accepted' WHERE customer_id = $1 AND id = $2", [id]);
+    },
+
+    async setOfferStoredPath(id: string, storedPath: string) {
+      await run("UPDATE offers SET stored_path = $3 WHERE customer_id = $1 AND id = $2", [id, storedPath]);
+    },
+
+    /** Offers and order confirmations made in [from, to), for the daily brief. */
+    async listOffersBetween(from: Date, to: Date): Promise<Offer[]> {
+      const { rows } = await run(
+        `${OFFER_SELECT} WHERE o.customer_id = $1 AND o.created_at >= $2 AND o.created_at < $3 ORDER BY o.created_at`,
+        [from, to],
+      );
+      return rows.map(toOffer);
     },
 
     // ---- discounts per sender --------------------------------------------------
