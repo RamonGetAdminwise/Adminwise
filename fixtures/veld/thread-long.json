@@ -1,0 +1,15 @@
+{
+  "_note": "The eight earlier messages of one invented conversation (scenario 4). The ninth message is V030 in mail.json.",
+  "threadKey": "thr-long",
+  "subject": "Bedrijfsfilm TechnoPlast - script en planning",
+  "messages": [
+    { "direction": "outbound", "from": "hallo@studioveld.example", "at": "2026-10-20T08:00:00Z", "body": "Beste Ingrid,\n\nin de bijlage het eerste script voor de bedrijfsfilm. We stellen voor te filmen in de week van 7 december.\n\nGroet,\nSanne" },
+    { "direction": "inbound", "from": "i.maas@technoplast.example", "at": "2026-10-21T10:15:00Z", "body": "Beste Sanne,\n\nmooi begin. De opening mag korter, en we missen de nieuwe spuitgietlijn.\n\nIngrid" },
+    { "direction": "outbound", "from": "hallo@studioveld.example", "at": "2026-10-22T09:00:00Z", "body": "Beste Ingrid,\n\ngoed punt. Versie 2 heeft een kortere opening en een scène bij de spuitgietlijn.\n\nGroet,\nSanne" },
+    { "direction": "inbound", "from": "i.maas@technoplast.example", "at": "2026-10-26T14:30:00Z", "body": "Beste Sanne,\n\nversie 2 is beter. Kan de directeur aan het eind kort in beeld komen?\n\nIngrid" },
+    { "direction": "outbound", "from": "hallo@studioveld.example", "at": "2026-10-27T08:30:00Z", "body": "Beste Ingrid,\n\ndat kan, we reserveren een half uur met hem op de eerste draaidag.\n\nGroet,\nSanne" },
+    { "direction": "inbound", "from": "i.maas@technoplast.example", "at": "2026-10-29T11:00:00Z", "body": "Beste Sanne,\n\nde week van 7 december past niet, de lijn ligt dan stil voor onderhoud. Kan het een week later?\n\nIngrid" },
+    { "direction": "outbound", "from": "hallo@studioveld.example", "at": "2026-10-30T09:00:00Z", "body": "Beste Ingrid,\n\nde week van 14 december is akkoord, we zetten 15 en 16 december vast.\n\nGroet,\nSanne" },
+    { "direction": "inbound", "from": "i.maas@technoplast.example", "at": "2026-11-05T15:20:00Z", "body": "Beste Sanne,\n\n15 en 16 december staan in onze agenda. De voice-over graag door een vrouwenstem.\n\nIngrid" }
+  ]
+}

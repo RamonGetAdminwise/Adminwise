@@ -1,0 +1,20 @@
+{
+  "_note": "Invented files attached to incoming mail. Same layout and meaning as fixtures/lipka/attachments.json.",
+  "attachments": [
+    { "id": "B01", "name": "Factuur_2026-041_ThijsBakker.pdf", "contentType": "application/pdf", "sizeBytes": 58000, "inline": false, "seed": "thijs-factuur-041", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "B02", "name": "Offerte_Lumen_24117.pdf", "contentType": "application/pdf", "sizeBytes": 92000, "inline": false, "seed": "lumen-offerte-24117", "expected": { "result": "filed", "type": "offer", "decidedBy": "rule" } },
+    { "id": "B03", "name": "Aankoopbewijs_PV-88213.pdf", "contentType": "application/pdf", "sizeBytes": 31000, "inline": false, "seed": "pixelveld-88213", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model" } },
+    { "id": "B04", "name": "Factuur_Lumen_F2026-0931.pdf", "contentType": "application/pdf", "sizeBytes": 64000, "inline": false, "seed": "lumen-factuur-0931", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "B05", "name": "Overeenkomst_TechnoPlast_getekend.pdf", "contentType": "application/pdf", "sizeBytes": 240000, "inline": false, "seed": "technoplast-overeenkomst", "expected": { "result": "filed", "type": "contract", "decidedBy": "rule" } },
+    { "id": "B06", "name": "Bestelling_PO-2291.pdf", "contentType": "application/pdf", "sizeBytes": 47000, "inline": false, "seed": "technoplast-po-2291", "expected": { "result": "filed", "type": "order", "decidedBy": "rule" } },
+    { "id": "B07", "name": "Factuur_Lumen_F2026-0931.pdf", "contentType": "application/pdf", "sizeBytes": 64000, "inline": false, "seed": "lumen-factuur-0931", "expected": { "result": "duplicate", "type": "invoice", "decidedBy": "duplicate" } },
+    { "id": "B08", "name": "scan.pdf", "contentType": "application/pdf", "sizeBytes": 310000, "inline": false, "seed": "zomerpodium-scan-zaal", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model" } },
+    { "id": "B09", "name": "scan.pdf", "contentType": "application/pdf", "sizeBytes": 290000, "inline": false, "seed": "zomerpodium-scan-geluid", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model", "counter": 2 } },
+    { "id": "B10", "name": "vestiging_voorgevel.jpg", "contentType": "image/jpeg", "sizeBytes": 4200000, "inline": false, "seed": "vandam-foto-1", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } },
+    { "id": "B11", "name": "vestiging_binnen.jpg", "contentType": "image/jpeg", "sizeBytes": 3900000, "inline": false, "seed": "vandam-foto-2", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } },
+    { "id": "B12", "name": "icoon.png", "contentType": "image/png", "sizeBytes": 3000, "inline": false, "seed": "technoplast-icoon", "expected": { "result": "skipped", "type": null, "decidedBy": "skipped" } },
+    { "id": "B13", "name": "Licentiecertificaat_NoordzijSans.pdf", "contentType": "application/pdf", "sizeBytes": 28000, "inline": false, "seed": "fonthuis-licentie", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } },
+    { "id": "B14", "name": "Programmaboekje_DesignWeekZuid.pdf", "contentType": "application/pdf", "sizeBytes": 3100000, "inline": false, "seed": "designweek-programma", "expected": { "result": "none", "type": null, "decidedBy": "skipped" } },
+    { "id": "B15", "name": "Factuur_2026-047_ThijsBakker.pdf", "contentType": "application/pdf", "sizeBytes": 57000, "inline": false, "seed": "thijs-factuur-047", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } }
+  ]
+}

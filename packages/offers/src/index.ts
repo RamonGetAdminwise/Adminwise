@@ -12,7 +12,7 @@ export {
   type CheckedInvoice,
   type ProposedInvoice,
 } from "./invoice";
-export { matchByCode, rankCandidates, words, type MatchableItem } from "./match";
+export { matchByCode, rankCandidates, unitMeansOne, words, type MatchableItem } from "./match";
 export { extractPdfText } from "./pdf-text";
 export { applyOfferProposal, checkOfferDetails, MAX_SAMPLE_OFFER_BYTES, readSampleOffer } from "./sample-offer";
 export { buildOffer, formatOfferNumber, formatQuantity, lineTotal, type OfferLine, type OfferTotals, type PricedItem } from "./offer";

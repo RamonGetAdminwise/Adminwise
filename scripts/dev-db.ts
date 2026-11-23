@@ -18,6 +18,8 @@ const server = new EmbeddedPostgres({
   password: "adminwise",
   port,
   persistent: true,
+  // UTF-8 whatever the computer's own text encoding is, so mail in any language can be stored.
+  initdbFlags: ["--encoding=UTF8", "--locale=C"],
   onLog: () => {},
   onError: (message) => console.error(String(message)),
 });

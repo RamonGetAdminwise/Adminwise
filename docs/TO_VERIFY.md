@@ -32,6 +32,15 @@ Last updated: 2026-11-23.
 
 ## Check before the first outside customer
 
+- [ ] **The two new test companies with the real model (golden set).** The month of mail for the accounting office and the agency passes with a model stand-in. Not yet run with the real model. Points most likely to differ: whether "een poster" or "a brochure" is read as quantity 1; whether "about 25 documents a month" is matched to the package "up to 30"; whether the polite hostile mails in Polish and Dutch are flagged.
+- [ ] **"One is meant" for monthly, yearly, project and one-off items.** Decided by Claude Code on 23 Nov, from the unit on the price list. Ramon to confirm. Risk: a unit written differently ("p/m", "abonament") is not recognised and the draft asks "how many" as before.
+- [ ] **Database encoding at the next deployment.** The system now refuses to start on a database that is not UTF-8. Railway's Postgres is expected to be UTF-8; if the first build after this change fails to start with a message about text encoding, that is why.
+- [ ] **Local development database.** A local database created before 23 Nov has a Windows text encoding and will be refused: delete the folder `%LOCALAPPDATA%\adminwise-dev-postgres` and start `pnpm dev:db` again.
+- [ ] **Website contact form.** A form mail from a no-reply address gets no draft, even when it contains a quote request (shown by mail V032 of Studio Veld). Decide: recognise the customer's own website form, or leave it.
+- [ ] **An answer in a new mail.** When the other side answers a question in a new mail instead of in the conversation, the follow-up is still drafted (mail V047 of Studio Veld). Decide whether a new mail from the same person should hold the follow-up.
+- [ ] **Offer documents in more languages.** English and Polish only; a Dutch customer's offers are in English.
+- [ ] **Free mail address in the fixtures.** One invented client writes from an invented wp.pl mailbox, to test free mail providers. Nothing is ever sent to it. Replace it if you prefer no real mail domain in the fixtures at all.
+
 - [ ] **Hostile email: wider test.** Three invented mails were checked with the real model on 23 Nov (`pnpm check:security`): both hostile ones were flagged, the ordinary one was not, and the drafts did not carry out the hostile text. That is a first check. Before customers: twenty more variants in several languages, including instructions hidden in a forwarded mail and in a PDF's text, and count the false alarms on a hundred ordinary mails.
 - [ ] **Hidden text in HTML mail.** Mail is read as plain text. Text hidden in the HTML version (white on white, zero size) therefore reaches the model like any other text and is covered by the same defences, but this was tested with text only, not with a real HTML mail through Microsoft or Postmark.
 - [ ] **Suspicious mail and filing.** A flagged mail gets no draft, but its attachments are still filed to OneDrive (filing does not act on what a mail says). Decide whether attachments of flagged mail should be held back.

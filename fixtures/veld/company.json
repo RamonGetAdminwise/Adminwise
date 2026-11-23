@@ -1,0 +1,30 @@
+{
+  "_note": "Fictional company for tests. Studio Veld, its people, clients and suppliers are invented. Domains end in .example. Chamber of commerce, VAT and bank numbers are zeros.",
+  "name": "Studio Veld B.V.",
+  "slug": "veld",
+  "domain": "studioveld.example",
+  "ownerEmail": "sanne@studioveld.example",
+  "mailbox": "hallo@studioveld.example",
+  "languages": ["nl", "en"],
+  "timeZone": "Europe/Amsterdam",
+  "followUpDays": 5,
+  "replyDrafts": "sales",
+  "signatureText": "Sanne Veldhuis\nStudio Veld\nKlokgebouw 000, 5617 AB Eindhoven\n+31 40 555 01 23\nwww.studioveld.example",
+  "voiceProfile": "Greets with \"Hoi <first name>,\" in Dutch and \"Hi <first name>,\" in English. Informal, uses \"je\" and \"jij\". Short sentences, concrete next steps with a day or date. Enthusiastic in one sentence, then to the point. Never writes a price in the mail when an offer is attached. Closes with \"Groet,\" in Dutch and \"Best,\" in English, then \"Sanne\".",
+  "offer": {
+    "offerLanguage": "en",
+    "offerLayout": "modern",
+    "currency": "EUR",
+    "vatRate": 21,
+    "paymentTerms": "50% at the start, 50% on delivery. Payment within 14 days of the invoice date.",
+    "offerValidDays": 14,
+    "offerNumberPattern": "SV-{YYYY}-{NNN}",
+    "companyDetails": "Studio Veld B.V.\nKlokgebouw 000\n5617 AB Eindhoven\nKvK 00000000\nBTW NL000000000B01",
+    "bankDetails": "Voorbeeldbank N.V.\nNL00 VRBK 0000 0000 00",
+    "offerFooter": "Rates exclude VAT. Printing, stock images and media budget are charged at cost.",
+    "brandColor": "#e4572e"
+  },
+  "discounts": [{ "match": "zomerpodium.example", "percent": 15 }],
+  "priceList": { "file": "price-list.xlsx", "fileName": "Tarievenkaart 2026.xlsx", "validItems": 40, "skippedRows": 2 },
+  "period": { "from": "2026-11-02", "to": "2026-12-04" }
+}

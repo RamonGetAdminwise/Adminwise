@@ -53,10 +53,10 @@ export const MAX_PRICE_LIST_BYTES = 5 * 1024 * 1024;
 /** Header words per column, in the languages our customers keep their lists in (pl, en, de, nl, cs). */
 const HEADER_WORDS: Record<"code" | "name" | "unit" | "price" | "aliases", RegExp> = {
   code: /\b(kod|indeks|index|symbol|sku|nr\s*kat\w*|numer\s*kat\w*|item\s*(no|code|number)|code|art\.?\s*(nr|no)\.?|artikel\s*(nr|nummer)|artikelnummer|k[oó]d)\b/i,
-  name: /\b(nazwa|opis|towar|produkt|name|description|product|item|bezeichnung|artikel|omschrijving|n[aá]zev|popis)\b/i,
+  name: /\b(nazwa|opis|towar|produkt|us[łl]ug\w*|name|description|product|item|service|bezeichnung|leistung\w*|artikel|omschrijving|dienst\w*|n[aá]zev|popis)\b/i,
   unit: /(^|\s)(j\.?\s?m\.?|jedn\w*|unit|uom|einheit|eenheid|jednotka|mj)(\s|\.|$)/i,
-  price: /\b(cena|price|preis|prijs|netto|net)\b/i,
-  aliases: /\b(alias\w*|synonim\w*|inne\s*nazwy|other\s*names|also\s*known|keywords?|s[łl]owa\s*kluczowe)\b/i,
+  price: /\b(cena|stawka|price|rate|preis|tarif|prijs|tarief|netto|net)\b/i,
+  aliases: /\b(alias\w*|synonim\w*|inne\s*nazwy|other\s*names|also\s*known|keywords?|s[łl]owa\s*kluczowe|trefwoorden|zoekwoorden|ook\s*bekend\w*|stichw[oö]rter)\b/i,
 };
 const GROSS = /\b(brutto|gross|incl|inkl|z\s*vat|with\s*vat)\b/i;
 

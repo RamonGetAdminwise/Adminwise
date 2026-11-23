@@ -195,6 +195,12 @@ Problems the customer can fix (mailbox disconnected, OneDrive not reachable, rec
 | `job_runs` | the Control Tower log, with a short outcome code per run |
 | `audit_events` | who changed or connected what |
 
+## Test companies
+
+Three invented companies live in `fixtures/`: Nordpart (a parts trader, used by the tests of phases 1 to 4), and two "company packs" in a common layout, `fixtures/lipka` (an accounting office) and `fixtures/veld` (a design agency). Each pack has a `COMPANY.md` describing the company, and JSON files with a month of incoming mail, sent mail, attachments and invoices, each item with what should happen to it. `scripts/make-company-fixtures.ts` generates the Excel price lists and invoice PDFs from the JSON.
+
+`apps/worker/test/pack.ts` plays a pack's whole month through the real jobs, day by day, with a model stand-in that answers from the pack and fails the test when it is asked something that should never reach the model. `companies.test.ts` then checks every mail, sent mail, attachment and invoice. A new company is a new folder; no test code changes.
+
 ## Tests
 
 `pnpm test` starts its own throw-away Postgres and runs everything, including the acceptance scenarios against the Nordpart fixtures: 1-6 in `apps/worker/test/scenarios.test.ts`, 7-10 (chaser), 21-24 (filing) and 25-27 (brief) in `apps/worker/test/phase2.test.ts` and `jobs.test.ts`, and 11-16 (offers and order confirmations) in `apps/worker/test/quotes.test.ts` with the price list and quote request fixtures (`price-list.xlsx`, `quotes.json`). Price list reading and offer arithmetic have their own tests in `packages/offers/test`. The phase 2 fixtures (sent mail, invoices, orders, a contract, a logo, a duplicate) are in `fixtures/nordpart/phase2.json`; file contents are generated in the tests. In tests the model is replaced by a recorded stand-in, so they prove the pipeline (classification routing, what the model is asked, where drafts go, no duplicates) and not the quality of a real model's wording. That needs Bedrock access and is the job of the phase-5 golden set.

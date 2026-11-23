@@ -27,6 +27,7 @@ import {
   rankCandidates,
   renderOfferHtml,
   type OfferDocument,
+  unitMeansOne,
 } from "@adminwise/offers";
 import { allowed, describeError, type Deps } from "../deps";
 import { safeName } from "./filing";
@@ -389,8 +390,10 @@ export async function prepareQuoteReply(
   detected.items.forEach((requested, index) => {
     const item = found.get(index);
     if (!item) return;
-    if (requested.quantity === null) unclear.push({ request: requested.request, reason: "no_quantity", options: [item.name] });
-    else priced.push({ item, quantity: requested.quantity });
+    // A monthly package or a whole project is ordered once; for anything counted (pieces, hours, people) we ask.
+    if (requested.quantity !== null) priced.push({ item, quantity: requested.quantity });
+    else if (unitMeansOne(item.unit)) priced.push({ item, quantity: 1 });
+    else unclear.push({ request: requested.request, reason: "no_quantity", options: [item.name] });
   });
 
   const now = deps.now?.() ?? new Date();

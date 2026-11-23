@@ -56,6 +56,17 @@ export interface OutboundMailer {
   send(email: OutboundEmail): Promise<void>;
 }
 
+/**
+ * Subject lines of automatic replies, in the languages our customers work in. Most automatic
+ * replies also say so in their headers; some, forwarded or from older systems, only here.
+ */
+const AUTO_REPLY_SUBJECT =
+  /^\s*(automatic reply|auto(matic)?[- ]?reply|out of office|autoodpowied[zź]|odpowied[zź] automatyczna|poza biurem|abwesenheit|automatische antwort|afwezig|automatisch antwoord)/i;
+
+export function isAutoReplySubject(subject: string): boolean {
+  return AUTO_REPLY_SUBJECT.test(subject);
+}
+
 export function flagsFromHeaders(headers: { name: string; value: string }[]): HeaderFlags {
   const get = (name: string) => headers.find((h) => h.name.toLowerCase() === name)?.value.toLowerCase();
   const flags: HeaderFlags = {};

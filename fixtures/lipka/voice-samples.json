@@ -1,0 +1,17 @@
+[
+  {
+    "id": "v1",
+    "language": "pl",
+    "bodyText": "Dzień dobry,\n\ndziękuję za dokumenty za wrzesień, wszystko doszło. Brakuje nam tylko wyciągu z rachunku firmowego: proszę o przesłanie go do 10 października, żebyśmy zdążyli z VAT przed 25.\n\nJeśli wygodniej, może Pan nadać nam dostęp do podglądu rachunku i będziemy pobierać wyciągi sami.\n\nPozdrawiam serdecznie\nAgnieszka Lipka"
+  },
+  {
+    "id": "v2",
+    "language": "pl",
+    "bodyText": "Dzień dobry,\n\ntak, zakup laptopa może Pani ująć w kosztach, jeśli będzie używany w działalności. Przy tej kwocie zaliczamy go jednorazowo, bez amortyzacji.\n\nProszę tylko dopilnować, żeby faktura była wystawiona na firmę, z NIP. Skan wystarczy przesłać razem z dokumentami za bieżący miesiąc.\n\nPozdrawiam serdecznie\nAgnieszka Lipka"
+  },
+  {
+    "id": "v3",
+    "language": "en",
+    "bodyText": "Hello Daniel,\n\nthe VAT for October is due on 25 November. I will send you the exact amount and the bank account by 20 November, once the last purchase invoices are booked.\n\nIf anything changes on your side before then, such as a new contractor or an invoice from abroad, please let me know and I will include it.\n\nKind regards\nAgnieszka Lipka"
+  }
+]

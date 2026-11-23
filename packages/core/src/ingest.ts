@@ -1,5 +1,5 @@
 import type { CustomerScope } from "@adminwise/db";
-import { domainOf, type InboundMessage } from "@adminwise/mail";
+import { domainOf, type InboundMessage, isAutoReplySubject } from "@adminwise/mail";
 import { QUEUES, type JobQueue } from "./queue";
 
 /**
@@ -25,7 +25,9 @@ export async function ingestInbound(
     fromAddress: message.from.address,
     subject: message.subject,
     receivedAt: message.receivedAt,
-    headerFlags: message.headerFlags,
+    // An out-of-office known only from its subject line is automatic too: it must not count as
+    // the other side's answer, or the follow-up for the unanswered question would never be drafted.
+    headerFlags: isAutoReplySubject(message.subject) ? { ...message.headerFlags, autoSubmitted: true } : message.headerFlags,
     attachmentNames: message.attachmentNames,
     bodyText: message.bodyText,
   });

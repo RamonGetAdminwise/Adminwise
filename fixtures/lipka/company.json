@@ -1,0 +1,29 @@
+{
+  "_note": "Fictional company for tests. Biuro Rachunkowe Lipka, its people, clients and suppliers are invented. Domains end in .example (one invented free-mail address excepted, see COMPANY.md). Tax and bank numbers are zeros.",
+  "name": "Biuro Rachunkowe Lipka sp. z o.o.",
+  "slug": "lipka",
+  "domain": "lipka-rachunkowosc.example",
+  "ownerEmail": "agnieszka.lipka@lipka-rachunkowosc.example",
+  "mailbox": "biuro@lipka-rachunkowosc.example",
+  "languages": ["pl", "en"],
+  "timeZone": "Europe/Warsaw",
+  "followUpDays": 3,
+  "signatureText": "Agnieszka Lipka\nBiuro Rachunkowe Lipka sp. z o.o.\nul. Przykładowa 7, 44-100 Gliwice\ntel. +48 32 555 01 77\nwww.lipka-rachunkowosc.example",
+  "voiceProfile": "Greets with \"Dzień dobry,\" in Polish and \"Hello <first name>,\" in English. Short, correct and warm. Answers the question in the first sentence. Gives deadlines as dates (\"do 25 listopada\"). Uses \"Pan/Pani\" in Polish and first names in English. Ends with what the client has to do next. Never promises a tax outcome in writing; offers a phone call for anything uncertain. No emoji, no exclamation marks. Closes with \"Pozdrawiam serdecznie\" in Polish and \"Kind regards\" in English.",
+  "offer": {
+    "offerLanguage": "pl",
+    "offerLayout": "classic",
+    "currency": "PLN",
+    "vatRate": 23,
+    "paymentTerms": "7 dni od daty wystawienia faktury",
+    "offerValidDays": 30,
+    "offerNumberPattern": "OF/{YYYY}/{NNN}",
+    "companyDetails": "Biuro Rachunkowe Lipka sp. z o.o.\nul. Przykładowa 7\n44-100 Gliwice\nNIP 0000000000",
+    "bankDetails": "Bank Przykładowy S.A.\nPL00 0000 0000 0000 0000 0000 0000",
+    "offerFooter": "Ceny netto. Opłaty miesięczne naliczane są od miesiąca rozpoczęcia współpracy.",
+    "brandColor": "#7a3e9d"
+  },
+  "discounts": [{ "match": "autoserwis-grabiec.example", "percent": 10 }],
+  "priceList": { "file": "price-list.xlsx", "fileName": "Cennik uslug 2026.xlsx", "validItems": 46, "skippedRows": 2 },
+  "period": { "from": "2026-11-02", "to": "2026-12-04" }
+}

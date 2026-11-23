@@ -16,6 +16,30 @@ export interface MatchableItem {
   aliases: string[];
 }
 
+/**
+ * Units that are a period or a whole job: someone who asks for "bookkeeping, about 50 documents
+ * a month" or "a website of about 8 pages" wants one of them, and says no number because there
+ * is none to say. Only the exact unit counts: "osoba/mies." (per person per month) or
+ * "zaległy mies." still need a number.
+ */
+const SINGLE_UNITS = new Set([
+  "mies", "miesiac", "miesiecznie", "rok", "rocznie", "jednorazowo", "ryczalt", "projekt",
+  "month", "monthly", "year", "yearly", "oneoff", "once", "project", "flatfee",
+  "maand", "permaand", "jaar", "perjaar", "eenmalig",
+  "monat", "jahr", "einmalig", "pauschal",
+]);
+
+/** True when an item with this unit is, by its nature, ordered once: the quantity is 1 when none is stated. */
+export function unitMeansOne(unit: string): boolean {
+  const plain = unit
+    .toLowerCase()
+    .replace(/ł/g, "l")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z/]/g, "");
+  return SINGLE_UNITS.has(plain);
+}
+
 /** Letters and digits only, upper case: "pz-40", "PZ 40" and "Pz40" are the same code. */
 const compact = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
