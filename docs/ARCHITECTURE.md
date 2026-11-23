@@ -108,6 +108,20 @@ The same rule as for offers: **no number reaches a reminder unless it is printed
 
 `pnpm check:invoices` runs the invoice fixtures through the real model and prints one reminder per level for a person to read.
 
+## Getting started guide (phase 4)
+
+A new customer lands on `/start` after sign-in, and keeps landing there until they press "Finish" or "Skip for now" (`customers.setup_finished_at`). The page has no state of its own: every step is ticked from what is already in the database.
+
+1. **Company**: name, languages, time zone, signature. Only what the first draft needs.
+2. **Mailbox**: connect Microsoft 365, or use the forwarding address.
+3. **How you write** (optional): the three-emails voice profile, the same form as in settings.
+4. **See it work**: one button sends an invented customer question (`packages/core/src/setup.ts`, English or Polish) from our own sending address to the owner's own mailbox; it arrives like any other mail and gets a reply draft. Without a connected mailbox it goes to the sign-in address and the owner forwards it. The step is ticked when the activity log shows a draft made after the test mail was sent; the page reloads itself while waiting. At most one test mail per two minutes. If our sending address is on the customer's own domain the mail would count as a colleague's, so the button is replaced by "send yourself a mail from another address".
+5. **Offers** (optional): upload a past offer or invoice as a PDF and the company details are read from it.
+
+**Reading details from a sample document** (`packages/offers/src/sample-offer.ts`, prompt `offer-details.ts`): the PDF's text is taken out (scans are refused), the model proposes the seller's name and address lines, bank lines, payment terms, currency and VAT rate, and code keeps a value only when it is printed in the document. What is left is stored as a proposal (`customers.offer_proposal`) and shown on the offers page; nothing changes until the owner presses "Use these", and then only the fields that were found. The file and its text are not stored.
+
+`pnpm check:setup` runs the test mail (classification and draft, both languages) and the sample-document reading through the real model. `pnpm tsx scripts/dev-session.ts` signs in to a local database without the sign-in email, for looking at pages during development; it refuses any database that is not on localhost.
+
 ## Daily brief and operator alerts
 
 The brief (`jobs/brief.ts`, texts in `brief-strings/en.ts`) has four sections and leaves out the empty ones: needs you today (reply drafts), went quiet (follow-ups ready), filed yesterday, connection problems. With nothing to report it is one line. All texts are in one keyed file per language, so a second language is a translation of that file.

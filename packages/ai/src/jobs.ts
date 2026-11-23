@@ -6,6 +6,7 @@ import { invoiceFieldsPrompt, type InvoiceFieldsInput } from "../prompts/invoice
 import { matchItemsPrompt, type MatchItemsInput } from "../prompts/match-items";
 import { paymentNoticePrompt, type PaymentNoticeInput } from "../prompts/payment-notice";
 import { paymentReminderPrompt, type PaymentReminderInput } from "../prompts/payment-reminder";
+import { offerDetailsPrompt, type OfferDetailsInput } from "../prompts/offer-details";
 import { offerAcceptancePrompt, type OfferAcceptanceInput } from "../prompts/offer-acceptance";
 import { orderReplyPrompt, type OrderReplyInput } from "../prompts/order-reply";
 import { priceListColumnsPrompt, type PriceListColumnsInput } from "../prompts/price-list-columns";
@@ -261,6 +262,48 @@ export async function readInvoiceFields(
       dueDate: text(answer.due_date),
       paymentTermDays: typeof answer.payment_term_days === "number" ? answer.payment_term_days : null,
       buyer: text(answer.buyer),
+      language: language && /^[a-z]{2}$/.test(language) ? language : null,
+    },
+    usage: result,
+  };
+}
+
+/** What the model found on a sample offer or invoice. Unchecked: the caller keeps only what is printed in the text. */
+export interface OfferDetailsReading {
+  companyLines: string[];
+  bankLines: string[];
+  paymentTerms: string | null;
+  currency: string | null;
+  vatRate: number | null;
+  language: string | null;
+}
+
+/** Reads the company's own standing details from the text of one of its past offers or invoices. */
+export async function readOfferDetails(
+  ai: AiClient,
+  input: OfferDetailsInput,
+): Promise<{ reading: OfferDetailsReading; usage: AiUsage }> {
+  const result = await ai.complete({
+    job: "offer-details",
+    ...offerDetailsPrompt({ ...input, text: clip(input.text, MAX_BODY_CHARS) }),
+    maxTokens: 2000,
+  });
+  const answer = firstJson(result.text);
+  if (!Array.isArray(answer.company_lines)) throw new AiError("Offer details answer was not in the expected format");
+  const text = (value: unknown, max: number) => (typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null);
+  const lines = (value: unknown, max: number) =>
+    (Array.isArray(value) ? value : [])
+      .map((line) => text(line, 200))
+      .filter((line): line is string => line !== null)
+      .slice(0, max);
+  const language = text(answer.language, 2)?.toLowerCase() ?? null;
+  return {
+    reading: {
+      companyLines: lines(answer.company_lines, 8),
+      bankLines: lines(answer.bank_lines, 5),
+      paymentTerms: text(answer.payment_terms, 300),
+      currency: text(answer.currency, 3)?.toUpperCase() ?? null,
+      vatRate: typeof answer.vat_rate === "number" && Number.isFinite(answer.vat_rate) ? answer.vat_rate : null,
       language: language && /^[a-z]{2}$/.test(language) ? language : null,
     },
     usage: result,

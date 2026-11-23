@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get("state");
   if (!code || !state || !expectedState || state !== expectedState) return fail();
 
+  let back = "/settings?saved=connected";
   try {
     const tokens = await exchangeCode(oauth, code);
     const me = await new GraphClient(tokens.accessToken).getMe();
@@ -38,6 +39,8 @@ export async function GET(request: NextRequest) {
       // What Microsoft granted: with the OneDrive app-folder permission in it, filing is on.
       scopes: tokens.scopes,
     });
+    // During the guide, go back to the guide.
+    if (!(await scope.getCustomer()).setupFinishedAt) back = "/start?saved=connected#voice";
     await scope.audit("mailbox.connected", { provider: "microsoft", connectionId: connection.id }, session.userId);
     // First poll now: it also registers the change-notification subscription.
     await (await getQueue()).send(QUEUES.syncMailbox, { customerId: session.customerId, connectionId: connection.id });
@@ -45,5 +48,5 @@ export async function GET(request: NextRequest) {
     console.error("[microsoft callback]", error instanceof Error ? `${error.name}: ${error.message}` : "error");
     return fail();
   }
-  return NextResponse.redirect(`${config.appBaseUrl}/settings?saved=connected`);
+  return NextResponse.redirect(`${config.appBaseUrl}${back}`);
 }

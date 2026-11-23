@@ -6,6 +6,7 @@ import { getConfig, getDb } from "@/lib/server";
 import {
   addDiscount,
   confirmPriceList,
+  discardOfferProposal,
   discardPriceList,
   remapPriceListColumns,
   removeDiscount,
@@ -13,6 +14,8 @@ import {
   saveOfferSettings,
   uploadLogo,
   uploadPriceList,
+  uploadSampleOffer,
+  useOfferProposal,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +32,10 @@ const ERRORS: Record<string, string> = {
   unreadable: "This file could not be read as a price list. Save it as an Excel workbook (.xlsx) with one row of column titles and try again.",
   columns: "Those columns do not fit the sheet. The name and the price must be two different columns.",
   empty: "There are no readable items yet, so the list cannot be used. Choose the right columns first.",
+  sample: "Choose a PDF of at most 5 MB.",
+  sample_unreadable: "This PDF holds no text we can read (a scan or a photo?). Type your details below instead.",
+  sample_nothing_found: "No company details were found in this document. Type them below instead.",
+  sample_failed: "The document could not be read right now. Nothing was stored; please try again.",
   discount: "Enter a domain (rolmet.example) or one email address, and a percentage above 0 and up to 100.",
 };
 const SAVED: Record<string, string> = {
@@ -39,6 +46,9 @@ const SAVED: Record<string, string> = {
   remapped: "Columns changed. Check the preview again.",
   activated: "Price list confirmed. New offers use it from now on.",
   discarded: "Upload discarded.",
+  sample: "Document read. Check what was found below, then use it or discard it.",
+  proposal_used: "Offer details filled in from your document. Check them below.",
+  proposal_discarded: "Discarded. Nothing was changed.",
   discount: "Discount saved.",
   discount_removed: "Discount removed.",
 };
@@ -87,6 +97,7 @@ export default async function OfferSettingsPage({
     scope.listDiscounts(),
     scope.getLogo(),
   ]);
+  const proposal = customer.offerProposal;
   const preview = draft ? await scope.listPriceItems(draft.id, 10) : [];
   const exampleNumber = customer.offerNumberPattern
     .replace("{YYYY}", String(new Date().getFullYear()))
@@ -231,6 +242,60 @@ export default async function OfferSettingsPage({
 
       <section className="card" id="details">
         <h2 className="text-lg font-semibold">Offer details</h2>
+
+        {proposal && (
+          <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
+            <p className="font-medium">Read from your document: check before using</p>
+            <p className="mt-1">
+              Only what is printed on the document is shown. Make sure these are <strong>your</strong> details and not
+              your customer&apos;s.
+            </p>
+            <dl className="mt-3 space-y-2">
+              {(
+                [
+                  ["Company details", proposal.companyDetails],
+                  ["Bank details", proposal.bankDetails],
+                  ["Payment terms", proposal.paymentTerms],
+                  ["Currency", proposal.currency],
+                  ["VAT rate", proposal.vatRate === null ? null : `${proposal.vatRate}%`],
+                  ["Offer language", proposal.offerLanguage === null ? null : proposal.offerLanguage === "pl" ? "Polish" : "English"],
+                ] as const
+              )
+                .filter(([, value]) => value)
+                .map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="font-medium">{label}</dt>
+                    <dd className="whitespace-pre-line">{value}</dd>
+                  </div>
+                ))}
+            </dl>
+            <div className="mt-4 flex gap-3">
+              <form action={useOfferProposal}>
+                <button className="btn" type="submit">
+                  Use these
+                </button>
+              </form>
+              <form action={discardOfferProposal}>
+                <button className="btn-secondary" type="submit">
+                  Discard
+                </button>
+              </form>
+            </div>
+            <p className="hint">Using them replaces the matching fields below. Anything not found stays as it is.</p>
+          </div>
+        )}
+
+        <form action={uploadSampleOffer} className="mt-4 space-y-2 border-b border-stone-200 pb-5">
+          <label htmlFor="sample">Fill in from a past offer or invoice (PDF)</label>
+          <input id="sample" name="sample" type="file" accept="application/pdf,.pdf" required />
+          <button className="btn-secondary" type="submit">
+            Read my details from this file
+          </button>
+          <p className="hint">
+            We read your company details, bank details, payment terms, currency and VAT rate from one of your own
+            documents and show them to you first. The file is not stored. Scans and photos cannot be read.
+          </p>
+        </form>
         <form action={saveOfferSettings} className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

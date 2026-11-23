@@ -26,11 +26,14 @@ Last updated: 2026-11-23.
 - [ ] **Worker memory on Railway with the PDF browser.** One offer at a time works. Watch the worker's memory and restarts when several offers are made close together.
 
 - [ ] **Payment reminders, live (phase 4, not deployed yet).** After deployment: send an invoice PDF from the connected mailbox, check under Recent activity that it is tracked with the right number, amount and due date, and that the brief lists it. Then check a reminder draft appears 7 days after the due date (or use an invoice that is already overdue).
+- [ ] **Getting started guide, live (phase 4, not deployed yet).** After deployment, sign in with an address that has no account yet: you should land on the guide. Do the four steps and press "Send me the test email"; the draft should appear and step 4 should tick itself. Seen working locally on 23 Nov, except the test mail itself, which was not sent from the local machine.
+- [ ] **Test mail delivery.** The guide's test mail is sent by Postmark to the owner's own mailbox. Check that it lands in the inbox and not in junk, for a Microsoft 365 mailbox and for a Gmail address.
 - [ ] **Forwarded invoice, live.** Forward an invoice PDF to the Adminwise address and check it is tracked. This path runs in the web app's webhook and is covered by tests only up to the point where Postmark calls it.
 
 ## Check before the first outside customer
 
 - [ ] **Invoice reading on real invoices.** Five invented PDFs made by our own generator were read correctly by the real model (`pnpm check:invoices`, 23 Nov). Real invoices from invoicing programs look different: test with ten real ones from different programs, including one with several dates on it.
+- [ ] **Company details from real documents.** Reading the seller's details from a sample PDF was checked with the real model on one invented invoice (`pnpm check:setup`, 23 Nov). Try five real offers and invoices from different programs, and note how often a buyer's line slips in (the owner sees the proposal before it is used).
 - [ ] **"Paid" said by a debtor.** A sender writing "paid" stops the reminders. Check in the first weeks how often that is wrong, and whether the owner notices the line in the brief.
 
 - [ ] **Speed and capacity with many customers.** Tested: 50 mails within one minute for one customer, with a stand-in model. Not tested: many customers at once, or the real model under load. Do a load test with the real model (for example 100 mails across 10 test customers) and note mails per minute and failures.

@@ -16,6 +16,8 @@ export {
   readInvoiceFields,
   draftPaymentReminder,
   checkPaymentNotice,
+  readOfferDetails,
+  type OfferDetailsReading,
   type InvoiceReading,
   type ProposedColumns,
   type RequestedItem,

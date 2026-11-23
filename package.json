@@ -13,6 +13,7 @@
     "check:pdf": "tsx scripts/check-pdf.ts",
     "check:quotes": "tsx scripts/check-quotes.ts",
     "check:invoices": "tsx scripts/check-invoices.ts",
+    "check:setup": "tsx scripts/check-setup.ts",
     "dev:web": "pnpm --filter @adminwise/web dev",
     "dev:worker": "pnpm --filter @adminwise/worker dev",
     "db:migrate": "pnpm --filter @adminwise/db migrate",

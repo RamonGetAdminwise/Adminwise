@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession, normalizeEmail, sendSignInLink } from "@/lib/auth";
+import { getSession, landingPath, normalizeEmail, sendSignInLink } from "@/lib/auth";
 import { getConfig } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,8 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
-  if (await getSession()) redirect("/settings");
+  const session = await getSession();
+  if (session) redirect(await landingPath(session));
   const params = await searchParams;
   const { appName } = getConfig();
 

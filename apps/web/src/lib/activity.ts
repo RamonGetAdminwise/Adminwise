@@ -11,6 +11,7 @@ const JOB_NAMES: Record<string, string> = {
   "invoice-tracking": "Invoice check",
   "payment-reminders": "Payment reminders",
   "price-list-columns": "Price list upload",
+  "offer-details": "Sample document",
 };
 
 const FILING_OUTCOMES: Record<string, string> = {
@@ -92,6 +93,11 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     if (c.unreadable) parts.push(`${plural(c.unreadable, "file", "files")} could not be read`);
     if (c.duplicate) parts.push(`${plural(c.duplicate, "invoice", "invoices")} already tracked`);
     return parts.length ? parts.join("; ") : "No invoice of yours in the attachments";
+  }
+  if (run.job === "offer-details") {
+    if (run.outcome === "proposed") return "Your company details were read: confirm them on the offers page";
+    if (run.outcome === "unreadable") return "The file could not be read (a scan or a photo?)";
+    return "No company details found in the document";
   }
   if (run.job === "price-list-columns") {
     return run.outcome === "columns_found" ? "Columns of your price list recognised" : "Columns not recognised: choose them on the price list page";

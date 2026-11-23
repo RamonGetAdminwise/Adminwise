@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { localClock } from "@adminwise/core";
-import { sha256, system, type SessionInfo } from "@adminwise/db";
+import { forCustomer, sha256, system, type SessionInfo } from "@adminwise/db";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getConfig, getDb, getMailer } from "./server";
@@ -91,6 +91,12 @@ export async function requireSession(): Promise<SessionInfo> {
   const session = await getSession();
   if (!session) redirect("/");
   return session;
+}
+
+/** Where a signed-in person lands: the guide until they finished or skipped it, then settings. */
+export async function landingPath(session: SessionInfo): Promise<"/start" | "/settings"> {
+  const customer = await forCustomer(getDb(), session.customerId).getCustomer();
+  return customer.setupFinishedAt ? "/settings" : "/start";
 }
 
 export async function signOut(): Promise<void> {

@@ -34,7 +34,23 @@ export interface Customer {
   offerFooter: string;
   /** "#rrggbb" */
   brandColor: string;
+  // ---- guided setup (phase 4) ----
+  /** Null while the "Getting started" guide is still shown after sign-in. */
+  setupFinishedAt: Date | null;
+  setupTestSentAt: Date | null;
+  /** Details read from an uploaded sample document, waiting for the owner's yes or no. */
+  offerProposal: OfferProposal | null;
   createdAt: Date;
+}
+
+/** What could be read from a sample offer or invoice. Every value is printed on that document; null = not found. */
+export interface OfferProposal {
+  companyDetails: string | null;
+  bankDetails: string | null;
+  paymentTerms: string | null;
+  currency: string | null;
+  vatRate: number | null;
+  offerLanguage: OfferLanguage | null;
 }
 
 /**

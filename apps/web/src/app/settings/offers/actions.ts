@@ -1,7 +1,15 @@
 "use server";
 
 import { forCustomer, OFFER_LANGUAGES, OFFER_LAYOUTS, type OfferLanguage, type OfferLayout } from "@adminwise/db";
-import { importPriceList, MAX_PRICE_LIST_BYTES, PriceListError, remapPriceList } from "@adminwise/offers";
+import {
+  applyOfferProposal,
+  importPriceList,
+  MAX_PRICE_LIST_BYTES,
+  MAX_SAMPLE_OFFER_BYTES,
+  PriceListError,
+  readSampleOffer,
+  remapPriceList,
+} from "@adminwise/offers";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { getAi, getDb } from "@/lib/server";
@@ -50,6 +58,43 @@ export async function saveOfferSettings(formData: FormData) {
   });
   await scope.audit("offer_settings.updated", { offerLanguage, offerLayout, currency }, userId);
   redirect(`${PAGE}?saved=settings`);
+}
+
+/**
+ * A past offer or invoice of the customer's own: read their company details from it and show
+ * them for confirmation. The file is read once and not stored; nothing is used until "Use these".
+ */
+export async function uploadSampleOffer(formData: FormData) {
+  const { scope, userId } = await session();
+  // The same form is part of the "Getting started" guide.
+  const page = formData.get("from") === "start" ? "/start" : PAGE;
+  const anchor = page === PAGE ? "details" : "offers";
+  const file = formData.get("sample");
+  if (!(file instanceof File) || file.size === 0 || file.size > MAX_SAMPLE_OFFER_BYTES || !/\.pdf$/i.test(file.name)) {
+    redirect(`${page}?error=sample#${anchor}`);
+  }
+  let result: "proposed" | "nothing_found" | "unreadable" | "failed";
+  try {
+    result = await readSampleOffer(scope, getAi(), new Uint8Array(await file.arrayBuffer()));
+  } catch {
+    result = "failed";
+  }
+  if (result === "proposed") await scope.audit("offer_details.read_from_sample", {}, userId);
+  // What was found is always confirmed on the offers page.
+  redirect(result === "proposed" ? `${PAGE}?saved=sample#details` : `${page}?error=sample_${result}#${anchor}`);
+}
+
+export async function useOfferProposal() {
+  const { scope, userId } = await session();
+  const ok = await applyOfferProposal(scope);
+  if (ok) await scope.audit("offer_details.proposal_used", {}, userId);
+  redirect(`${PAGE}?saved=${ok ? "proposal_used" : "proposal_discarded"}#details`);
+}
+
+export async function discardOfferProposal() {
+  const { scope } = await session();
+  await scope.setOfferProposal(null);
+  redirect(`${PAGE}?saved=proposal_discarded#details`);
 }
 
 export async function uploadLogo(formData: FormData) {

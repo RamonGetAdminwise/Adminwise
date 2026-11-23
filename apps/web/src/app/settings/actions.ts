@@ -46,8 +46,10 @@ export async function saveSettings(formData: FormData) {
 export async function generateVoiceProfile(formData: FormData) {
   const session = await requireSession();
   const scope = forCustomer(getDb(), session.customerId);
+  // The same form is part of the "Getting started" guide.
+  const page = formData.get("from") === "start" ? "/start" : "/settings";
   const samples = ["sample1", "sample2", "sample3"].map((name) => text(formData.get(name), 20_000));
-  if (samples.some((s) => s.length < 40)) redirect("/settings?error=samples#voice");
+  if (samples.some((s) => s.length < 40)) redirect(`${page}?error=samples#voice`);
 
   const customer = await scope.getCustomer();
   const runId = await scope.startJobRun("voice-profile");
@@ -62,7 +64,7 @@ export async function generateVoiceProfile(formData: FormData) {
     const reason = error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 300) : "Unknown error";
     await scope.finishJobRun(runId, { status: "failed", error: reason });
   }
-  redirect(ok ? "/settings?saved=voice#voice" : "/settings?error=ai#voice");
+  redirect(ok ? `${page}?saved=voice#${page === "/start" ? "test" : "voice"}` : `${page}?error=ai#voice`);
 }
 
 export async function saveVoiceProfile(formData: FormData) {

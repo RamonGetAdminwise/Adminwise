@@ -17,6 +17,7 @@ import type {
   Invoice,
   InvoiceStatus,
   JobStatus,
+  OfferProposal,
   QuietThread,
   ReplyDraftMode,
   Thread,
@@ -615,6 +616,29 @@ export function forCustomer(db: Db, customerId: string) {
          WHERE id = $1`,
         [s.name, s.languages, s.timeZone, s.signatureText, s.followUpDays ?? null, s.replyDrafts ?? null],
       );
+    },
+
+    /** The owner finished or skipped the "Getting started" guide. */
+    async finishSetup() {
+      await run("UPDATE customers SET setup_finished_at = COALESCE(setup_finished_at, now()) WHERE id = $1");
+    },
+
+    /**
+     * Notes that the guide's test mail is being sent now. False when one was sent less than
+     * two minutes ago: a double click must not send two.
+     */
+    async claimSetupTestMail(now: Date): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE customers SET setup_test_sent_at = $2
+         WHERE id = $1 AND (setup_test_sent_at IS NULL OR setup_test_sent_at < $2::timestamptz - interval '2 minutes')`,
+        [now],
+      );
+      return (rowCount ?? 0) > 0;
+    },
+
+    /** Stores what was read from a sample document until the owner decides; null clears it. */
+    async setOfferProposal(proposal: OfferProposal | null) {
+      await run("UPDATE customers SET offer_proposal = $2 WHERE id = $1", [proposal ? JSON.stringify(proposal) : null]);
     },
 
     /** Gives back a draft slot that was reserved but will not be used (the mail turned out to need no draft). */

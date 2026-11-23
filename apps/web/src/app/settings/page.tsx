@@ -63,6 +63,15 @@ export default async function SettingsPage({
         </form>
       </header>
 
+      {!customer.setupFinishedAt && (
+        <p className="rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+          New here?{" "}
+          <a className="font-medium underline" href="/start">
+            Open the Getting started guide
+          </a>{" "}
+          and see your first draft in about ten minutes.
+        </p>
+      )}
       {params.saved && SAVED[params.saved] && <Notice tone="ok">{SAVED[params.saved]}</Notice>}
       {params.error && ERRORS[params.error] && <Notice tone="error">{ERRORS[params.error]}</Notice>}
 
