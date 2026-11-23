@@ -56,6 +56,7 @@ Last updated: 2026-11-23.
 - [ ] **Price list columns found by the model.** For lists without clear column titles the model proposes the columns. Check with five real customer lists that the preview shows the right name and price columns, and note which layouts fail.
 - [ ] **Voice profile built from one language.** A profile built from English emails produced an English greeting on a Polish reply. Check after rebuilding the profile from mixed-language samples; decide whether the profile should be per language.
 - [ ] **Microsoft publisher verification.** Parked until customer zero. Needs the registered business details, a `getadminwise.com` contact address, and the privacy and terms pages.
+- [ ] **Replace the secrets shown in a screenshot on 23 Nov.** A screenshot of `.env` in the chat showed the AWS access key and secret, the Microsoft client secret, the Postmark server token and the Postmark inbound secret. Make new ones for all four and update both `.env` and the Railway variables: AWS (IAM user `adminwise-bedrock`: create a new access key, delete the old one), Microsoft Entra (new client secret, delete the old one), Postmark (regenerate the server token; new inbound password in the webhook address).
 - [ ] **Inbound secrets.** The production and the local `POSTMARK_INBOUND_SECRET` were shown in chat; replace both.
 - [ ] **Point-in-time recovery** in Railway: decide whether to switch it on in addition to daily backups.
 - [ ] **DMARC.** Now `p=none`. After a few weeks of clean reports, tighten to `p=quarantine`.
