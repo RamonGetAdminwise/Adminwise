@@ -41,6 +41,18 @@ Last updated: 2026-11-23.
 - [ ] **DMARC.** Now `p=none`. After a few weeks of clean reports, tighten to `p=quarantine`.
 - [ ] **Real signature and offer details.** Settings still hold test values (signature "test").
 
+## At the very end: challenge everything we built
+
+Asked for by Ramon on 23 Nov: when the whole v1 is built, and before the first outside customer, go through all of it once more with the aim of finding what is wrong, not confirming what works. Done by a fresh pair of eyes (a separate review session that did not write the code), not by the session that built it.
+
+- [ ] **Every decision in the decisions log.** For each one: is the reason still valid, did it turn out as intended, would we decide the same today? Includes the architecture cross-check already noted in `06_open_items.md`.
+- [ ] **Security and privacy review.** Customer isolation, token storage, the signed links in emails, the webhooks, what is logged, the 24-hour rule in practice (look in the live database for bodies older than a day), what an export or delete request really removes.
+- [ ] **Try to break it.** Emails with hidden or fake instructions (scenarios 28 and 29), absurd quantities and prices, a price list built to confuse the column detection, huge attachments, the same mail many times, two workers at once, an expired or revoked mailbox (30 and 31).
+- [ ] **Every number in an offer.** Take real offers from the test period and recalculate them by hand against the price list.
+- [ ] **Every promise we make to customers.** Check the website copy, the privacy statement and the Settings texts against what the software really does: drafts only, nothing sent, EU processing, the app sees only its own OneDrive folder, deleted within 24 hours.
+- [ ] **A full code review** of the repository for bugs, dead code and things that are harder than they need to be.
+- [ ] **Everything still open on this list.**
+
 ## Known limits, accepted for now
 
 - Docker images are large (worker 3.26 GB with the PDF browser, web about 1.8 GB); builds on Railway take around 10 minutes. Slimming is an open task.
