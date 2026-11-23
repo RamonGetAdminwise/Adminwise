@@ -2,11 +2,13 @@ import "server-only";
 import { createBedrockClient, type AiClient } from "@adminwise/ai";
 import {
   createOutlookGateway,
+  createStripeClient,
   loadConfig,
   startQueue,
   type Config,
   type OutlookGateway,
   type StartedQueue,
+  type StripeClient,
 } from "@adminwise/core";
 import { createDb, type Db } from "@adminwise/db";
 import { ConsoleMailer, PostmarkMailer, type GraphOAuthConfig, type OutboundMailer } from "@adminwise/mail";
@@ -23,6 +25,7 @@ const cache = globalThis as unknown as {
     ai?: AiClient;
     mailer?: OutboundMailer;
     outlook?: OutlookGateway;
+    stripe?: StripeClient;
   };
 };
 const store = (cache.__adminwise ??= {});
@@ -61,6 +64,13 @@ export function getOutlook(): OutlookGateway | null {
   const oauth = getMicrosoftOAuth();
   if (!oauth) return null;
   return (store.outlook ??= createOutlookGateway({ oauth, notificationUrl: null }));
+}
+
+/** Null until a Stripe key is configured. */
+export function getStripe(): StripeClient | null {
+  const { stripe } = getConfig();
+  if (!stripe) return null;
+  return (store.stripe ??= createStripeClient(stripe));
 }
 
 export function getMicrosoftOAuth(): GraphOAuthConfig | null {

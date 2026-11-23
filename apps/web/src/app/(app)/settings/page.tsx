@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { describeRun, jobName } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
-import { closeAccount, generateVoiceProfile, saveBilling, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
+import { PLANS } from "@/lib/site";
+import { choosePlan, closeAccount, generateVoiceProfile, manageSubscription, saveBilling, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,9 @@ const ERRORS: Record<string, string> = {
   followup: "Follow-up days must be a whole number from 1 to 30.",
   replydrafts: "Choose one of the three options for reply drafts.",
   close_confirm: "To close your account, type DELETE in the box.",
-  close_subscription: "Cancel your subscription first (Manage subscription), then close the account.",
+  close_subscription: "Your subscription could not be ended at our payment provider, so the account was not closed. Cancel it under Manage subscription and try again.",
+  checkout: "The payment page could not be opened, or the payment was not completed. Nothing was charged; please try again.",
+  billing_off: "Paid plans have not started yet.",
   billing_country: "Choose your country from the list.",
   vat_format: "That does not look like a VAT number of the country you chose. Check the country and the number.",
   samples: "Paste three complete sent emails (each at least a few lines).",
@@ -28,6 +31,7 @@ const ERRORS: Record<string, string> = {
 const SAVED: Record<string, string> = {
   settings: "Settings saved.",
   voice: "Voice profile saved.",
+  subscribed: "Thank you. Your plan is active.",
   billing_none: "Billing details saved.",
   billing_valid: "Billing details saved. Your VAT number is valid.",
   billing_invalid: "Billing details saved, but the EU register does not know this VAT number.",
@@ -128,6 +132,44 @@ export default async function SettingsPage({
               Read-only{customer.readOnlySince ? ` since ${date(customer.readOnlySince)}` : ""}. Your settings are kept. An
               account that stays read-only is deleted after {DELETE_AFTER_DAYS} days; you get a warning by email a week before.
             </p>
+          )}
+          {config.billingEnabled && config.stripe && customer.billingStatus === "active" && customer.stripeCustomerId && (
+            <form action={manageSubscription}>
+              <button className="btn-secondary" type="submit">
+                Manage subscription
+              </button>
+              <p className="hint">Opens our payment provider&apos;s page: change card, switch plan, see invoices or cancel.</p>
+            </form>
+          )}
+          {config.billingEnabled && config.stripe && (customer.billingStatus === "trial" || customer.billingStatus === "read_only") && (
+            <div className="grid gap-4 pt-2 sm:grid-cols-2">
+              {PLANS.map((plan) => (
+                <div key={plan.name} className={`rounded-md border p-4 ${plan.highlighted ? "border-teal-700" : "border-stone-200"}`}>
+                  <p className="font-semibold">{plan.name}</p>
+                  <p className="text-stone-600">{plan.tagline}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-stone-700">
+                    {plan.features.map((feature) => (
+                      <li key={feature}>{feature}</li>
+                    ))}
+                  </ul>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(["month", "year"] as const).map((interval) => (
+                      <form key={interval} action={choosePlan}>
+                        <input type="hidden" name="plan" value={plan.name.toLowerCase()} />
+                        <input type="hidden" name="interval" value={interval} />
+                        <button className={interval === "month" ? "btn" : "btn-secondary"} type="submit">
+                          EUR {interval === "month" ? plan.monthly : plan.yearly} / {interval}
+                        </button>
+                      </form>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="hint sm:col-span-2">
+                Prices without VAT. You pay on our payment provider&apos;s page (Stripe); your card details never reach{" "}
+                {config.appName}. Cancel any time; a plan runs until the end of the period you paid for.
+              </p>
+            </div>
           )}
         </div>
       </section>

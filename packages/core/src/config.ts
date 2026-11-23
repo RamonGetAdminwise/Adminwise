@@ -16,6 +16,8 @@ export interface Config {
    * True: trials end, plans are enforced and read-only accounts are deleted after 60 days.
    */
   billingEnabled: boolean;
+  /** Null until a Stripe key is set: plans can then not be bought. */
+  stripe: { secretKey: string; webhookSecret: string | null; automaticTax: boolean } | null;
   databaseUrl: string;
   tokenEncryptionKey: string;
   /**
@@ -60,6 +62,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     mailFrom: env.MAIL_FROM || `${appName} <hello@getadminwise.com>`,
     sellerCountry: (env.SELLER_COUNTRY || "PL").trim().toUpperCase(),
     billingEnabled: (env.BILLING_ENABLED || "").trim().toLowerCase() === "true",
+    stripe: env.STRIPE_SECRET_KEY
+      ? {
+          secretKey: env.STRIPE_SECRET_KEY.trim(),
+          webhookSecret: env.STRIPE_WEBHOOK_SECRET?.trim() || null,
+          automaticTax: (env.STRIPE_AUTOMATIC_TAX || "").trim().toLowerCase() === "true",
+        }
+      : null,
     databaseUrl: required(env, "DATABASE_URL"),
     tokenEncryptionKey: required(env, "TOKEN_ENCRYPTION_KEY"),
     aws: {

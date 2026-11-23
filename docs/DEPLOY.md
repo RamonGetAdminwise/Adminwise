@@ -115,3 +115,23 @@ The website is served by the same web service as the app. To show it on the main
 3. Leave `APP_BASE_URL` as `https://app.getadminwise.com`: sign-in links and the "Start free" buttons keep pointing at the app address.
 
 Do this only when billing and the legal pages are ready (see docs/TO_VERIFY.md). Until then the site is visible at `https://app.getadminwise.com/` for anyone who is not signed in.
+
+## Payments with Stripe (phase 4)
+
+Variables (web service; the worker needs only `BILLING_ENABLED`):
+
+| Variable | Value |
+|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_...` from the sandbox for testing; `sk_live_...` for real payments |
+| `STRIPE_WEBHOOK_SECRET` | the signing secret (`whsec_...`) of the webhook endpoint below |
+| `STRIPE_AUTOMATIC_TAX` | `true` once Stripe Tax is set up in the Stripe account |
+| `BILLING_ENABLED` | `true` on BOTH services to switch on trials, plan limits and read-only. Leave unset until payments are ready |
+
+One-time, per Stripe account (sandbox and live each):
+
+1. Locally, with that account's key in `.env`: `pnpm stripe:setup`. It creates the two plans, four prices and the portal settings.
+2. In Stripe, Developers, Webhooks: add an endpoint `https://app.getadminwise.com/api/webhooks/stripe` for the events `checkout.session.completed` and all `customer.subscription.*` events. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+3. In Stripe, Settings, Payment methods: leave only cards switched on (decision of 2026-11-23; the app cannot restrict this itself).
+
+Test in the sandbox: sign in with an address that has no account yet, open Settings, choose a plan, pay with Stripe's test card 4242 4242 4242 4242 (any future date, any CVC). You should come back to Settings with "Your plan is active". Then open "Manage subscription", switch plan and cancel, and check Settings follows.

@@ -636,6 +636,11 @@ export function forCustomer(db: Db, customerId: string) {
       );
     },
 
+    /** Remembers which Stripe customer this account is, once, the first time a plan is chosen. */
+    async setStripeCustomerId(stripeCustomerId: string) {
+      await run("UPDATE customers SET stripe_customer_id = $2 WHERE id = $1 AND stripe_customer_id IS NULL", [stripeCustomerId]);
+    },
+
     /** The owner finished or skipped the "Getting started" guide. */
     async finishSetup() {
       await run("UPDATE customers SET setup_finished_at = COALESCE(setup_finished_at, now()) WHERE id = $1");

@@ -192,6 +192,49 @@ export function system(db: Db) {
       return rows.map((r) => r.id as string);
     },
 
+    /**
+     * Brings an account in step with its subscription as Stripe reports it now.
+     * Safe to call any number of times and in any order of events:
+     *   - a running subscription (also while a failed payment is being retried)
+     *     makes the account active on that plan and clears the read-only clock;
+     *   - an ended one makes it read-only, but only if it is the subscription the
+     *     account is on, so a late event about an old subscription changes nothing;
+     *   - our own ("internal") accounts keep their status.
+     * Returns the customer id, or null when no account belongs to that Stripe customer.
+     */
+    async applySubscription(
+      sub: {
+        id: string;
+        stripeCustomerId: string;
+        live: boolean;
+        plan: "start" | "run" | null;
+        currentPeriodEnd: Date | null;
+        cancelAtPeriodEnd: boolean;
+      },
+      now: Date = new Date(),
+    ): Promise<string | null> {
+      if (sub.live) {
+        const { rows } = await db.pool.query(
+          `UPDATE customers SET
+             billing_status = CASE WHEN billing_status = 'internal' THEN 'internal' ELSE 'active' END,
+             plan = COALESCE($3, plan), stripe_subscription_id = $2, current_period_end = $4, cancel_at_period_end = $5,
+             read_only_since = NULL, deletion_warning_sent_at = NULL
+           WHERE stripe_customer_id = $1 RETURNING id`,
+          [sub.stripeCustomerId, sub.id, sub.plan, sub.currentPeriodEnd, sub.cancelAtPeriodEnd],
+        );
+        return (rows[0]?.id as string | undefined) ?? null;
+      }
+      const { rows } = await db.pool.query(
+        `UPDATE customers SET
+           billing_status = CASE WHEN billing_status = 'active' THEN 'read_only' ELSE billing_status END,
+           read_only_since = CASE WHEN billing_status = 'active' THEN $3 ELSE read_only_since END,
+           cancel_at_period_end = false
+         WHERE stripe_customer_id = $1 AND stripe_subscription_id = $2 RETURNING id`,
+        [sub.stripeCustomerId, sub.id, now],
+      );
+      return (rows[0]?.id as string | undefined) ?? null;
+    },
+
     async listUserEmails(customerId: string): Promise<string[]> {
       const { rows } = await db.pool.query("SELECT email FROM users WHERE customer_id = $1 ORDER BY created_at", [customerId]);
       return rows.map((r) => r.email as string);

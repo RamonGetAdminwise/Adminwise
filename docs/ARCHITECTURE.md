@@ -136,6 +136,16 @@ Rule for the copy: every line describes what the product does today; planned fea
 
 The privacy and terms pages are drafts: `LEGAL_READY` in `(site)/legal.tsx` is false, which shows a "Draft" notice on both, keeps them out of search engines, and shows each missing detail as a highlighted gap. The "Start free" and "Sign in" buttons point at `APP_BASE_URL/signin`, so the site can be served on getadminwise.com and the app on app.getadminwise.com from the same deployment.
 
+## Plans, trial and payment (phase 4)
+
+**One rule decides what an account may do** (`packages/core/src/billing.ts`, `entitlements`): a trial has everything until it ends; a paid Start account has follow-ups, filing, the brief and reply drafts; Run adds offers, order confirmations and payment reminders; a read-only account has nothing new prepared and its mailbox is not read; our own accounts are "internal" and have everything. Every job asks this rule before it works (`allowed(deps, customer)` in the worker). While `BILLING_ENABLED` is not `true`, the rule answers "everything" for everyone: that is the switch for taking billing live.
+
+**The hourly billing job** (`apps/worker/src/jobs/billing.ts`, only when billing is on): two days before a trial ends, one reminder mail; when it has ended, the account becomes read-only and the owner is told; after 53 days read-only, one warning; after 60 days, and at least a week after the warning, the account is deleted with everything stored for it. Paying and internal accounts are never touched.
+
+**Payment is Stripe's, not ours** (`packages/core/src/stripe.ts`). Choosing a plan in settings sends the customer to Stripe's Checkout page; changing card or plan, invoices and cancelling happen on Stripe's customer portal. Card details never reach the app. Stripe tells us about changes through a webhook (`/api/webhooks/stripe`, signature checked); the event is only a signal, after which we ask Stripe for the subscription as it is now and bring the account in step (`system.applySubscription`), so late, repeated or out-of-order events do no harm. The return from Checkout (`/api/billing/return`) does the same at once. A subscription whose payment is being retried still counts as running; one that ended makes the account read-only.
+
+Plans and prices live in Stripe and are found by lookup keys (`adminwise_start_month` and so on); `pnpm stripe:setup` creates them and the portal settings in a Stripe account, and can be run again safely. `pnpm check:stripe` runs a round trip through the sandbox. **Close account** in settings ends a running subscription at Stripe, then deletes the customer and everything stored for them.
+
 ## Daily brief and operator alerts
 
 The brief (`jobs/brief.ts`, texts in `brief-strings/en.ts`) has four sections and leaves out the empty ones: needs you today (reply drafts), went quiet (follow-ups ready), filed yesterday, connection problems. With nothing to report it is one line. All texts are in one keyed file per language, so a second language is a translation of that file.

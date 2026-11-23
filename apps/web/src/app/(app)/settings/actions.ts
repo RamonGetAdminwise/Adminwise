@@ -5,7 +5,7 @@ import { checkVatNumber, EU_COUNTRIES, isValidTimeZone, normalizeVatNumber, OTHE
 import { forCustomer, REPLY_DRAFT_MODES, system, type ReplyDraftMode } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
-import { getAi, getDb } from "@/lib/server";
+import { getAi, getConfig, getDb, getStripe } from "@/lib/server";
 
 const text = (value: FormDataEntryValue | null, max: number) =>
   (typeof value === "string" ? value : "").trim().slice(0, max);
@@ -108,6 +108,65 @@ export async function saveVoiceProfile(formData: FormData) {
   redirect("/settings?saved=voice#voice");
 }
 
+/** Choosing a plan: the customer is sent to Stripe's own payment page. Card details never reach us. */
+export async function choosePlan(formData: FormData) {
+  const session = await requireSession();
+  const config = getConfig();
+  const stripe = getStripe();
+  const plan = text(formData.get("plan"), 10);
+  const interval = text(formData.get("interval"), 10);
+  if (!stripe || !config.billingEnabled) redirect("/settings?error=billing_off#plan");
+  if ((plan !== "start" && plan !== "run") || (interval !== "month" && interval !== "year")) redirect("/settings?error=checkout#plan");
+
+  const scope = forCustomer(getDb(), session.customerId);
+  let url: string | null = null;
+  try {
+    let customer = await scope.getCustomer();
+    // A running subscription is changed on Stripe's portal page, never by starting a second one.
+    if (customer.billingStatus === "active" && customer.stripeSubscriptionId) {
+      url = await stripe.createPortal({ stripeCustomerId: customer.stripeCustomerId!, returnUrl: `${config.appBaseUrl}/settings#plan` });
+    } else {
+      if (!customer.stripeCustomerId) {
+        const created = await stripe.createCustomer({
+          email: session.email,
+          name: customer.billingName || customer.name,
+          customerId: session.customerId,
+        });
+        await scope.setStripeCustomerId(created);
+        customer = await scope.getCustomer();
+      }
+      url = await stripe.createCheckout({
+        stripeCustomerId: customer.stripeCustomerId!,
+        plan,
+        interval,
+        customerId: session.customerId,
+        successUrl: `${config.appBaseUrl}/api/billing/return?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${config.appBaseUrl}/settings#plan`,
+      });
+      await scope.audit("billing.checkout_started", { plan, interval }, session.userId);
+    }
+  } catch (error) {
+    console.error("[checkout]", error instanceof Error ? `${error.name}: ${error.message}` : "error");
+  }
+  redirect(url ?? "/settings?error=checkout#plan");
+}
+
+/** Stripe's own page for the card, invoices, switching plan and cancelling. */
+export async function manageSubscription() {
+  const session = await requireSession();
+  const config = getConfig();
+  const stripe = getStripe();
+  const customer = await forCustomer(getDb(), session.customerId).getCustomer();
+  if (!stripe || !customer.stripeCustomerId) redirect("/settings?error=checkout#plan");
+  let url: string | null = null;
+  try {
+    url = await stripe.createPortal({ stripeCustomerId: customer.stripeCustomerId, returnUrl: `${config.appBaseUrl}/settings#plan` });
+  } catch (error) {
+    console.error("[portal]", error instanceof Error ? `${error.name}: ${error.message}` : "error");
+  }
+  redirect(url ?? "/settings?error=checkout#plan");
+}
+
 /**
  * Closes the account: deletes the customer and everything stored for them, at once.
  * Files in their own OneDrive and drafts in their own mailbox are theirs and stay.
@@ -118,8 +177,20 @@ export async function closeAccount(formData: FormData) {
   const customer = await scope.getCustomer();
   // A typed confirmation, so this cannot happen by a stray click.
   if (text(formData.get("confirm"), 20).toUpperCase() !== "DELETE") redirect("/settings?error=close_confirm#close");
-  // A running subscription has to be cancelled first, or the customer would keep paying for nothing.
-  if (customer.billingStatus === "active" && !customer.cancelAtPeriodEnd) redirect("/settings?error=close_subscription#close");
+  // A running subscription is ended at Stripe first, so nobody keeps paying for a deleted account.
+  if (customer.stripeSubscriptionId) {
+    const stripe = getStripe();
+    let cancelled = false;
+    try {
+      if (stripe) {
+        await stripe.cancelSubscription(customer.stripeSubscriptionId);
+        cancelled = true;
+      }
+    } catch {
+      // handled below
+    }
+    if (!cancelled) redirect("/settings?error=close_subscription#close");
+  }
 
   const sys = system(getDb());
   const runId = await sys.startJobRun("account-closed");
