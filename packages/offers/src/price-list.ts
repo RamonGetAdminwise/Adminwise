@@ -149,6 +149,19 @@ function amountShare(table: SheetTable, column: number): number {
 }
 
 /**
+ * Share of a column's cells that hold nothing but an amount: a number, or text
+ * that reads as one with at most a currency name next to it ("12,50 zł").
+ * An item name with a size in it ("Angle grinder 125 mm") is not an amount.
+ */
+function bareAmountShare(table: SheetTable, column: number): number {
+  const filled = table.rows.map((r) => r.cells[column]).filter((c) => c !== null && c !== undefined);
+  if (filled.length === 0) return 0;
+  const bare = (c: Cell) =>
+    typeof c === "number" || (typeof c === "string" && c.replace(/[^\p{L}]/gu, "").length <= 3 && parseAmount(c) !== null);
+  return filled.filter(bare).length / filled.length;
+}
+
+/**
  * Proposes the column mapping from the header words alone. Returns null when
  * the name or the price column cannot be told from the headers; the caller
  * then asks the model, and in any case the customer confirms.
@@ -168,7 +181,7 @@ export function proposeMapping(table: SheetTable): ColumnMapping | null {
   const aliases = find("aliases", [price, code]);
   const unit = find("unit", [price, code, aliases]);
   // The name is a text column: "Artikel" or "Item" may also title the code column, so skip what is taken.
-  const name = find("name", [price, code, aliases, unit], (i) => amountShare(table, i) < 0.5);
+  const name = find("name", [price, code, aliases, unit], (i) => bareAmountShare(table, i) < 0.5);
   if (name < 0) return null;
 
   const orNull = (index: number) => (index >= 0 ? index : null);

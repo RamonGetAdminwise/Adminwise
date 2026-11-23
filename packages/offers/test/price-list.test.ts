@@ -108,6 +108,26 @@ describe("other layouts", () => {
     ]);
   });
 
+  it("recognises the name column when the names have sizes and numbers in them", async () => {
+    const table = await readPriceListFile(
+      await workbook([
+        ["Code", "Item name", "Unit", "Net price PLN"],
+        ["PT-010", "Cordless drill 18V", "pcs", 240.93],
+        ["PT-030", "Angle grinder 125 mm", "pcs", "1 086,79 zł"],
+        ["FS-010", "Hex bolt M8x40 zinc (100)", "box", 44.01],
+        ["HT-100", "Tape measure 5 m", "pcs", 18.5],
+      ]),
+    );
+    const mapping = proposeMapping(table)!;
+    expect(mapping).toEqual({ code: 0, name: 1, unit: 2, price: 3, aliases: null, source: "headers" });
+    expect(applyMapping(table, mapping).items.map((i) => [i.name, i.netPriceCents])).toEqual([
+      ["Cordless drill 18V", 24093],
+      ["Angle grinder 125 mm", 108679],
+      ["Hex bolt M8x40 zinc (100)", 4401],
+      ["Tape measure 5 m", 1850],
+    ]);
+  });
+
   it("does not guess when the headers say nothing: the model is asked and the customer confirms", async () => {
     const table = await readPriceListFile(
       await workbook([
