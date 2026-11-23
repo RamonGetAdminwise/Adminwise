@@ -2,7 +2,7 @@
 
 import { buildVoiceProfile } from "@adminwise/ai";
 import { isValidTimeZone } from "@adminwise/core";
-import { forCustomer } from "@adminwise/db";
+import { forCustomer, REPLY_DRAFT_MODES, type ReplyDraftMode } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
 import { getAi, getDb } from "@/lib/server";
@@ -27,6 +27,8 @@ export async function saveSettings(formData: FormData) {
   if (!isValidTimeZone(timeZone)) redirect("/settings?error=timezone");
   const followUpDays = Number(text(formData.get("followUpDays"), 3));
   if (!Number.isInteger(followUpDays) || followUpDays < 1 || followUpDays > 30) redirect("/settings?error=followup");
+  const replyDrafts = text(formData.get("replyDrafts"), 10) as ReplyDraftMode;
+  if (!REPLY_DRAFT_MODES.includes(replyDrafts)) redirect("/settings?error=replydrafts");
 
   await scope.updateSettings({
     name: text(formData.get("name"), 200),
@@ -34,6 +36,7 @@ export async function saveSettings(formData: FormData) {
     timeZone,
     signatureText: text(formData.get("signatureText"), 2000),
     followUpDays,
+    replyDrafts,
   });
   await scope.audit("settings.updated", { languages, timeZone, followUpDays }, session.userId);
   redirect("/settings?saved=settings");

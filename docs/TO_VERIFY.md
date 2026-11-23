@@ -45,6 +45,8 @@ Last updated: 2026-11-23.
 - [ ] **Inbound secrets.** The production and the local `POSTMARK_INBOUND_SECRET` were shown in chat; replace both.
 - [ ] **Point-in-time recovery** in Railway: decide whether to switch it on in addition to daily backups.
 - [ ] **DMARC.** Now `p=none`. After a few weeks of clean reports, tighten to `p=quarantine`.
+- [ ] **Layout of the emails, with the signature (to build, asked for on 23 Nov).** Drafts are plain text with a plain-text signature from settings. The customer's own Outlook signature (logo, fonts, links) is not used, and a draft does not look like a mail they wrote themselves. To work out: formatted (HTML) drafts, a signature with logo, or leaving the signature to Outlook; the same for drafts emailed to forwarding customers.
+- [ ] **"Sales mail only" without a price list.** With that choice a quote request is only recognised when a price list is confirmed; without one it gets no draft. Decide whether such a customer should get an ordinary reply draft for quote requests.
 - [ ] **Real signature and offer details.** Settings still hold test values (signature "test").
 
 ## At the very end: challenge everything we built

@@ -18,6 +18,7 @@ import type {
   InvoiceStatus,
   JobStatus,
   QuietThread,
+  ReplyDraftMode,
   Thread,
   MailboxConnection,
   Message,
@@ -606,13 +607,19 @@ export function forCustomer(db: Db, customerId: string) {
       signatureText: string;
       /** Omitted = leave as it is. */
       followUpDays?: number;
+      replyDrafts?: ReplyDraftMode;
     }) {
       await run(
         `UPDATE customers SET name = $2, languages = $3, time_zone = $4, signature_text = $5,
-                follow_up_days = COALESCE($6, follow_up_days)
+                follow_up_days = COALESCE($6, follow_up_days), reply_drafts = COALESCE($7, reply_drafts)
          WHERE id = $1`,
-        [s.name, s.languages, s.timeZone, s.signatureText, s.followUpDays ?? null],
+        [s.name, s.languages, s.timeZone, s.signatureText, s.followUpDays ?? null, s.replyDrafts ?? null],
       );
+    },
+
+    /** Gives back a draft slot that was reserved but will not be used (the mail turned out to need no draft). */
+    async releaseDraftClaim(id: string) {
+      await run("DELETE FROM drafts WHERE customer_id = $1 AND id = $2 AND status = 'pending'", [id]);
     },
 
     /** Same idea as claimBriefForDate: the nightly chaser scan runs once per customer-local date. */

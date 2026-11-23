@@ -30,6 +30,8 @@ function counts(outcome: string): Record<string, number> {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 const NO_DRAFT_REASONS: Record<string, string> = {
+  switched_off: "reply drafts are switched off in your settings",
+  not_selected: "it is not a quote request, an order or a payment reply, and you chose drafts for those only",
   internal: "it came from your own company",
   newsletter: "it is a newsletter or mailing list",
   notification: "it is an automatic notification",

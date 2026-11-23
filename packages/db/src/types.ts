@@ -14,6 +14,8 @@ export interface Customer {
   voiceProfile: string;
   /** Working days of silence before a follow-up is drafted (1 to 30). */
   followUpDays: number;
+  /** Which incoming business mail gets a reply draft. */
+  replyDrafts: ReplyDraftMode;
   // ---- offers (phase 3) ----
   /** Language of the offer document's own texts. */
   offerLanguage: OfferLanguage;
@@ -34,6 +36,13 @@ export interface Customer {
   brandColor: string;
   createdAt: Date;
 }
+
+/**
+ * "all" = every business mail; "sales" = only quote requests, acceptances of an offer and replies
+ * about an invoice being chased; "off" = no reply drafts.
+ */
+export type ReplyDraftMode = "all" | "sales" | "off";
+export const REPLY_DRAFT_MODES: ReplyDraftMode[] = ["all", "sales", "off"];
 
 export type OfferLanguage = "en" | "pl";
 export type OfferLayout = "classic" | "modern" | "compact";

@@ -87,6 +87,13 @@ export async function processMessage(
       }
     }
 
+    // The customer chose not to get reply drafts at all. Everything above still happened:
+    // the mail is classified and a "we paid" stops reminders.
+    if (customer.replyDrafts === "off") {
+      await finish("succeeded", null, "no_draft:switched_off");
+      return "no_draft";
+    }
+
     // 2. Reserve the one draft this message may get.
     const connection = message.connectionId ? await scope.getConnection(message.connectionId) : null;
     const toOutlook = connection?.provider === "microsoft";
@@ -109,6 +116,13 @@ export async function processMessage(
       //    customers with a price list) gets an offer; everything else an ordinary reply.
       const context = { customer, message, connection, language: draftLanguage };
       const quote = (await prepareOrderConfirmation(deps, scope, context)) ?? (await prepareQuoteReply(deps, scope, context));
+      // "Sales mail only": a draft for quote requests, acceptances and replies about an invoice
+      // being chased; any other business mail is left to the owner.
+      if (customer.replyDrafts === "sales" && !quote && chased.length === 0) {
+        await scope.releaseDraftClaim(draftId);
+        await finish("succeeded", null, "no_draft:not_selected");
+        return "no_draft";
+      }
       let body: string;
       if (quote) {
         inputTokens += quote.inputTokens;

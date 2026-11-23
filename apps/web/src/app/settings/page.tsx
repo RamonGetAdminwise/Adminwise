@@ -14,6 +14,7 @@ const ERRORS: Record<string, string> = {
   languages: "Enter at least one language code, for example: pl, en",
   timezone: "Choose a time zone from the list.",
   followup: "Follow-up days must be a whole number from 1 to 30.",
+  replydrafts: "Choose one of the three options for reply drafts.",
   samples: "Paste three complete sent emails (each at least a few lines).",
   ai: "The voice profile could not be built right now. Your emails were not stored; please try again.",
   microsoft: "Microsoft sign-in did not complete. Please try again.",
@@ -95,6 +96,20 @@ export default async function SettingsPage({
             <label htmlFor="signatureText">Email signature</label>
             <textarea id="signatureText" name="signatureText" rows={5} defaultValue={customer.signatureText} />
             <p className="hint">Added to the end of every draft.</p>
+          </div>
+          <div>
+            <label htmlFor="replyDrafts">Reply drafts</label>
+            <select id="replyDrafts" name="replyDrafts" defaultValue={customer.replyDrafts}>
+              <option value="all">For every business email</option>
+              <option value="sales">Only for quote requests, accepted offers and replies about unpaid invoices</option>
+              <option value="off">None</option>
+            </select>
+            <p className="hint">
+              Which incoming mail gets a reply prepared for you. Follow-ups, filing and payment reminders work the same
+              with either of the first two choices. The second choice needs your price list: without one, a quote
+              request cannot be recognised and gets no draft. With &quot;None&quot; no replies are prepared at all, so a
+              quote request gets no offer either.
+            </p>
           </div>
           <div>
             <label htmlFor="followUpDays">Follow up after (working days)</label>
