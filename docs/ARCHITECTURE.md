@@ -95,6 +95,18 @@ What the sender gets depends on what was clear: all items clear, an offer; some 
 
 `pnpm check:pdf` prints sample documents and proves the PDF engine works on a machine or in the worker image.
 
+## Invoices and payment reminders (phase 4)
+
+The same rule as for offers: **no number reaches a reminder unless it is printed on the invoice.**
+
+**Which invoices are tracked** (`apps/worker/src/jobs/invoices.ts`). Every PDF on mail the customer sends from their connected mailbox is checked; so is every PDF on mail the customer forwards to their Adminwise address. The text is taken out of the PDF (`packages/offers/src/pdf-text.ts`); a scan without text is reported as unreadable. The model proposes whether it is an invoice the customer issued, and its number, amount, currency, dates and buyer (`prompts/invoice-fields.ts`). Code then keeps a value only when it is printed in that text (`packages/offers/src/invoice.ts`); a due date may also be counted from a printed payment term in days. A supplier's invoice is ignored; the same file or the same invoice number is tracked once. An invoice without a due date goes to the owner as a question in the brief. Neither the PDF nor its text is stored: for forwarded mail the text waits at most a day in the invoice record and is removed when read.
+
+**Reminders** (`apps/worker/src/jobs/reminders.ts`, working days at 06:00 with the follow-up scan). Reminder 1, 2 and 3 are drafted 7, 14 and 30 days after the due date, in rising tone and in the invoice's language (`prompts/payment-reminder.ts`), one at a time and at least a week apart, and never while an earlier reminder draft is still unsent. For an invoice from the connected mailbox the draft is a reply on the mail that carried the invoice; for a forwarded invoice the text is emailed to the owner. Nothing is sent to the debtor: automatic sending is not built.
+
+**Stopping.** A reply in the invoice's conversation that clearly says it was paid ends the chain (`prompts/payment-notice.ts`; a promise to pay later does not), and the owner sees it in the next brief to check against their bank. The owner can also mark an invoice paid, stop its reminders, or supply a missing due date from the signed links in the brief (`/invoice`). There is no bank connection, so the owner always has the last word on what is paid.
+
+`pnpm check:invoices` runs the invoice fixtures through the real model and prints one reminder per level for a person to read.
+
 ## Daily brief and operator alerts
 
 The brief (`jobs/brief.ts`, texts in `brief-strings/en.ts`) has four sections and leaves out the empty ones: needs you today (reply drafts), went quiet (follow-ups ready), filed yesterday, connection problems. With nothing to report it is one line. All texts are in one keyed file per language, so a second language is a translation of that file.
@@ -124,6 +136,7 @@ Problems the customer can fix (mailbox disconnected, OneDrive not reachable, rec
 | `sender_discounts` | a fixed discount for a company domain or one address |
 | `offers`, `offer_lines` | each offer and order confirmation with its own lines, prices and totals |
 | `customer_logos` | the customer's logo for their documents |
+| `invoices` | the customer's own invoices tracked for payment: number, amount, dates, buyer, reminders made, how it ended; never the PDF |
 | `filed_documents` | one row per attachment: name, size, content hash, type, where it was filed, or that it is waiting; never the file |
 | `job_runs` | the Control Tower log, with a short outcome code per run |
 | `audit_events` | who changed or connected what |
