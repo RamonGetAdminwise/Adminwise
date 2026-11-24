@@ -56,11 +56,24 @@ export interface OutboundMailer {
   send(email: OutboundEmail): Promise<void>;
 }
 
+/**
+ * Subject lines of automatic replies, in the languages our customers work in. Most automatic
+ * replies also say so in their headers; some, forwarded or from older systems, only here.
+ */
+const AUTO_REPLY_SUBJECT =
+  /^\s*(automatic reply|auto(matic)?[- ]?reply|out of office|autoodpowied[zź]|odpowied[zź] automatyczna|poza biurem|abwesenheit|automatische antwort|afwezig|automatisch antwoord)/i;
+
+export function isAutoReplySubject(subject: string): boolean {
+  return AUTO_REPLY_SUBJECT.test(subject);
+}
+
 export function flagsFromHeaders(headers: { name: string; value: string }[]): HeaderFlags {
   const get = (name: string) => headers.find((h) => h.name.toLowerCase() === name)?.value.toLowerCase();
   const flags: HeaderFlags = {};
   const auto = get("auto-submitted");
-  if ((auto && auto !== "no") || get("x-autoreply") || get("x-autorespond") || get("x-auto-response-suppress")) {
+  // "X-Auto-Response-Suppress" is not here on purpose: it asks the receiver not to auto-reply,
+  // and people's own mail (sent through a helpdesk or CRM) carries it too.
+  if ((auto && auto !== "no") || get("x-autoreply") || get("x-autorespond")) {
     flags.autoSubmitted = true;
   }
   const precedence = get("precedence");
@@ -68,6 +81,13 @@ export function flagsFromHeaders(headers: { name: string; value: string }[]): He
   if (get("list-unsubscribe") || get("list-id")) flags.list = true;
   return flags;
 }
+
+/** Mailbox providers: "same domain" says nothing about being the same company or a colleague. */
+export const FREE_MAIL = new Set([
+  "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com", "yahoo.com", "icloud.com", "me.com",
+  "proton.me", "protonmail.com", "wp.pl", "o2.pl", "onet.pl", "onet.eu", "interia.pl", "interia.eu", "op.pl", "gazeta.pl",
+  "tlen.pl", "poczta.fm", "ziggo.nl", "kpnmail.nl", "gmx.de", "gmx.net", "web.de", "t-online.de", "seznam.cz",
+]);
 
 export function domainOf(address: string): string {
   return address.split("@")[1]?.trim().toLowerCase() ?? "";

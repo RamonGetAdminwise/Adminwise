@@ -1,6 +1,7 @@
 import {
   domainOf,
   flagsFromHeaders,
+  FREE_MAIL,
   normalizeSubject,
   type InboundMessage,
   type OutboundEmail,
@@ -21,7 +22,8 @@ export interface PostmarkInboundPayload {
   TextBody?: string;
   HtmlBody?: string;
   Headers?: { Name: string; Value: string }[];
-  Attachments?: { Name?: string }[];
+  /** Content is the file, base64-encoded. */
+  Attachments?: { Name?: string; ContentType?: string; Content?: string; ContentLength?: number }[];
 }
 
 export interface ParsedForward {
@@ -124,9 +126,12 @@ export function parsePostmarkInbound(
   const subject = (inner?.subject ?? payload.Subject ?? "").replace(/^(\s*(fw|fwd|pd|doorst|wg)\s*:\s*)+/i, "");
   const messageId = header("message-id") ?? null;
   const references = header("references")?.trim().split(/\s+/)[0];
+  // Without message references, a conversation is "same subject, same other party". For a company
+  // domain the party is the company; for a mailbox provider (gmail.com) it is the one address,
+  // or two strangers writing "Question" would land in one conversation.
+  const party = FREE_MAIL.has(domainOf(from.address)) ? from.address : domainOf(from.address);
   const threadKey =
-    (!inner && (references ?? header("in-reply-to")?.trim())) ||
-    `subj:${normalizeSubject(subject)}:${domainOf(from.address)}`;
+    (!inner && (references ?? header("in-reply-to")?.trim())) || `subj:${normalizeSubject(subject)}:${party}`;
 
   return {
     slugs,
@@ -144,6 +149,54 @@ export function parsePostmarkInbound(
       attachmentNames: (payload.Attachments ?? []).map((a) => a.Name ?? "").filter(Boolean),
     },
   };
+}
+
+/**
+ * Did this mail really come from the address in its From line? Anyone can write any From line,
+ * so "the customer forwarded this themselves" is only believed when the receiving mail server's
+ * sender check (SPF, which Postmark reports in a header) passed for that same domain.
+ * When the check is not reported at all we cannot tell, and say yes as before.
+ */
+export function senderVerified(payload: PostmarkInboundPayload): boolean {
+  const spf = (payload.Headers ?? []).find((h) => h.Name.toLowerCase() === "received-spf")?.Value;
+  if (!spf) return true;
+  if (!/^\s*pass\b/i.test(spf)) return false;
+  const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
+  const envelope = /envelope-from=<?([^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
+  if (!envelope) return true;
+  const a = domainOf(from);
+  const b = envelope.includes("@") ? domainOf(envelope) : envelope;
+  return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+}
+
+/**
+ * The mailbox that handed this mail to us, as the receiving server saw it (the "envelope
+ * sender"), when its sender check passed; otherwise null. For a mail someone typed or forwarded
+ * by hand it is their own address. For a mailbox rule that forwards automatically it is the
+ * forwarding mailbox, while the From line still names the original writer; Gmail writes it as
+ * "name+caf_=target@gmail.com", so a "+tag" is dropped.
+ */
+export function envelopeSender(payload: PostmarkInboundPayload): string | null {
+  const spf = (payload.Headers ?? []).find((h) => h.Name.toLowerCase() === "received-spf")?.Value;
+  if (!spf || !/^\s*pass\b/i.test(spf)) return null;
+  const envelope = /envelope-from=<?([^\s;>]+@[^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
+  if (!envelope) return null;
+  const [local = "", domain = ""] = envelope.split("@");
+  return `${local.split("+")[0]}@${domain}`;
+}
+
+/**
+ * May this mail come in through a customer's forwarding address? Only when it was sent or
+ * forwarded by one of the addresses the customer listed: either the From line names one (and
+ * the sender check does not contradict it), or the mailbox that handed it over is one (an
+ * automatic forwarding rule). `byHand` is true in the first case: the customer forwarded or
+ * wrote it themselves.
+ */
+export function acceptedForward(payload: PostmarkInboundPayload, accepted: Set<string>): { accepted: boolean; byHand: boolean } {
+  const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
+  const byHand = accepted.has(from) && senderVerified(payload);
+  const via = envelopeSender(payload);
+  return { accepted: byHand || (via !== null && accepted.has(via)), byHand };
 }
 
 /** Sends our own transactional mail through Postmark. */

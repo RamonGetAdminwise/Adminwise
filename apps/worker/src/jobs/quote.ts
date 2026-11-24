@@ -27,16 +27,12 @@ import {
   rankCandidates,
   renderOfferHtml,
   type OfferDocument,
+  unitMeansOne,
 } from "@adminwise/offers";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, type Deps } from "../deps";
 import { safeName } from "./filing";
+import { appendSignature } from "./signature";
 
-/** The signature from settings goes under every draft, once. */
-function appendSignature(body: string, signature: string): string {
-  const sig = signature.trim();
-  if (!sig || body.trimEnd().endsWith(sig)) return body.trimEnd();
-  return `${body.trimEnd()}\n\n${sig}`;
-}
 
 /** How many price list items the model is shown per requested item. */
 const CANDIDATES_PER_ITEM = 10;
@@ -204,18 +200,31 @@ export async function prepareOrderConfirmation(
 ): Promise<QuoteReply | null> {
   const { customer, message } = input;
   if (message.bodyText === null) return null;
-  const offer = await scope.latestOpenOfferForThread(message.threadId);
-  if (!offer) return null;
 
-  const check = await checkOfferAccepted(deps.ai, {
-    companyName: customer.name,
-    offerNumber: offer.number,
-    subject: message.subject,
-    body: message.bodyText,
-  });
-  if (!check.accepted) {
-    // The tokens of the check are small and are not carried into the ordinary reply's count.
-    return null;
+  // An earlier attempt for this same mail may have made the confirmation (and marked the offer
+  // accepted) and then failed before the draft existed: carry on from there, do not start over.
+  const started = await scope.getOfferForMessage("order_confirmation", message.id);
+  let offer = started?.sourceOfferId ? await scope.getOffer(started.sourceOfferId) : null;
+  let check = { usage: { inputTokens: 0, outputTokens: 0 } };
+  if (!offer) {
+    offer = await scope.latestOpenOfferForThread(message.threadId);
+    if (!offer) return null;
+    // An offer past its validity date is not confirmed automatically: prices may have changed.
+    // The mail gets an ordinary reply and the owner decides.
+    const today = localClock(deps.now?.() ?? new Date(), customer.timeZone).date;
+    if (offer.validUntil && offer.validUntil < today) return null;
+
+    const asked = await checkOfferAccepted(deps.ai, {
+      companyName: customer.name,
+      offerNumber: offer.number,
+      subject: message.subject,
+      body: message.bodyText,
+    });
+    if (!asked.accepted) {
+      // The tokens of the check are small and are not carried into the ordinary reply's count.
+      return null;
+    }
+    check = asked;
   }
   const { confirmation, attachment } = await makeOrderConfirmation(deps, scope, { ...input, offer });
   const reply = await draftOrderReply(deps.ai, {
@@ -251,13 +260,19 @@ export async function confirmOffer(deps: Deps, job: { customerId: string; offerI
   try {
     const offer = await scope.getOffer(job.offerId);
     if (!offer || offer.kind !== "offer" || !offer.messageId) return await skip("no_offer");
-    if (offer.status === "accepted") return await skip("already_confirmed");
+    // Accepted already: done, unless it was this very job that marked it and then failed before
+    // the draft existed (the confirmation then hangs on the same message and is finished below).
+    if (offer.status === "accepted" && !(await scope.getOfferForMessage("order_confirmation", offer.messageId))) {
+      return await skip("already_confirmed");
+    }
     const message = await scope.getMessage(offer.messageId);
     if (!message) return await skip("no_offer");
     const [customer, connection] = await Promise.all([
       scope.getCustomer(),
       message.connectionId ? scope.getConnection(message.connectionId) : null,
     ]);
+    // Order confirmations belong to the Run plan.
+    if (!allowed(deps, customer).offers) return await skip("not_in_plan");
     const toOutlook = connection?.provider === "microsoft";
     const language = message.language ?? customer.languages[0] ?? "en";
 
@@ -392,8 +407,10 @@ export async function prepareQuoteReply(
   detected.items.forEach((requested, index) => {
     const item = found.get(index);
     if (!item) return;
-    if (requested.quantity === null) unclear.push({ request: requested.request, reason: "no_quantity", options: [item.name] });
-    else priced.push({ item, quantity: requested.quantity });
+    // A monthly package or a whole project is ordered once; for anything counted (pieces, hours, people) we ask.
+    if (requested.quantity !== null) priced.push({ item, quantity: requested.quantity });
+    else if (unitMeansOne(item.unit)) priced.push({ item, quantity: 1 });
+    else unclear.push({ request: requested.request, reason: "no_quantity", options: [item.name] });
   });
 
   const now = deps.now?.() ?? new Date();

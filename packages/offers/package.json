@@ -11,6 +11,7 @@
   "dependencies": {
     "@adminwise/ai": "workspace:*",
     "@adminwise/db": "workspace:*",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "unpdf": "^2.2.1"
   }
 }

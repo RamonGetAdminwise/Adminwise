@@ -8,7 +8,7 @@ import { getConfig, getMicrosoftOAuth } from "@/lib/server";
 /** Starts the Microsoft 365 sign-in. Also used as the reconnect link. */
 export async function GET() {
   const config = getConfig();
-  if (!(await getSession())) return NextResponse.redirect(`${config.appBaseUrl}/`);
+  if (!(await getSession())) return NextResponse.redirect(`${config.appBaseUrl}/signin`);
   const oauth = getMicrosoftOAuth();
   if (!oauth) return NextResponse.redirect(`${config.appBaseUrl}/settings?error=microsoft_config`);
 

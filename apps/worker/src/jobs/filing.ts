@@ -46,7 +46,8 @@ export function senderFolder(message: Pick<Message, "senderDomain" | "fromAddres
 
 /** "<sender>/<YYYY-MM>/<YYYY-MM-DD>_<type>_<name>", with " (2)", " (3)" before the extension for later attempts. */
 export function filingPath(input: { folder: string; localDate: string; docType: DocType; name: string; attempt: number }): string {
-  const original = safeName(input.name, "attachment");
+  // A file saved as "Invoice.pdf.pdf" (the ending typed once more by hand) is filed as "Invoice.pdf".
+  const original = safeName(input.name, "attachment").replace(/(\.[A-Za-z0-9]{1,5})\1$/i, "$1");
   const dot = original.lastIndexOf(".");
   const stem = dot > 0 ? original.slice(0, dot) : original;
   const extension = dot > 0 ? original.slice(dot) : "";
@@ -133,6 +134,11 @@ export async function fileAttachments(deps: Deps, job: { customerId: string; mes
         at: now,
       };
 
+      // Microsoft tells the size up front: a file that is too large is not downloaded at all.
+      if (attachment.sizeBytes > MAX_FILE_BYTES) {
+        await scope.saveFiledDocument({ ...record, contentHash: null, docType: null, status: "failed", error: "too_large" });
+        continue;
+      }
       const content = await deps.outlook.downloadAttachment(scope, connection.id, message.providerMessageId, attachment.id);
       const contentHash = createHash("sha256").update(content).digest("hex");
       if (content.byteLength > MAX_FILE_BYTES) {

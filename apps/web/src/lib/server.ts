@@ -1,12 +1,14 @@
 import "server-only";
-import { createBedrockClient, type AiClient } from "@adminwise/ai";
+import { createBedrockClient, WEB_PATIENCE, withPatience, type AiClient } from "@adminwise/ai";
 import {
   createOutlookGateway,
+  createStripeClient,
   loadConfig,
   startQueue,
   type Config,
   type OutlookGateway,
   type StartedQueue,
+  type StripeClient,
 } from "@adminwise/core";
 import { createDb, type Db } from "@adminwise/db";
 import { ConsoleMailer, PostmarkMailer, type GraphOAuthConfig, type OutboundMailer } from "@adminwise/mail";
@@ -23,6 +25,7 @@ const cache = globalThis as unknown as {
     ai?: AiClient;
     mailer?: OutboundMailer;
     outlook?: OutlookGateway;
+    stripe?: StripeClient;
   };
 };
 const store = (cache.__adminwise ??= {});
@@ -42,11 +45,20 @@ export function getDb(): Db {
 
 /** The web app only hands jobs to the worker; it never runs them. */
 export function getQueue(): Promise<StartedQueue> {
-  return (store.queue ??= startQueue(getConfig().databaseUrl, "web"));
+  if (!store.queue) {
+    const starting = startQueue(getConfig().databaseUrl, "web");
+    store.queue = starting;
+    // A start that failed (database briefly unreachable) must not be remembered: the next request tries again.
+    starting.catch(() => {
+      if (store.queue === starting) store.queue = undefined;
+    });
+  }
+  return store.queue;
 }
 
 export function getAi(): AiClient {
-  return (store.ai ??= createBedrockClient(getConfig().aws));
+  // A person is waiting for the page: one more try when the model is busy, then an honest "try again".
+  return (store.ai ??= withPatience(createBedrockClient(getConfig().aws), WEB_PATIENCE));
 }
 
 export function getMailer(): OutboundMailer {
@@ -61,6 +73,13 @@ export function getOutlook(): OutlookGateway | null {
   const oauth = getMicrosoftOAuth();
   if (!oauth) return null;
   return (store.outlook ??= createOutlookGateway({ oauth, notificationUrl: null }));
+}
+
+/** Null until a Stripe key is configured. */
+export function getStripe(): StripeClient | null {
+  const { stripe } = getConfig();
+  if (!stripe) return null;
+  return (store.stripe ??= createStripeClient(stripe));
 }
 
 export function getMicrosoftOAuth(): GraphOAuthConfig | null {

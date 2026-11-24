@@ -40,6 +40,7 @@ In the Railway project: **Settings > Shared Variables** (environment "production
 | `POSTMARK_SERVER_TOKEN` | from the password manager |
 | `POSTMARK_INBOUND_SECRET` | from step 1 |
 | `WORKER_CONCURRENCY` | `5` |
+| `SELLER_COUNTRY` | optional; two-letter code of the EU country our own invoices are issued from, default `PL` (phase 4) |
 | `ALERT_EMAIL` | the operator's address for failure summaries, e.g. `ramon.haagen@getadminwise.com` (phase 2) |
 
 `DATABASE_URL` is not a shared variable; each service gets it as a reference to the database (next steps).
@@ -104,3 +105,57 @@ On any server with Docker:
 4. Put a reverse proxy with TLS (Caddy or nginx) in front of port 3000 and point the domain at it.
 
 The environment variables, webhook URLs and health check are identical.
+
+## Public site on getadminwise.com (phase 4)
+
+The website is served by the same web service as the app. To show it on the main domain:
+
+1. Railway, web service, Settings, Networking: add the custom domain `getadminwise.com` (and `www.getadminwise.com` if wanted). Railway shows the DNS record to create.
+2. Cloudflare, DNS: add that record (a CNAME on the root is allowed in Cloudflare; keep it "DNS only", like the `app` record).
+3. Leave `APP_BASE_URL` as `https://app.getadminwise.com`: sign-in links and the "Start free" buttons keep pointing at the app address.
+
+Do this only when billing and the legal pages are ready (see docs/TO_VERIFY.md). Until then the site is visible at `https://app.getadminwise.com/` for anyone who is not signed in.
+
+## Payments with Stripe (phase 4)
+
+Variables (web service; the worker needs only `BILLING_ENABLED`):
+
+| Variable | Value |
+|---|---|
+| `STRIPE_SECRET_KEY` | `sk_test_...` from the sandbox for testing; `sk_live_...` for real payments |
+| `STRIPE_WEBHOOK_SECRET` | the signing secret (`whsec_...`) of the webhook endpoint below |
+| `STRIPE_AUTOMATIC_TAX` | `true` once Stripe Tax is set up in the Stripe account |
+| `BILLING_ENABLED` | `true` on BOTH services to switch on trials, plan limits and read-only. Leave unset until payments are ready |
+
+One-time, per Stripe account (sandbox and live each):
+
+1. Locally, with that account's key in `.env`: `pnpm stripe:setup`. It creates the two plans, four prices and the portal settings.
+2. In Stripe, Developers, Webhooks: add an endpoint `https://app.getadminwise.com/api/webhooks/stripe` for the events `checkout.session.completed` and all `customer.subscription.*` events. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+3. In Stripe, Settings, Payment methods: leave only cards switched on (decision of 2026-11-23; the app cannot restrict this itself).
+
+Test in the sandbox: sign in with an address that has no account yet, open Settings, choose a plan, pay with Stripe's test card 4242 4242 4242 4242 (any future date, any CVC). You should come back to Settings with "Your plan is active". Then open "Manage subscription", switch plan and cancel, and check Settings follows.
+
+## Deploying the review fixes (24 Nov 2026)
+
+1. Before deploying, look once at who is in the production `customers` table: every account that exists at that moment becomes "internal" (free, everything on) by migration 009.
+2. Both services must have `APP_BASE_URL` and `POSTMARK_SERVER_TOKEN` set: in production the app now refuses to start without them. (`ALLOW_INCOMPLETE_CONFIG=true` switches this check off; do not use it in production.)
+3. `BEDROCK_MODEL_DRAFT` and `BEDROCK_MODEL_CLASSIFY`, if set, must start with `eu.`, and `AWS_REGION` with `eu-`. Anything else stops the start.
+4. Migration 011 runs by itself at start. It is small and safe while the old version still serves.
+5. After the deploy: forward one mail with an invoice PDF to the forwarding address and check that the invoice is tracked (the new sender check).
+6. Replacing the Microsoft client secret, now safe to do: create the new secret in Entra, set `MS_CLIENT_SECRET` on both services, wait for the redeploy, then delete the old secret. Never delete first. Note the new secret's expiry date in the calendar.
+
+## The alarm from outside
+
+`https://app.getadminwise.com/api/status` answers `200` with `{"ok":true,...}` when everything works, and `503` when the database is down, the worker has not shown a sign of life for 5 minutes, or a job has been waiting more than 20 minutes. Something outside our own systems must call it, or nobody hears the alarm.
+
+1. Open an account at an uptime monitoring service (any that can call a web address every few minutes and warn by email or text; several have a free plan that is enough). Use a private email address for the account and for the warnings, not one that depends on Adminwise.
+2. Add one monitor: type HTTP(S), address `https://app.getadminwise.com/api/status`, every 5 minutes, "up" means status 200. If the service can also look for a text, let it look for `"ok":true`.
+3. Warn after 2 failed checks in a row, not after one: a deployment restarts the worker and may take a minute or two.
+4. Add a second monitor on `https://getadminwise.com` (the public site), same settings.
+5. Test it once: in Railway, stop the `worker` service for ten minutes. The warning must arrive. Start the worker again and the monitor must turn green by itself.
+
+What each answer means when the warning comes:
+- `"worker":"silent"`: the worker has stopped or cannot start. Look at the worker's deploy log in Railway.
+- `"queue":"behind"`: the worker runs but work is waiting too long: a burst of mail, or the AI provider refusing requests. Look at the hourly alert mail and the worker log.
+- `"database":"down"`, or no answer at all: the database or the web app is down. Look at Railway's status.

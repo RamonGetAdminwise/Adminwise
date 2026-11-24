@@ -11,6 +11,15 @@ export async function migrate(connectionString: string): Promise<string[]> {
   await client.connect();
   const applied: string[] = [];
   try {
+    // Mail arrives in every language. A database that is not UTF-8 would refuse some of it
+    // (a Polish Windows default cannot store Ukrainian), so we refuse to start on one.
+    const encoding = (await client.query<{ server_encoding: string }>("SHOW server_encoding")).rows[0]?.server_encoding;
+    if (encoding !== "UTF8") {
+      throw new Error(
+        `The database uses the text encoding ${encoding}, but UTF8 is required. Create the database with UTF8 encoding ` +
+          "(for the local development database: delete its folder and start `pnpm dev:db` again).",
+      );
+    }
     // One migrator at a time, even when web and worker start together.
     await client.query("SELECT pg_advisory_lock(7411001)");
     await client.query(

@@ -1,0 +1,25 @@
+{
+  "_note": "Invented files attached to incoming mail. The content is generated from 'seed' (same seed = same file). 'expected.result': filed, duplicate (already filed, not filed again), skipped (not a document) or none (the mail gets no filing). 'decidedBy': rule = the file name says the type, model = the model decides from the mail.",
+  "attachments": [
+    { "id": "A01", "name": "FV_2026_10_117.pdf", "contentType": "application/pdf", "sizeBytes": 84000, "inline": false, "seed": "debowy-fv-117", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "A02", "name": "Faktura_sprzedazy_10_2026.pdf", "contentType": "application/pdf", "sizeBytes": 61000, "inline": false, "seed": "debowy-sprzedaz-10", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "A03", "name": "wyciag_10_2026.pdf", "contentType": "application/pdf", "sizeBytes": 120000, "inline": false, "seed": "debowy-wyciag-10", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } },
+    { "id": "A04", "name": "IMG_2041.jpg", "contentType": "image/jpeg", "sizeBytes": 1800000, "inline": false, "seed": "kowalik-paragon-1", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model" } },
+    { "id": "A05", "name": "IMG_2042.jpg", "contentType": "image/jpeg", "sizeBytes": 1600000, "inline": false, "seed": "kowalik-paragon-2", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model" } },
+    { "id": "A06", "name": "Umowa_ksiegowa_Piruet_podpisana.pdf", "contentType": "application/pdf", "sizeBytes": 210000, "inline": false, "seed": "piruet-umowa-2027", "expected": { "result": "filed", "type": "contract", "decidedBy": "rule" } },
+    { "id": "A07", "name": "logo-piruet.png", "contentType": "image/png", "sizeBytes": 14000, "inline": true, "seed": "piruet-logo", "expected": { "result": "skipped", "type": null, "decidedBy": "skipped" } },
+    { "id": "A08", "name": "FV_2026_10_117.pdf", "contentType": "application/pdf", "sizeBytes": 84000, "inline": false, "seed": "debowy-fv-117", "expected": { "result": "duplicate", "type": "invoice", "decidedBy": "duplicate" } },
+    { "id": "A09", "name": "Zamowienie_ZAM-118.pdf", "contentType": "application/pdf", "sizeBytes": 45000, "inline": false, "seed": "papierpol-zam-118", "expected": { "result": "filed", "type": "order", "decidedBy": "rule" } },
+    { "id": "A10", "name": "skan.pdf", "contentType": "application/pdf", "sizeBytes": 300000, "inline": false, "seed": "piruet-skan-sala", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model" } },
+    { "id": "A11", "name": "skan.pdf", "contentType": "application/pdf", "sizeBytes": 280000, "inline": false, "seed": "piruet-skan-naglosnienie", "expected": { "result": "filed", "type": "invoice", "decidedBy": "model", "counter": 2 } },
+    { "id": "A12", "name": "Katalog_szkolen_2027.pdf", "contentType": "application/pdf", "sizeBytes": 2000000, "inline": false, "seed": "akademia-katalog", "expected": { "result": "none", "type": null, "decidedBy": "skipped" } },
+    { "id": "A13", "name": "Faktura_czynsz_11_2026.pdf", "contentType": "application/pdf", "sizeBytes": 52000, "inline": false, "seed": "zn-centrum-czynsz-11", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "A14", "name": "Oferta_Rachmistrz_2027.pdf", "contentType": "application/pdf", "sizeBytes": 140000, "inline": false, "seed": "rachmistrz-oferta-2027", "expected": { "result": "filed", "type": "offer", "decidedBy": "rule" } },
+    { "id": "A15", "name": "umowa_o_prace_Nowak.pdf", "contentType": "application/pdf", "sizeBytes": 96000, "inline": false, "seed": "rumiana-umowa-nowak", "expected": { "result": "filed", "type": "contract", "decidedBy": "rule" } },
+    { "id": "A16", "name": "lista_obecnosci_10.xlsx", "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "sizeBytes": 22000, "inline": false, "seed": "rumiana-obecnosc-10", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } },
+    { "id": "A17", "name": "IMG_3310.jpg", "contentType": "image/jpeg", "sizeBytes": 2100000, "inline": false, "seed": "kowalik-pismo-zus", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } },
+    { "id": "A18", "name": "FV_korekta_2026_10_044.pdf", "contentType": "application/pdf", "sizeBytes": 40000, "inline": false, "seed": "rumiana-korekta-044", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "A19", "name": "FV_2026_11_131.pdf", "contentType": "application/pdf", "sizeBytes": 79000, "inline": false, "seed": "debowy-fv-131", "expected": { "result": "filed", "type": "invoice", "decidedBy": "rule" } },
+    { "id": "A20", "name": "wyciag_11_2026.pdf", "contentType": "application/pdf", "sizeBytes": 118000, "inline": false, "seed": "debowy-wyciag-11", "expected": { "result": "filed", "type": "other", "decidedBy": "model" } }
+  ]
+}

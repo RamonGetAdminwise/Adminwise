@@ -1,8 +1,9 @@
-import { createBedrockClient } from "@adminwise/ai";
+import { createBedrockClient, withPatience, WORKER_PATIENCE } from "@adminwise/ai";
 import { createOutlookGateway, loadConfig, startQueue } from "@adminwise/core";
 import { createDb, migrate } from "@adminwise/db";
 import { ConsoleMailer, PostmarkMailer } from "@adminwise/mail";
 import type { Deps } from "./deps";
+import { heartbeat } from "./jobs/heartbeat";
 import { createPdfRenderer } from "./pdf";
 import { registerSchedules, registerWorkers } from "./register";
 
@@ -20,7 +21,8 @@ const isPublic = config.appBaseUrl.startsWith("https://");
 const deps: Deps = {
   db,
   queue,
-  ai: createBedrockClient(config.aws),
+  // A refused request ("too many at once") waits and is tried again, instead of failing the job.
+  ai: withPatience(createBedrockClient(config.aws), WORKER_PATIENCE),
   mailer: config.postmark.serverToken
     ? new PostmarkMailer({ serverToken: config.postmark.serverToken, from: config.mailFrom })
     : new ConsoleMailer(),
@@ -38,10 +40,13 @@ const deps: Deps = {
   appName: config.appName,
   appBaseUrl: config.appBaseUrl,
   alertEmail: config.alertEmail,
+  billingEnabled: config.billingEnabled,
 };
 
 await registerWorkers(queue.boss, deps, config.workerConcurrency);
 await registerSchedules(queue.boss);
+// Alive from the first second; after this the note is renewed every minute through the queue.
+await heartbeat(deps);
 console.log(`[worker] running (drafts: ${config.aws.models.default}, classification: ${config.aws.models.classify}, region ${config.aws.region})`);
 
 async function shutdown(signal: string) {

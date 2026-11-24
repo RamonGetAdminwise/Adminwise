@@ -36,6 +36,9 @@ export default async function setup(project: TestProject) {
       password: "postgres",
       port,
       persistent: false,
+      // Without this the database takes the computer's own text encoding (on a Polish Windows:
+      // one that cannot store Ukrainian or French). Production is UTF-8; tests must be too.
+      initdbFlags: ["--encoding=UTF8", "--locale=C"],
       onLog: () => {},
       onError: () => {},
     });

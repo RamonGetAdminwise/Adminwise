@@ -1,5 +1,6 @@
 export { AiError, type AiClient, type AiRequest, type AiResult, type AiUsage } from "./client";
 export { createBedrockClient, type BedrockConfig } from "./bedrock";
+export { isBusy, WEB_PATIENCE, withPatience, WORKER_PATIENCE, type PatienceOptions } from "./patient";
 export {
   classifyMessage,
   draftReply,
@@ -13,6 +14,13 @@ export {
   draftQuoteReply,
   checkOfferAccepted,
   draftOrderReply,
+  readInvoiceFields,
+  draftPaymentReminder,
+  checkPaymentNotice,
+  readOfferDetails,
+  outerJson,
+  type OfferDetailsReading,
+  type InvoiceReading,
   type ProposedColumns,
   type RequestedItem,
   type ItemMatch,
@@ -21,4 +29,4 @@ export {
   type Category,
   type DocumentType,
 } from "./jobs";
-export { stripQuotedHistory } from "./text";
+export { looksLikeInjection, stripQuotedHistory } from "./text";

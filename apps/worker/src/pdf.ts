@@ -11,12 +11,23 @@ import type { PdfRenderer } from "./deps";
  */
 export function createPdfRenderer(): PdfRenderer & { close(): Promise<void> } {
   let browser: Promise<Browser> | null = null;
-  const start = () =>
-    (browser ??= chromium.launch({ args: ["--no-sandbox", "--disable-dev-shm-usage"] }).catch((error) => {
+  const start = () => {
+    if (!browser) {
+      const launching = chromium.launch({ args: ["--no-sandbox", "--disable-dev-shm-usage"] }).then((started) => {
+        // A browser that crashes later must not be kept either: the next document starts a new one.
+        started.on("disconnected", () => {
+          if (browser === launching) browser = null;
+        });
+        return started;
+      });
+      browser = launching;
       // Try again next time instead of keeping a failed start forever.
-      browser = null;
-      throw error;
-    }));
+      launching.catch(() => {
+        if (browser === launching) browser = null;
+      });
+    }
+    return browser;
+  };
 
   return {
     async render(html) {

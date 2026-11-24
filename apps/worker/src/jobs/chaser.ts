@@ -2,9 +2,9 @@ import { checkExpectsReply, draftChaser } from "@adminwise/ai";
 import { ConnectionUnavailableError, isWeekend, localClock, QUEUES, workingDaysBetween } from "@adminwise/core";
 import { forCustomer, system } from "@adminwise/db";
 import { domainOf, GraphAuthError, GraphError } from "@adminwise/mail";
-import { describeError, type Deps } from "../deps";
+import { allowed, describeError, mayTryAgain, type Deps } from "../deps";
 import { ownDomains, SYSTEM_SENDER } from "./prefilter";
-import { appendSignature } from "./process-message";
+import { appendSignature } from "./signature";
 
 /** 06:00 in the customer's own time zone: follow-ups are ready before the 07:30 brief. */
 export const CHASE_MINUTE_OF_DAY = 6 * 60;
@@ -25,10 +25,23 @@ export interface ChaseResult {
 export async function chaseTick(deps: Deps): Promise<number> {
   const now = deps.now?.() ?? new Date();
   let queued = 0;
-  for (const customer of await system(deps.db).listCustomerClocks()) {
+  const sys = system(deps.db);
+  const failures = await sys.dailyFailures(new Date(now.getTime() - 36 * 3_600_000));
+  for (const customer of await sys.listCustomerClocks()) {
+    const may = allowed(deps, customer);
+    if (!may.work) continue;
     const clock = localClock(now, customer.timeZone);
     if (clock.minutesOfDay < CHASE_MINUTE_OF_DAY) continue;
+    // The payment reminders run at the same hour, with their own once-a-day marker.
+    if (
+      may.reminders &&
+      (!customer.remindLastRunOn || customer.remindLastRunOn < clock.date) &&
+      mayTryAgain(failures.get(`${customer.id}|payment-reminders|${clock.date}`), now)
+    ) {
+      await deps.queue.send(QUEUES.remindCustomer, { customerId: customer.id, localDate: clock.date });
+    }
     if (customer.chaseLastRunOn && customer.chaseLastRunOn >= clock.date) continue;
+    if (!mayTryAgain(failures.get(`${customer.id}|chaser|${clock.date}`), now)) continue;
     await deps.queue.send(QUEUES.chaseCustomer, { customerId: customer.id, localDate: clock.date });
     queued++;
   }
@@ -89,7 +102,8 @@ export async function chaseCustomer(deps: Deps, job: { customerId: string; local
       const thread = await scope.getThread(draft.threadId);
       const sentIt = thread?.lastOutboundAt && draft.completedAt && thread.lastOutboundAt > draft.completedAt;
       // Deleted without sending = "not this time": ask again after another follow-up period.
-      if (thread && !sentIt) await scope.snoozeChase(thread.id, now);
+      // A follow-up that was never sent does not count as one of the two.
+      if (thread && !sentIt) await scope.snoozeChase(thread.id, now, true);
     }
 
     // 2. Threads where the customer wrote last.
@@ -103,7 +117,9 @@ export async function chaseCustomer(deps: Deps, job: { customerId: string; local
       const alreadyJudged = thread.expectsReplyFor === thread.messageId;
       if (alreadyJudged && thread.expectsReply === false) continue;
 
-      if (thread.chaserCount >= MAX_CHASERS) {
+      // Only follow-ups that were sent count: one the owner skipped or deleted never reached anyone.
+      const sentChasers = thread.chaserCount - thread.chasersUnused;
+      if (sentChasers >= MAX_CHASERS) {
         await scope.markWentQuiet(thread.id, job.localDate);
         listed++;
         continue;
@@ -139,7 +155,8 @@ export async function chaseCustomer(deps: Deps, job: { customerId: string; local
           if (!check.expectsReply) continue;
         }
 
-        const chaserNumber = thread.chaserCount + 1;
+        // First or second follow-up, as the other party would count them.
+        const chaserNumber = sentChasers + 1;
         const draftId = await scope.claimDraft({
           messageId: thread.messageId,
           threadId: thread.id,
@@ -147,7 +164,8 @@ export async function chaseCustomer(deps: Deps, job: { customerId: string; local
           language: null,
           languageListed: true,
           kind: "chaser",
-          seq: chaserNumber,
+          // Every draft written on this message has its own number, also after a skipped one.
+          seq: thread.chaserCount + 1,
         });
         if (!draftId) continue;
         try {

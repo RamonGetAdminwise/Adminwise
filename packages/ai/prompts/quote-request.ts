@@ -25,11 +25,25 @@ goods or services, and list each thing they ask for.
 - "is_quote_request" is "yes" only when the sender wants prices or an offer for
   something they name. A question about availability, delivery, an existing order
   or an invoice is "no". A general "send me your price list" is "no".
-- One entry in "items" per distinct product or service asked for.
+- One entry in "items" per distinct product or service asked for. Things joined
+  by "and", "plus", "as well as", "oraz", "i", "en", "und" are separate entries
+  when they are different products or services: "the financial statements and
+  filing them with the register" is two entries; "8 hours of design, with rush
+  delivery" is two entries (the hours, and the rush delivery).
   - "request": the sender's own words for that item, copied from the email, at most
     120 characters. Keep any item code, size or type they wrote.
-  - "quantity": the number they state for that item, as a number. If they state no
-    quantity, use null. Never estimate or assume a quantity.
+  - "quantity": how many of that item they want, as a number.
+    - A number that describes the item is not the quantity: pages, posts or
+      documents per month, seconds, sizes, a model or type number ("a 16-page
+      brochure", "social media with 16 posts a month", "bookkeeping, about 50
+      documents a month", "a 30-second video"). Those stay in "request".
+    - A written word that means one counts as 1: "a brochure", "one poster",
+      "een website", "jeden komplet", "eine Broschüre". A bare name without
+      such a word is not a quantity: "the price of pump PZ-40", "cena pompy
+      PZ-40", "Preis für Pumpe PZ-40" are null.
+    - If they name the item in the plural or in general without a number
+      ("bearings", "product photography", "payroll for our staff"), use null.
+    Never estimate or assume a quantity.
   - "unit": the unit they state (pcs, m, kg, szt., ks ...), or null.
 - If it is not a quote request, "items" is an empty list.
 

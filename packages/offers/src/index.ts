@@ -1,11 +1,27 @@
 export { escapeHtml, offerStrings, renderOfferHtml, type OfferDocument } from "./document";
 export { importPriceList, remapPriceList, type ImportSummary } from "./import";
-export { matchByCode, rankCandidates, words, type MatchableItem } from "./match";
+export {
+  addDaysIso,
+  amountAppears,
+  checkInvoice,
+  dateAppears,
+  daysBetween,
+  MIN_DAYS_BETWEEN_REMINDERS,
+  recipientLooksLikeBuyer,
+  REMINDER_DAYS,
+  reminderDue,
+  type CheckedInvoice,
+  type ProposedInvoice,
+} from "./invoice";
+export { matchByCode, rankCandidates, unitMeansOne, words, type MatchableItem } from "./match";
+export { extractPdfText } from "./pdf-text";
+export { applyOfferProposal, checkOfferDetails, MAX_SAMPLE_OFFER_BYTES, readSampleOffer } from "./sample-offer";
 export { buildOffer, formatOfferNumber, formatQuantity, lineTotal, type OfferLine, type OfferTotals, type PricedItem } from "./offer";
 export type { OfferStrings } from "./strings/en";
 export { formatMoney, parseAmount, percentOf } from "./money";
 export {
   applyMapping,
+  looksGross,
   MAX_PRICE_LIST_BYTES,
   MAX_PRICE_LIST_ROWS,
   PriceListError,

@@ -1,0 +1,15 @@
+{
+  "_note": "The eight earlier messages of one invented conversation (scenario 4). The ninth message is L064 in mail.json: the draft must answer that one only.",
+  "threadKey": "thr-long",
+  "subject": "Year-end closing 2026 - timeline",
+  "messages": [
+    { "direction": "outbound", "from": "biuro@lipka-rachunkowosc.example", "at": "2026-10-19T08:00:00Z", "body": "Hello Daniel,\n\nwe should agree the timeline for the 2026 year-end closing. I propose: stock count by 31 December, last invoices to us by 15 January, draft statements by 28 February.\n\nKind regards\nAgnieszka Lipka" },
+    { "direction": "inbound", "from": "daniel.okafor@greenbyte.example", "at": "2026-10-19T14:20:00Z", "body": "Hello Agnieszka,\n\nthe dates work for us. We have no stock, only laptops. Do you need a list of them?\n\nDaniel" },
+    { "direction": "outbound", "from": "biuro@lipka-rachunkowosc.example", "at": "2026-10-20T07:45:00Z", "body": "Hello Daniel,\n\nyes, please send a list of fixed assets with purchase dates and who uses them. A spreadsheet is fine.\n\nKind regards\nAgnieszka Lipka" },
+    { "direction": "inbound", "from": "daniel.okafor@greenbyte.example", "at": "2026-10-22T10:05:00Z", "body": "Hello Agnieszka,\n\nlist attached. Two laptops were sold to employees in June, I marked them.\n\nDaniel" },
+    { "direction": "outbound", "from": "biuro@lipka-rachunkowosc.example", "at": "2026-10-22T13:30:00Z", "body": "Hello Daniel,\n\nthank you. For the two laptops sold I need the sale invoices or agreements, otherwise they stay in the register.\n\nKind regards\nAgnieszka Lipka" },
+    { "direction": "inbound", "from": "daniel.okafor@greenbyte.example", "at": "2026-10-27T09:15:00Z", "body": "Hello Agnieszka,\n\nagreements attached. Another question: our parent company wants the statements in English as well. Is that possible?\n\nDaniel" },
+    { "direction": "outbound", "from": "biuro@lipka-rachunkowosc.example", "at": "2026-10-27T15:00:00Z", "body": "Hello Daniel,\n\nthe official statements must be in Polish. We can prepare an English reading copy alongside; I will include it in the plan.\n\nKind regards\nAgnieszka Lipka" },
+    { "direction": "inbound", "from": "daniel.okafor@greenbyte.example", "at": "2026-11-09T11:40:00Z", "body": "Hello Agnieszka,\n\nperfect, an English reading copy is all they need. Thank you.\n\nDaniel" }
+  ]
+}

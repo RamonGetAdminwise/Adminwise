@@ -1,0 +1,909 @@
+{
+ "A03": {
+  "type": "other"
+ },
+ "A04": {
+  "type": "invoice"
+ },
+ "A05": {
+  "type": "invoice"
+ },
+ "A10": {
+  "type": "invoice"
+ },
+ "A11": {
+  "type": "invoice"
+ },
+ "A16": {
+  "type": "other"
+ },
+ "A17": {
+  "type": "other"
+ },
+ "A20": {
+  "type": "other"
+ },
+ "inv0": {
+  "status": "open",
+  "fields": "FV/10/2026/031, 49200, due 2026-11-02, buyer \"Stolarnia Dębowy Kąt Marek Dębski\"",
+  "language": "pl"
+ },
+ "inv1": {
+  "status": "open",
+  "fields": "FV/11/2026/014, 110700, due 2026-11-09, buyer \"Auto-Serwis Grabiec sp.j.\"",
+  "language": "pl"
+ },
+ "inv2": {
+  "status": "open",
+  "fields": "11/2026/015, 215250, due 2026-11-16, buyer \"GreenByte Software sp. z o.o.\"",
+  "language": "en"
+ },
+ "inv3": {
+  "status": "needs_due_date",
+  "fields": "FV/11/2026/016, 30750, due null, buyer \"Budmar Remonty Mariusz Budny\"",
+  "language": "pl"
+ },
+ "inv4": {
+  "status": "unreadable"
+ },
+ "inv5": {
+  "status": "not_ours",
+  "fields": "",
+  "language": "pl"
+ },
+ "L002": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L003": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "prowadzenie księgi przychodów i rozchodów, około 25 dokumentów miesięcznie, jednoosobowa działalność, bez pracowników",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "prowadzenie księgi przychodów i rozchodów, około 25 dokumentów miesięcznie, jednoosobowa działalność, bez pracowników: KPIR-30"
+  ],
+  "offerLines": [
+   {
+    "code": "KPIR-30",
+    "quantity": 1
+   }
+  ]
+ },
+ "L005": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L007": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L008": {
+  "sorting": {
+   "category": "notification",
+   "language": "pl",
+   "suspicious": false
+  }
+ },
+ "L009": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L010": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "setting up the company",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "full bookkeeping, about 40 documents a month",
+     "quantity": null,
+     "unit": null
+    },
+    {
+     "request": "payroll for 2 employees on employment contracts",
+     "quantity": 2,
+     "unit": null
+    },
+    {
+     "request": "a monthly management report in English",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "setting up the company: SPZOO-S24",
+   "full bookkeeping, about 40 documents a month: KH-60",
+   "payroll for 2 employees on employment contracts: KADRY-UOP",
+   "a monthly management report in English: EN-REP"
+  ],
+  "offerLines": [
+   {
+    "code": "SPZOO-S24",
+    "quantity": 1
+   },
+   {
+    "code": "KH-60",
+    "quantity": 1
+   },
+   {
+    "code": "KADRY-UOP",
+    "quantity": 2
+   },
+   {
+    "code": "EN-REP",
+    "quantity": 1
+   }
+  ]
+ },
+ "L013": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "rejestracja do VAT",
+     "quantity": null,
+     "unit": null
+    },
+    {
+     "request": "przygotowanie wniosku o dotację z urzędu pracy na doposażenie gabinetu",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "rejestracja do VAT: VAT-REJ",
+   "przygotowanie wniosku o dotację z urzędu pracy na doposażenie gabinetu: none"
+  ],
+  "offerLines": [
+   {
+    "code": "VAT-REJ",
+    "quantity": 1
+   }
+  ]
+ },
+ "L014": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L016": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "CIT-8 za 2026",
+     "quantity": null,
+     "unit": null
+    },
+    {
+     "request": "PIT-11 dla 8 pracowników",
+     "quantity": 8,
+     "unit": null
+    }
+   ]
+  },
+  "offerLines": [
+   {
+    "code": "CIT-8",
+    "quantity": 1
+   },
+   {
+    "code": "PIT-11",
+    "quantity": 8
+   }
+  ]
+ },
+ "L017": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "accepts": false,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L019": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L020": {
+  "sorting": {
+   "category": "business",
+   "language": "de",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L021": {
+  "sorting": {
+   "category": "notification",
+   "language": "pl",
+   "suspicious": false
+  }
+ },
+ "L022": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L023": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "accepts": true
+ },
+ "L024": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "sporządzenie sprawozdania finansowego za 2026 (jesteśmy jednostką mikro)",
+     "quantity": 1,
+     "unit": null
+    },
+    {
+     "request": "złożenie go do KRS",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "sporządzenie sprawozdania finansowego za 2026 (jesteśmy jednostką mikro): SF-MIKRO",
+   "złożenie go do KRS: KRS-SF"
+  ],
+  "offerLines": [
+   {
+    "code": "SF-MIKRO",
+    "quantity": 1
+   },
+   {
+    "code": "KRS-SF",
+    "quantity": 1
+   }
+  ]
+ },
+ "L025": {
+  "sorting": {
+   "category": "business",
+   "language": "uk",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L027": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": true
+  }
+ },
+ "L028": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L029": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "accepts": false,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L030": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L031": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L033": {
+  "modelSaidInternal": true,
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L034": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L035": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L036": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "badanie sprawozdania finansowego za 2026 przez biegłego rewidenta",
+     "quantity": 1,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "badanie sprawozdania finansowego za 2026 przez biegłego rewidenta: none"
+  ],
+  "offerLines": []
+ },
+ "L038": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L040": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "paid": false,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L041": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "zeznanie roczne PIT",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "zeznanie roczne PIT: ambiguous"
+  ],
+  "offerLines": []
+ },
+ "L042": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "obsługa kadrowo-płacowa zleceniobiorców",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "obsługa kadrowo-płacowa zleceniobiorców: KADRY-ZLEC"
+  ],
+  "offerLines": []
+ },
+ "L043": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "accepts": true
+ },
+ "L044": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "konsultacja podatkowa, 2 godziny, w sprawie VAT od zajęć dla dzieci",
+     "quantity": 2,
+     "unit": "godziny"
+    }
+   ]
+  },
+  "matching": [
+   "konsultacja podatkowa, 2 godziny, w sprawie VAT od zajęć dla dzieci: KONS-POD"
+  ],
+  "offerLines": [
+   {
+    "code": "KONS-POD",
+    "quantity": 2
+   }
+  ]
+ },
+ "L046": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L047": {
+  "sorting": {
+   "category": "notification",
+   "language": "pl",
+   "suspicious": false
+  }
+ },
+ "L048": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L049": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L050": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L052": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L055": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "przejęcie ksiąg od poprzedniego biura rachunkowego",
+     "quantity": null,
+     "unit": null
+    }
+   ]
+  },
+  "matching": [
+   "przejęcie ksiąg od poprzedniego biura rachunkowego: PRZEJ"
+  ],
+  "offerLines": [
+   {
+    "code": "PRZEJ",
+    "quantity": 1
+   }
+  ]
+ },
+ "L057": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L058": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L059": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L060": {
+  "sorting": {
+   "category": "notification",
+   "language": "pl",
+   "suspicious": true
+  }
+ },
+ "L061": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "paid": true,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L062": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L064": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L065": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L066": {
+  "sorting": {
+   "category": "notification",
+   "language": "pl",
+   "suspicious": false
+  }
+ },
+ "L067": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L068": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": true,
+   "items": [
+    {
+     "request": "przygotowanie jednego kompletu dokumentów do wniosku kredytowego",
+     "quantity": 1,
+     "unit": "komplet"
+    }
+   ]
+  },
+  "matching": [
+   "przygotowanie jednego kompletu dokumentów do wniosku kredytowego: BANK-DOK"
+  ],
+  "offerLines": [
+   {
+    "code": "BANK-DOK",
+    "quantity": 1
+   }
+  ]
+ },
+ "L070": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L071": {
+  "sorting": {
+   "category": "business",
+   "language": "en",
+   "suspicious": false
+  },
+  "paid": true,
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L072": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L075": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L076": {
+  "sorting": {
+   "category": "business",
+   "language": "de",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L077": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "L078": {
+  "sorting": {
+   "category": "notification",
+   "language": "pl",
+   "suspicious": false
+  }
+ },
+ "L079": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "accepts": true
+ },
+ "L080": {
+  "sorting": {
+   "category": "business",
+   "language": "pl",
+   "suspicious": false
+  },
+  "quote": {
+   "isQuote": false,
+   "items": []
+  }
+ },
+ "S04": {
+  "expectsReply": true
+ },
+ "S06": {
+  "expectsReply": true
+ },
+ "S07": {
+  "expectsReply": true
+ },
+ "S08": {
+  "expectsReply": false
+ },
+ "S12": {
+  "expectsReply": true
+ },
+ "S13": {
+  "expectsReply": true
+ },
+ "S14": {
+  "expectsReply": true
+ },
+ "S15": {
+  "expectsReply": true
+ }
+}

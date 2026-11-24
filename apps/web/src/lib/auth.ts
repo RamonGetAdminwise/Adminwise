@@ -1,7 +1,8 @@
+import { FREE_MAIL } from "@adminwise/mail";
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { localClock } from "@adminwise/core";
-import { sha256, system, type SessionInfo } from "@adminwise/db";
+import { forCustomer, sha256, system, type SessionInfo } from "@adminwise/db";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getConfig, getDb, getMailer } from "./server";
@@ -19,8 +20,18 @@ export function normalizeEmail(value: unknown): string | null {
 /** Emails a single-use sign-in link. Only the hash of the token is stored. */
 export async function sendSignInLink(email: string): Promise<void> {
   const config = getConfig();
+  const sys = system(getDb());
+  // At most three links per address in a quarter of an hour and ten in a day. More is not a person
+  // signing in; it is someone using this form to flood a mailbox. The page answers the same either way.
+  const now = Date.now();
+  if (
+    (await sys.countLoginTokens(email, new Date(now - 15 * 60_000))) >= 3 ||
+    (await sys.countLoginTokens(email, new Date(now - 24 * 3_600_000))) >= 10
+  ) {
+    return;
+  }
   const token = randomBytes(32).toString("base64url");
-  await system(getDb()).createLoginToken(email, sha256(token), new Date(Date.now() + LINK_MINUTES * 60_000));
+  await sys.createLoginToken(email, sha256(token), new Date(Date.now() + LINK_MINUTES * 60_000));
   const link = `${config.appBaseUrl}/auth/verify?token=${token}`;
   await getMailer().send({
     to: [email],
@@ -54,7 +65,8 @@ export async function completeSignIn(token: string): Promise<boolean> {
   let user = await sys.findUserByEmail(email);
   if (!user) {
     const [local = "", domain = ""] = email.split("@");
-    const base = slugify(domain.split(".")[0] && !/^(gmail|outlook|hotmail|yahoo|wp|o2|onet|interia)$/.test(domain.split(".")[0]!) ? domain.split(".")[0]! : local);
+    // A company domain names the company; with a mailbox provider (gmail.com) the name before the @ does.
+    const base = slugify(domain.split(".")[0] && !FREE_MAIL.has(domain) ? domain.split(".")[0]! : local);
     let slug = base;
     while (await sys.slugExists(slug)) slug = `${base}-${randomBytes(2).toString("hex")}`;
     const timeZone = "Europe/Warsaw";
@@ -81,6 +93,51 @@ export async function completeSignIn(token: string): Promise<boolean> {
   return true;
 }
 
+/** The address a sign-in link belongs to, for the confirmation page. Does not use the link up. */
+export function signInLinkOwner(token: string): Promise<string | null> {
+  return system(getDb()).peekLoginToken(sha256(token));
+}
+
+const NEXT_COOKIE = "aw_next";
+/** Only our own two link pages, with a token and nothing else: never an address someone else chose. */
+const SAFE_NEXT = /^\/(invoice|offer)\?token=[A-Za-z0-9_-]{10,2000}\.[A-Za-z0-9_-]{10,200}$/;
+
+export function safeNext(value: unknown): string | null {
+  return typeof value === "string" && SAFE_NEXT.test(value) ? value : null;
+}
+
+/** Remembers, for half an hour and in this browser only, which link to go back to once signed in. */
+export async function rememberNext(next: string | null): Promise<void> {
+  if (!next) return;
+  (await cookies()).set(NEXT_COOKIE, next, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: getConfig().appBaseUrl.startsWith("https://"),
+    path: "/",
+    maxAge: 30 * 60,
+  });
+}
+
+/** The link to go back to, once; null when there is none. */
+export async function takeNext(): Promise<string | null> {
+  const jar = await cookies();
+  const next = safeNext(jar.get(NEXT_COOKIE)?.value);
+  jar.delete(NEXT_COOKIE);
+  return next;
+}
+
+/**
+ * For links in the daily brief that change money matters (an invoice paid, reminders stopped, an
+ * order confirmation): the signed link says which account and what, but anyone a brief was
+ * forwarded to has the link too, so it only works for someone signed in to that account.
+ * Not signed in: to the sign-in page and back. Signed in to another account: "other".
+ */
+export async function ownerOfLink(customerId: string, back: string): Promise<"ok" | "other"> {
+  const session = await getSession();
+  if (!session) redirect(`/signin?next=${encodeURIComponent(back)}`);
+  return session.customerId === customerId ? "ok" : "other";
+}
+
 export async function getSession(): Promise<SessionInfo | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -89,8 +146,14 @@ export async function getSession(): Promise<SessionInfo | null> {
 
 export async function requireSession(): Promise<SessionInfo> {
   const session = await getSession();
-  if (!session) redirect("/");
+  if (!session) redirect("/signin");
   return session;
+}
+
+/** Where a signed-in person lands: the guide until they finished or skipped it, then settings. */
+export async function landingPath(session: SessionInfo): Promise<"/start" | "/settings"> {
+  const customer = await forCustomer(getDb(), session.customerId).getCustomer();
+  return customer.setupFinishedAt ? "/settings" : "/start";
 }
 
 export async function signOut(): Promise<void> {

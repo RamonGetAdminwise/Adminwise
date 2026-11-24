@@ -210,10 +210,18 @@ describe("Scenario 9: the customer said \"don't chase\"", () => {
     expect(world.ai.requests).toHaveLength(0);
   });
 
-  it("treats a deleted draft as \"not this time\", writes at most two chasers, then only lists the thread", async () => {
+  it("a deleted draft is \"not this time\" and does not count; after two SENT follow-ups the thread is only listed", async () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db);
-    const { threadId } = await send(world, nordpart, "s02");
+    const { threadId, message } = await send(world, nordpart, "s02");
+    /** The owner sends the follow-up that is waiting: it lands in Sent Items like any other mail. */
+    const sendDraft = async (draftId: string, iso: string) => {
+      const draft = world.outlook.chaserDrafts.find((d) => d.id === draftId)!;
+      world.outlook.waitingDrafts.delete(draftId);
+      const sent = { ...message, providerMessageId: `graph-sent-${draftId}`, internetMessageId: `<sent-${draftId}@nordpart.example>`, receivedAt: new Date(iso), bodyText: draft.text };
+      world.outlook.mailbox.set(sent.providerMessageId, sent);
+      await ingestOutbound(nordpart.scope, nordpart.microsoftId, sent);
+    };
 
     // First follow-up.
     expect((await chase(world, nordpart, DUE)).chasers).toBe(1);
@@ -226,22 +234,29 @@ describe("Scenario 9: the customer said \"don't chase\"", () => {
     expect((await chase(world, nordpart, "2026-11-19")).chasers).toBe(0);
     expect(await nordpart.scope.getOpenChaser(threadId)).toBeNull();
     expect((await chase(world, nordpart, "2026-11-25")).chasers).toBe(0); // 4 working days after the 19th
-    expect((await chase(world, nordpart, "2026-11-26")).chasers).toBe(1); // 5 working days: second and last follow-up
-    expect(world.ai.of("chaser-draft")[1]!.system).toContain("second follow-up");
+    expect((await chase(world, nordpart, "2026-11-26")).chasers).toBe(1); // 5 working days
+    // The deleted one never reached anyone, so this is again a FIRST follow-up (decision of 2026-11-24).
+    expect(world.ai.of("chaser-draft")[1]!.system).not.toContain("second follow-up");
     // The model was asked only once whether this message expects an answer.
     expect(world.ai.of("chaser-check")).toHaveLength(1);
 
-    // Deleted again; after another period the thread is only listed, no third draft.
-    world.outlook.waitingDrafts.delete("chaser-draft-2");
-    expect((await chase(world, nordpart, "2026-11-27")).chasers).toBe(0);
-    expect(await chase(world, nordpart, "2026-12-04")).toMatchObject({ chasers: 0, listed: 1 });
-    expect(world.outlook.chaserDrafts).toHaveLength(2);
+    // This one is sent. A period later the second follow-up is drafted, on the follow-up that was sent.
+    await sendDraft("chaser-draft-2", "2026-11-26T09:00:00Z");
+    expect((await chase(world, nordpart, "2026-12-02")).chasers).toBe(0);
+    expect((await chase(world, nordpart, "2026-12-03")).chasers).toBe(1);
+    expect(world.ai.of("chaser-draft")[2]!.system).toContain("second follow-up");
+    expect(world.outlook.chaserDrafts[2]!.sentMessageId).toBe("graph-sent-chaser-draft-2");
+
+    // Sent as well: two follow-ups went out. After another period the thread is only listed, no third one.
+    await sendDraft("chaser-draft-3", "2026-12-03T09:00:00Z");
+    expect(await chase(world, nordpart, "2026-12-10")).toMatchObject({ chasers: 0, listed: 1 });
+    expect(world.outlook.chaserDrafts).toHaveLength(3);
     expect((await nordpart.scope.getThread(threadId))!.chaseMode).toBe("done");
-    expect((await nordpart.scope.listQuietThreads(new Date("2026-12-03T23:00:00Z"), "2026-12-04"))).toEqual([
+    expect((await nordpart.scope.listQuietThreads(new Date("2026-12-09T23:00:00Z"), "2026-12-10"))).toEqual([
       expect.objectContaining({ threadId, chaserReady: false, counterpartDomain: "rolmet.example" }),
     ]);
     // And never again after that.
-    expect(await chase(world, nordpart, "2026-12-11")).toMatchObject({ chasers: 0, listed: 0 });
+    expect(await chase(world, nordpart, "2026-12-17")).toMatchObject({ chasers: 0, listed: 0 });
   });
 
   it("\"not this time\" from the brief link postpones the follow-up by one period", async () => {
@@ -330,8 +345,9 @@ describe("Scenario 21: an invoice PDF is attached", () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db, { briefStartDate: "2026-11-01" });
     const messageId = await receive(world, nordpart, "f01");
-    // Taking in the mail queued the filing job.
-    expect(world.queue.of(QUEUES.fileAttachments)).toEqual([{ customerId: nordpart.customerId, messageId }]);
+    // Filing is queued once the mail has been sorted (a newsletter is not filed), not when it is taken in.
+    // (review.test.ts shows the reply-draft job queueing it.)
+    expect(world.queue.of(QUEUES.fileAttachments)).toEqual([]);
 
     const result = await file(world, nordpart, messageId);
     expect(result).toMatchObject({ filed: 1, duplicates: 0, queued: 0 });
@@ -388,6 +404,13 @@ describe("Scenario 21: an invoice PDF is attached", () => {
     expect(guessDocType("border_drawing.pdf")).toBeNull();
     expect(safeName('  ../a:b*c?"d".pdf ', "x")).toBe("_a_b_c__d_.pdf");
     expect(safeName("...", "attachment")).toBe("attachment");
+    // The ending typed twice by hand is filed once; a real double ending such as ".tar.gz" is left alone.
+    expect(filingPath({ folder: "x.example", localDate: "2026-11-23", docType: "invoice", name: "Invoice_2026-001.pdf.pdf", attempt: 1 })).toBe(
+      "x.example/2026-11/2026-11-23_invoice_Invoice_2026-001.pdf",
+    );
+    expect(filingPath({ folder: "x.example", localDate: "2026-11-23", docType: "other", name: "backup.tar.gz", attempt: 1 })).toBe(
+      "x.example/2026-11/2026-11-23_other_backup.tar.gz",
+    );
     expect(filingPath({ folder: "rolmet.example", localDate: "2026-11-17", docType: "invoice", name: "FV 1.pdf", attempt: 3 })).toBe(
       "rolmet.example/2026-11/2026-11-17_invoice_FV 1 (3).pdf",
     );
@@ -462,9 +485,9 @@ describe("Scenario 24: the drive is disconnected", () => {
     // Not retried within half an hour, then retried by the mailbox sync.
     const filingJobs = () => world.queue.of(QUEUES.fileAttachments).filter((j) => j.messageId === messageId);
     await syncMailbox({ ...world.deps, now: at("2026-11-17T16:10:00Z") }, { customerId: nordpart.customerId, connectionId: nordpart.microsoftId });
-    expect(filingJobs()).toHaveLength(1);
+    expect(filingJobs()).toHaveLength(0);
     await syncMailbox({ ...world.deps, now: at("2026-11-17T16:31:00Z") }, { customerId: nordpart.customerId, connectionId: nordpart.microsoftId });
-    expect(filingJobs()).toHaveLength(2);
+    expect(filingJobs()).toHaveLength(1);
 
     // The drive is back: nothing was lost.
     world.outlook.driveDown = false;

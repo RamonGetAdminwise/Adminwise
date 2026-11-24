@@ -31,18 +31,25 @@ describe("config", () => {
     // Writing jobs use the default model; the sorting jobs (mail, follow-up check, document type) use the classify model.
     expect(config.aws).toEqual({
       region: "eu-central-1",
-      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku, "offer-acceptance": haiku },
+      models: { default: "eu.anthropic.claude-sonnet-4-6", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku, "offer-acceptance": haiku, "payment-notice": haiku },
     });
     expect(config.alertEmail).toBeNull();
     const base = { DATABASE_URL: "x", TOKEN_ENCRYPTION_KEY: "k" };
     // Switching a task to another model is one line of configuration.
     expect(loadConfig({ ...base, BEDROCK_MODEL_DRAFT: "eu.anthropic.claude-sonnet-5", AWS_REGION: "eu-west-1" } as NodeJS.ProcessEnv).aws).toEqual({
       region: "eu-west-1",
-      models: { default: "eu.anthropic.claude-sonnet-5", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku, "offer-acceptance": haiku },
+      models: { default: "eu.anthropic.claude-sonnet-5", classify: haiku, "chaser-check": haiku, "file-type": haiku, "price-list-columns": haiku, "offer-acceptance": haiku, "payment-notice": haiku },
     });
     expect(loadConfig({ ...base, ALERT_EMAIL: " ops@adminwise.example " } as NodeJS.ProcessEnv).alertEmail).toBe("ops@adminwise.example");
     // The global endpoint is refused: it may process requests outside the EU.
-    expect(() => loadConfig({ ...base, BEDROCK_MODEL_CLASSIFY: "global.anthropic.claude-haiku-4-5-20251001-v1:0" } as NodeJS.ProcessEnv)).toThrow(/global inference profile/);
+    expect(() => loadConfig({ ...base, BEDROCK_MODEL_CLASSIFY: "global.anthropic.claude-haiku-4-5-20251001-v1:0" } as NodeJS.ProcessEnv)).toThrow(/must be an EU inference profile/);
+    // So is a US profile, a bare model id, and a region outside the EU.
+    expect(() => loadConfig({ ...base, BEDROCK_MODEL_DRAFT: "us.anthropic.claude-sonnet-4-6" } as NodeJS.ProcessEnv)).toThrow(/must be an EU inference profile/);
+    expect(() => loadConfig({ ...base, BEDROCK_MODEL_DRAFT: "anthropic.claude-sonnet-4-6" } as NodeJS.ProcessEnv)).toThrow(/must be an EU inference profile/);
+    expect(() => loadConfig({ ...base, AWS_REGION: "us-east-1" } as NodeJS.ProcessEnv)).toThrow(/region in the EU/);
+    // In production nothing falls back silently.
+    expect(() => loadConfig({ ...base, NODE_ENV: "production" } as NodeJS.ProcessEnv)).toThrow(/APP_BASE_URL/);
+    expect(() => loadConfig({ ...base, WORKER_CONCURRENCY: "abc" } as NodeJS.ProcessEnv)).toThrow(/WORKER_CONCURRENCY/);
     expect(() => loadConfig({} as NodeJS.ProcessEnv)).toThrow(/DATABASE_URL/);
   });
 });
@@ -103,5 +110,27 @@ describe("Outlook gateway token handling", () => {
     expect(stored.lastError).toBe("invalid_grant");
     // From now on the mailbox is left alone until the customer reconnects.
     await expect(gateway.createReplyDraft(scope, connectionId, "msg-1", "Hello")).rejects.toThrow("needs_reconnect");
+  });
+});
+
+describe("a mailbox bookmark Microsoft no longer accepts", () => {
+  it("is replaced by a fresh start from three days back instead of failing every poll", async () => {
+    const { GraphError } = await import("@adminwise/mail");
+    const { fromBookmark } = await import("../src/outlook");
+    const calls: { deltaLink: string | null; since: Date }[] = [];
+    const list = async (input: { deltaLink: string | null; since: Date }) => {
+      calls.push(input);
+      if (input.deltaLink) throw new GraphError("Graph GET failed: 410 SyncStateNotFound", 410);
+      return "fresh";
+    };
+    const connectedAt = new Date("2026-01-01T00:00:00Z");
+    expect(await fromBookmark("https://graph.example/delta?token=old", connectedAt, list)).toBe("fresh");
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.deltaLink).toBeNull();
+    const daysBack = (Date.now() - calls[1]!.since.getTime()) / 86_400_000;
+    expect(daysBack).toBeGreaterThan(2.9);
+    expect(daysBack).toBeLessThan(3.1);
+    // Any other error is not swallowed.
+    await expect(fromBookmark("x", connectedAt, async () => { throw new GraphError("Graph GET failed: 503", 503); })).rejects.toThrow("503");
   });
 });

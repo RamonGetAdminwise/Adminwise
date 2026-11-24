@@ -1,8 +1,58 @@
 @import "tailwindcss";
 
+/*
+ * Adminwise house style (docs/BRAND.md).
+ *   brand  "evergreen": the one accent colour, from a light mint to a deep pine.
+ *   stone  the neutrals, with a slight green bias so greys sit well next to the accent.
+ *   sun    for "needs attention" only (overdue, waiting), never as decoration.
+ * Headings are set in Plus Jakarta Sans, text in Inter (loaded in app/layout.tsx).
+ */
+@theme {
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-jakarta), "Segoe UI", system-ui, sans-serif;
+
+  --color-brand-50: #ecfaf4;
+  --color-brand-100: #d3f3e4;
+  --color-brand-200: #a8e6cb;
+  --color-brand-300: #6fd3ab;
+  --color-brand-400: #37ba88;
+  --color-brand-500: #159f6f;
+  --color-brand-600: #0b855b;
+  --color-brand-700: #0a6b4a;
+  --color-brand-800: #0b553c;
+  --color-brand-900: #0b3f2f;
+  --color-brand-950: #072a20;
+
+  --color-ink: #0e2420;
+
+  --color-stone-50: #f6f9f8;
+  --color-stone-100: #edf2f0;
+  --color-stone-200: #dee6e3;
+  --color-stone-300: #c5d0cc;
+  --color-stone-400: #9aa8a3;
+  --color-stone-500: #6e7d78;
+  --color-stone-600: #55635e;
+  --color-stone-700: #3f4b47;
+  --color-stone-800: #283330;
+  --color-stone-900: #16211e;
+
+  --color-sun-100: #fdf0cf;
+  --color-sun-500: #e5a019;
+  --color-sun-700: #9a6508;
+}
+
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-stone-50 text-stone-900 antialiased;
+    @apply bg-stone-50 font-sans text-ink antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+    text-wrap: balance;
   }
   label {
     @apply block text-sm font-medium text-stone-700;
@@ -12,31 +62,40 @@
   input[type="number"],
   select,
   textarea {
-    @apply mt-1 block w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600;
+    @apply mt-1 block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600;
   }
   /* The "choose a file" part of an upload field must look like a button, not like plain text. */
   input[type="file"] {
-    @apply mt-1 block w-full cursor-pointer text-sm text-stone-600 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-solid file:border-teal-700 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-teal-800 hover:file:bg-teal-50;
+    @apply mt-1 block w-full cursor-pointer text-sm text-stone-600 file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-solid file:border-brand-700 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-800 hover:file:bg-brand-50;
   }
   input[type="color"] {
-    @apply mt-1 block h-10 w-20 cursor-pointer rounded-md border border-stone-300 bg-white p-1;
+    @apply mt-1 block h-10 w-20 cursor-pointer rounded-lg border border-stone-300 bg-white p-1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center rounded-md bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2;
+    @apply inline-flex items-center rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2;
   }
   .btn:disabled {
-    @apply cursor-not-allowed opacity-50 hover:bg-teal-700;
+    @apply cursor-not-allowed opacity-50 hover:bg-brand-600;
   }
   .btn-secondary {
-    @apply inline-flex items-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100;
+    @apply inline-flex items-center rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-800 transition-colors hover:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2;
   }
   .card {
-    @apply rounded-lg border border-stone-200 bg-white p-6 shadow-sm;
+    @apply rounded-xl border border-stone-200 bg-white p-6 shadow-sm;
   }
   .hint {
     @apply mt-1 text-xs text-stone-500;
+  }
+  /* Small label above a heading on the public site. */
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-widest text-brand-700;
   }
 }

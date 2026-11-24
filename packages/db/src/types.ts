@@ -14,6 +14,8 @@ export interface Customer {
   voiceProfile: string;
   /** Working days of silence before a follow-up is drafted (1 to 30). */
   followUpDays: number;
+  /** Which incoming business mail gets a reply draft. */
+  replyDrafts: ReplyDraftMode;
   // ---- offers (phase 3) ----
   /** Language of the offer document's own texts. */
   offerLanguage: OfferLanguage;
@@ -32,8 +34,52 @@ export interface Customer {
   offerFooter: string;
   /** "#rrggbb" */
   brandColor: string;
+  // ---- guided setup (phase 4) ----
+  /** Null while the "Getting started" guide is still shown after sign-in. */
+  setupFinishedAt: Date | null;
+  setupTestSentAt: Date | null;
+  /** Details read from an uploaded sample document, waiting for the owner's yes or no. */
+  offerProposal: OfferProposal | null;
+  // ---- billing details, for our own invoices to the customer ----
+  billingName: string;
+  billingAddress: string;
+  /** "" = not given, an EU country's ISO code, or "OTHER". */
+  billingCountry: string;
+  vatNumber: string;
+  vatStatus: "none" | "valid" | "invalid" | "unverified";
+  vatCheckedAt: Date | null;
+  /** The name the EU register holds for the VAT number, when it gives one. */
+  vatRegisteredName: string | null;
+  // ---- plan and trial ----
+  plan: "start" | "run";
+  billingStatus: "trial" | "active" | "read_only" | "internal";
+  trialEndsAt: Date;
+  readOnlySince: Date | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  /** End of the period that has been paid for. */
+  currentPeriodEnd: Date | null;
+  /** The owner cancelled: the subscription stops at currentPeriodEnd. */
+  cancelAtPeriodEnd: boolean;
   createdAt: Date;
 }
+
+/** What could be read from a sample offer or invoice. Every value is printed on that document; null = not found. */
+export interface OfferProposal {
+  companyDetails: string | null;
+  bankDetails: string | null;
+  paymentTerms: string | null;
+  currency: string | null;
+  vatRate: number | null;
+  offerLanguage: OfferLanguage | null;
+}
+
+/**
+ * "all" = every business mail; "sales" = only quote requests, acceptances of an offer and replies
+ * about an invoice being chased; "off" = no reply drafts.
+ */
+export type ReplyDraftMode = "all" | "sales" | "off";
+export const REPLY_DRAFT_MODES: ReplyDraftMode[] = ["all", "sales", "off"];
 
 export type OfferLanguage = "en" | "pl";
 export type OfferLayout = "classic" | "modern" | "compact";
@@ -69,6 +115,8 @@ export interface PriceListRaw {
   headerRow: number;
   headers: string[];
   rows: { row: number; cells: (string | number | null)[] }[];
+  /** True when the sheet had more rows than we take in. */
+  truncated?: boolean;
 }
 
 export interface PriceList {
@@ -219,6 +267,8 @@ export interface Message {
   attachmentNames: string[];
   classification: Classification | null;
   language: string | null;
+  /** The mail contains text that tries to instruct an automated assistant: no draft, listed in the brief. */
+  suspicious: boolean;
   bodyText: string | null;
   bodyPurgedAt: Date | null;
 }
@@ -238,7 +288,51 @@ export interface NewMessage {
   bodyText: string;
 }
 
-export type DraftKind = "reply" | "chaser" | "order_confirmation";
+export type DraftKind = "reply" | "chaser" | "order_confirmation" | "reminder";
+
+export type InvoiceStatus =
+  | "pending"
+  | "open"
+  | "needs_due_date"
+  /** Read, but sent to someone who does not look like the buyer: the owner is asked once whether to track it. */
+  | "needs_confirm"
+  | "unreadable"
+  | "not_ours"
+  | "duplicate"
+  | "paid"
+  | "stopped";
+
+/** An invoice the customer sent to one of their own customers, tracked for payment reminders. */
+export interface Invoice {
+  id: string;
+  customerId: string;
+  /** "sent" = seen in the mailbox's Sent Items; "forwarded" = the customer forwarded it to their Adminwise address. */
+  source: "sent" | "forwarded";
+  messageId: string | null;
+  threadId: string | null;
+  connectionId: string | null;
+  fileName: string;
+  contentHash: string;
+  status: InvoiceStatus;
+  number: string | null;
+  language: string | null;
+  debtorDomain: string;
+  debtorName: string;
+  amountCents: number | null;
+  currency: string | null;
+  /** YYYY-MM-DD */
+  issueDate: string | null;
+  dueDate: string | null;
+  remindersMade: number;
+  /** Customer-local date (YYYY-MM-DD) on which the next reminder was due but the previous one was still unsent. */
+  reminderBlockedOn: string | null;
+  lastReminderAt: Date | null;
+  endedAt: Date | null;
+  endedBy: "owner" | "sender" | null;
+  /** Text read from a forwarded PDF, until the job has read it. */
+  pendingText: string | null;
+  createdAt: Date;
+}
 export type ChaseMode = "on" | "never" | "done";
 export type DocType = "invoice" | "order" | "contract" | "offer" | "other";
 export type FilingStatus = "filed" | "duplicate" | "queued" | "failed";
@@ -251,7 +345,10 @@ export interface Thread {
   lastOutboundAt: Date | null;
   chaseMode: ChaseMode;
   chaseHoldFrom: Date | null;
+  /** Follow-up drafts written since the other party last answered... */
   chaserCount: number;
+  /** ...and how many of those were skipped or deleted unsent. Only sent ones count toward the two. */
+  chasersUnused: number;
   expectsReply: boolean | null;
   expectsReplyFor: string | null;
 }
