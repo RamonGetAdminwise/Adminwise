@@ -120,7 +120,8 @@ Ramon's decisions on report section B (taken and built 24 Nov; see the decisions
 - [ ] Repeated free trials: accepted for now; look again when billing is switched on.
 
 To verify live after deploying this version:
-- [ ] Forwarding with the allow-list: forward a mail by hand from the sign-in address (must be taken in); send one from an address that is not listed (must be refused and mentioned in the next brief); if a Gmail or Outlook forwarding RULE is used, add that mailbox in settings and check that rule-forwarded mail comes in. The rule case rests on the envelope sender Postmark reports and was not tried against a real mailbox.
+- [x] Seen live on 24 Nov: mail from a listed hotmail address is taken in, after the sender check was changed to also accept a valid signature of the sender's domain (hotmail hands mail over under another domain).
+- [ ] Still to try: a mail from an address that is NOT listed (must be refused and mentioned in the next brief); an invoice PDF sent to the forwarding address (must be tracked); if a Gmail or Outlook forwarding RULE is used, add that mailbox in settings and check that rule-forwarded mail comes in. The rule case rests on the envelope sender Postmark reports and was not tried against a real mailbox.
 - [ ] A money link from a real brief while signed out: sign-in is asked, and after signing in the link opens. If the sign-in mail is opened in another browser or on the phone, the way back is lost and the link must be clicked again (accepted).
 - [ ] An invoice mailed to an address that is not the buyer's: the question appears in the next brief, both answers work.
 - [ ] A mail really forwarded by the owner is still recognised as theirs (the new sender check reads Postmark's `Received-SPF` header; if Postmark does not send it, behaviour is as before). Forward one mail with an invoice PDF and check it is tracked.

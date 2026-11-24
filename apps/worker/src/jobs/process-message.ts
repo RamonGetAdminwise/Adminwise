@@ -78,8 +78,13 @@ export async function processMessage(
     }
     // Filing waits for the sorting above: newsletters, automatic replies and mail from colleagues
     // are not filed. Queued on every run; the filing job skips what it already filed.
+    // Only for mail from a connected Microsoft 365 mailbox: mail that came through the forwarding
+    // address has no OneDrive to go to, and a "not filed" line for each such mail is only noise.
     if (message.connectionId && message.attachmentNames.length > 0) {
-      await deps.queue.send(QUEUES.fileAttachments, { customerId: job.customerId, messageId: message.id });
+      const source = await scope.getConnection(message.connectionId);
+      if (source?.provider === "microsoft") {
+        await deps.queue.send(QUEUES.fileAttachments, { customerId: job.customerId, messageId: message.id });
+      }
     }
     if (classification !== "business") {
       await finish("succeeded", null, `no_draft:${classification}`);
