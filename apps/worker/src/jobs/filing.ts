@@ -46,7 +46,8 @@ export function senderFolder(message: Pick<Message, "senderDomain" | "fromAddres
 
 /** "<sender>/<YYYY-MM>/<YYYY-MM-DD>_<type>_<name>", with " (2)", " (3)" before the extension for later attempts. */
 export function filingPath(input: { folder: string; localDate: string; docType: DocType; name: string; attempt: number }): string {
-  const original = safeName(input.name, "attachment");
+  // A file saved as "Invoice.pdf.pdf" (the ending typed once more by hand) is filed as "Invoice.pdf".
+  const original = safeName(input.name, "attachment").replace(/(\.[A-Za-z0-9]{1,5})\1$/i, "$1");
   const dot = original.lastIndexOf(".");
   const stem = dot > 0 ? original.slice(0, dot) : original;
   const extension = dot > 0 ? original.slice(dot) : "";

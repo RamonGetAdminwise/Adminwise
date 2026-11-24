@@ -67,12 +67,12 @@ export const en = {
   wentQuiet: {
     heading: (count: number) => `WENT QUIET (${count})`,
     chaserReady: (subject: string, counterpartDomain: string, workingDays: number) =>
-      `- "${subject}" (to ${counterpartDomain}): no answer for ${workingDays} working days. A follow-up draft is in your Outlook Drafts.`,
+      `- "${subject}" (to ${counterpartDomain}): no answer for ${workingDays} working ${workingDays === 1 ? "day" : "days"}. A follow-up draft is in your Outlook Drafts.`,
     notThisTime: (url: string) => `  Not this time: ${url}`,
     neverForThread: (url: string) => `  Never for this thread: ${url}`,
     noMoreChasers: (subject: string, counterpartDomain: string, chasers: number) =>
       `- "${subject}" (to ${counterpartDomain}): still no answer after ${chasers} follow-ups. No more follow-ups will be drafted for this thread.`,
-    deleteHint: "Deleting a follow-up draft in Outlook also counts as \"not this time\".",
+    deleteHint: "Deleting a follow-up draft in Outlook also counts as \"not this time\". A follow-up you skip or delete is not counted as one of the two.",
   },
 
   filed: {

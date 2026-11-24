@@ -404,6 +404,13 @@ describe("Scenario 21: an invoice PDF is attached", () => {
     expect(guessDocType("border_drawing.pdf")).toBeNull();
     expect(safeName('  ../a:b*c?"d".pdf ', "x")).toBe("_a_b_c__d_.pdf");
     expect(safeName("...", "attachment")).toBe("attachment");
+    // The ending typed twice by hand is filed once; a real double ending such as ".tar.gz" is left alone.
+    expect(filingPath({ folder: "x.example", localDate: "2026-11-23", docType: "invoice", name: "Invoice_2026-001.pdf.pdf", attempt: 1 })).toBe(
+      "x.example/2026-11/2026-11-23_invoice_Invoice_2026-001.pdf",
+    );
+    expect(filingPath({ folder: "x.example", localDate: "2026-11-23", docType: "other", name: "backup.tar.gz", attempt: 1 })).toBe(
+      "x.example/2026-11/2026-11-23_other_backup.tar.gz",
+    );
     expect(filingPath({ folder: "rolmet.example", localDate: "2026-11-17", docType: "invoice", name: "FV 1.pdf", attempt: 3 })).toBe(
       "rolmet.example/2026-11/2026-11-17_invoice_FV 1 (3).pdf",
     );
