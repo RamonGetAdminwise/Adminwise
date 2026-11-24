@@ -52,6 +52,23 @@ describe("who may send to the forwarding address", () => {
     expect(acceptedForward(failed, own)).toMatchObject({ accepted: false, why: "check_not_passed" });
   });
 
+  it("takes genuine mail from a large provider, which hands mail over under another domain but signs it", () => {
+    // Hotmail: the technical return address is Microsoft's, the signature is hotmail.com's own.
+    const tests = (value: string) => [{ Name: "X-Spam-Tests", Value: value }];
+    const hotmail = {
+      FromFull: { Email: "owner.private@gmail.com" },
+      Headers: [...tests("DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,FREEMAIL_FROM,SPF_PASS"), ...pass("bounces@mail-relay.provider.example")],
+    };
+    expect(acceptedForward(hotmail, own)).toEqual({ accepted: true, byHand: true, why: null });
+    // A forger passes the handover check for their own domain and may even sign with it, but
+    // cannot sign as the owner's domain: no "of the author's domain".
+    const forged = {
+      FromFull: { Email: "owner.private@gmail.com" },
+      Headers: [...tests("DKIM_SIGNED,DKIM_VALID,SPF_PASS"), ...pass("evil@attacker.example")],
+    };
+    expect(acceptedForward(forged, own)).toEqual({ accepted: false, byHand: false, why: "check_other_domain" });
+  });
+
   it("judges by the receiving server's own check, not by older ones the mail carries from an earlier journey", () => {
     // A forwarded mail: the line at the top is from the mail's first journey (to the owner's own
     // mailbox) and did not pass; the receiving server's own line, for the owner's forward, did.

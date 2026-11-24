@@ -79,7 +79,7 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
       return "Refused: the email names one of your addresses as its sender, but the sender check of the receiving mail server did not pass";
     }
     if (run.outcome === "refused_sender:check_other_domain") {
-      return "Refused: the email names one of your addresses as its sender, but it was handed over by a mail server of another domain";
+      return "Refused: the email names one of your addresses as its sender, but it carried no valid signature of that domain and was handed over by a mail server of another domain";
     }
     if (run.outcome === "refused_sender:not_listed") {
       return "Refused: the sender is not on your list. Add the address under Mailbox, \"Who may send to this address\", exactly as it appears as sender";

@@ -164,16 +164,33 @@ function receivedSpf(payload: PostmarkInboundPayload): string | null {
 }
 
 /**
+ * Did the receiving server find a valid signature (DKIM) made by the domain in the From line?
+ * It lists the results of its checks in one header ("X-Spam-Tests: DKIM_SIGNED,DKIM_VALID,
+ * DKIM_VALID_AU,SPF_PASS"); "AU" means "of the author's domain". The topmost such header is the
+ * receiving server's own.
+ */
+function signedByFromDomain(payload: PostmarkInboundPayload): boolean {
+  const tests = (payload.Headers ?? []).find((h) => h.Name.toLowerCase() === "x-spam-tests")?.Value ?? "";
+  return tests.split(/[\s,]+/).includes("DKIM_VALID_AU");
+}
+
+/**
  * Did this mail really come from the address in its From line? Anyone can write any From line,
- * so "the customer sent this themselves" is only believed when the receiving server's sender
- * check passed for that same domain.
- *   pass          the check passed, for the domain in the From line
+ * so "the customer sent this themselves" is only believed when the receiving server confirms
+ * it: by a valid signature of that domain, or by its sender check passing for that domain.
+ *   pass          confirmed, by the signature or by the sender check
  *   unknown       no check was reported, or it does not say for whom: we cannot tell, and
  *                 believe the From line as before
- *   not_passed    the check failed or gave no result
- *   other_domain  the check passed, but for another domain than the one in the From line
+ *   not_passed    no valid signature, and the sender check failed or gave no result
+ *   other_domain  no valid signature, and the sender check passed for another domain than the
+ *                 one in the From line
  */
 export function senderCheck(payload: PostmarkInboundPayload): "pass" | "unknown" | "not_passed" | "other_domain" {
+  // A valid signature of the From line's own domain settles it. Large providers (hotmail.com,
+  // Microsoft 365, Google) hand mail over under a technical return address of another domain, so
+  // the handover check alone would refuse their genuine mail; the signature is what says "this
+  // really is from that domain". The receiving server reports it as DKIM_VALID_AU.
+  if (signedByFromDomain(payload)) return "pass";
   const spf = receivedSpf(payload);
   if (!spf) return "unknown";
   if (!/^\s*pass\b/i.test(spf)) return "not_passed";
