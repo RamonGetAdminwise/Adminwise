@@ -1,5 +1,5 @@
 import { forCustomer, type PriceList } from "@adminwise/db";
-import { formatMoney } from "@adminwise/offers";
+import { formatMoney, looksGross, MAX_PRICE_LIST_ROWS } from "@adminwise/offers";
 import type { ReactNode } from "react";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
@@ -140,6 +140,19 @@ export default async function OfferSettingsPage({
               {draft.itemCount} items read from sheet &quot;{draft.raw?.sheetName}&quot;, prices in {draft.currency}.{" "}
               {mappingSource(draft)}
             </p>
+            {draft.mapping && draft.raw && looksGross(draft.raw.headers[draft.mapping.price] ?? "") && (
+              <p className="mt-2 font-medium text-red-800">
+                The price column &quot;{draft.raw.headers[draft.mapping.price]}&quot; looks like prices including VAT.
+                Offers are calculated from net prices and add VAT on top: choose the net price column below, or upload
+                a list with net prices.
+              </p>
+            )}
+            {draft.raw?.truncated && (
+              <p className="mt-2 font-medium text-red-800">
+                This sheet has more rows than we take in ({MAX_PRICE_LIST_ROWS}). The rows after that were left out.
+              </p>
+            )}
+            <p className="hint">Only the first visible sheet with a table is read. Hidden sheets are skipped.</p>
 
             {preview.length > 0 && (
               <table className="mt-3 w-full text-left">

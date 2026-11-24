@@ -2,7 +2,7 @@ import { checkExpectsReply, draftChaser } from "@adminwise/ai";
 import { ConnectionUnavailableError, isWeekend, localClock, QUEUES, workingDaysBetween } from "@adminwise/core";
 import { forCustomer, system } from "@adminwise/db";
 import { domainOf, GraphAuthError, GraphError } from "@adminwise/mail";
-import { allowed, describeError, type Deps } from "../deps";
+import { allowed, describeError, mayTryAgain, type Deps } from "../deps";
 import { ownDomains, SYSTEM_SENDER } from "./prefilter";
 import { appendSignature } from "./signature";
 
@@ -25,16 +25,23 @@ export interface ChaseResult {
 export async function chaseTick(deps: Deps): Promise<number> {
   const now = deps.now?.() ?? new Date();
   let queued = 0;
-  for (const customer of await system(deps.db).listCustomerClocks()) {
+  const sys = system(deps.db);
+  const failures = await sys.dailyFailures(new Date(now.getTime() - 36 * 3_600_000));
+  for (const customer of await sys.listCustomerClocks()) {
     const may = allowed(deps, customer);
     if (!may.work) continue;
     const clock = localClock(now, customer.timeZone);
     if (clock.minutesOfDay < CHASE_MINUTE_OF_DAY) continue;
     // The payment reminders run at the same hour, with their own once-a-day marker.
-    if (may.reminders && (!customer.remindLastRunOn || customer.remindLastRunOn < clock.date)) {
+    if (
+      may.reminders &&
+      (!customer.remindLastRunOn || customer.remindLastRunOn < clock.date) &&
+      mayTryAgain(failures.get(`${customer.id}|payment-reminders|${clock.date}`), now)
+    ) {
       await deps.queue.send(QUEUES.remindCustomer, { customerId: customer.id, localDate: clock.date });
     }
     if (customer.chaseLastRunOn && customer.chaseLastRunOn >= clock.date) continue;
+    if (!mayTryAgain(failures.get(`${customer.id}|chaser|${clock.date}`), now)) continue;
     await deps.queue.send(QUEUES.chaseCustomer, { customerId: customer.id, localDate: clock.date });
     queued++;
   }

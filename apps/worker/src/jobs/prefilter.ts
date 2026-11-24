@@ -1,12 +1,7 @@
 import type { Classification, Message } from "@adminwise/db";
-import { isAutoReplySubject } from "@adminwise/mail";
+import { FREE_MAIL, isAutoReplySubject } from "@adminwise/mail";
 
-/** Mailbox providers where "same domain" says nothing about being a colleague. */
-export const FREE_MAIL = new Set([
-  "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "proton.me",
-  "protonmail.com", "wp.pl", "o2.pl", "onet.pl", "interia.pl", "op.pl", "gazeta.pl", "ziggo.nl", "kpnmail.nl",
-  "gmx.de", "web.de", "seznam.cz",
-]);
+export { FREE_MAIL };
 
 export const SYSTEM_SENDER =/^(no[-_.]?reply|do[-_.]?not[-_.]?reply|noreply|mailer-daemon|postmaster|notifications?|alerts?|bounce)[^@]*@/i;
 

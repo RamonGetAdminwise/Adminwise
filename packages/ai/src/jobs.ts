@@ -29,13 +29,7 @@ export async function classifyMessage(
 ): Promise<{ category: Category; language: string; suspicious: boolean; usage: AiUsage }> {
   const prompt = classifyPrompt({ ...input, body: clip(input.body, MAX_BODY_CHARS) });
   const result = await ai.complete({ job: "classify", ...prompt, maxTokens: 2000 });
-  const json = /\{[^{}]*\}/.exec(result.text)?.[0];
-  let parsed: { category?: unknown; language?: unknown; instructs_assistant?: unknown } = {};
-  try {
-    parsed = json ? (JSON.parse(json) as typeof parsed) : {};
-  } catch {
-    // handled below
-  }
+  const parsed: { category?: unknown; language?: unknown; instructs_assistant?: unknown } = outerJson(result.text);
   const category = CATEGORIES.find((c) => c === parsed.category);
   const language = typeof parsed.language === "string" ? parsed.language.trim().toLowerCase().slice(0, 2) : "";
   if (!category || !/^[a-z]{2}$/.test(language)) {
@@ -62,15 +56,6 @@ export async function draftReply(
   return { body, usage: result };
 }
 
-function firstJson(text: string): Record<string, unknown> {
-  const json = /\{[^{}]*\}/.exec(text)?.[0];
-  try {
-    return json ? (JSON.parse(json) as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
 /** Does the company's own last message expect an answer? Anything but a clear "yes" is no. */
 export async function checkExpectsReply(
   ai: AiClient,
@@ -78,7 +63,7 @@ export async function checkExpectsReply(
 ): Promise<{ expectsReply: boolean; usage: AiUsage }> {
   const prompt = chaserCheckPrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
   const result = await ai.complete({ job: "chaser-check", ...prompt, maxTokens: 2000 });
-  const answer = firstJson(result.text).expects_reply;
+  const answer = outerJson(result.text).expects_reply;
   if (answer !== "yes" && answer !== "no") throw new AiError("Follow-up check answer was not in the expected format");
   return { expectsReply: answer === "yes", usage: result };
 }
@@ -101,14 +86,14 @@ export async function classifyDocument(
 ): Promise<{ type: DocumentType; usage: AiUsage }> {
   const prompt = fileTypePrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_HISTORY_CHARS) });
   const result = await ai.complete({ job: "file-type", ...prompt, maxTokens: 2000 });
-  const type = DOCUMENT_TYPES.find((t) => t === firstJson(result.text).type);
+  const type = DOCUMENT_TYPES.find((t) => t === outerJson(result.text).type);
   if (!type) throw new AiError("Document type answer was not in the expected format");
   return { type, usage: result };
 }
 
 /**
- * The JSON object in a model answer (for answers that hold lists). A model sometimes answers,
- * reconsiders in a sentence or two and answers again: the LAST complete object is its answer.
+ * The JSON object in a model answer; every job reads its answer with this. A model sometimes
+ * answers, reconsiders in a sentence or two and answers again: the LAST complete object is its answer.
  */
 export function outerJson(text: string): Record<string, unknown> {
   let last: Record<string, unknown> = {};
@@ -223,7 +208,7 @@ export async function checkOfferAccepted(
 ): Promise<{ accepted: boolean; usage: AiUsage }> {
   const prompt = offerAcceptancePrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
   const result = await ai.complete({ job: "offer-acceptance", ...prompt, maxTokens: 2000 });
-  const answer = firstJson(result.text).accepts;
+  const answer = outerJson(result.text).accepts;
   if (answer !== "yes" && answer !== "no") throw new AiError("Offer acceptance answer was not in the expected format");
   return { accepted: answer === "yes", usage: result };
 }
@@ -263,7 +248,7 @@ export async function readInvoiceFields(
     ...invoiceFieldsPrompt({ ...input, text: clip(input.text, MAX_BODY_CHARS) }),
     maxTokens: 2000,
   });
-  const answer = firstJson(result.text);
+  const answer = outerJson(result.text);
   if (answer.is_invoice !== "yes" && answer.is_invoice !== "no") {
     throw new AiError("Invoice reading answer was not in the expected format");
   }
@@ -307,7 +292,7 @@ export async function readOfferDetails(
     ...offerDetailsPrompt({ ...input, text: clip(input.text, MAX_BODY_CHARS) }),
     maxTokens: 2000,
   });
-  const answer = firstJson(result.text);
+  const answer = outerJson(result.text);
   if (!Array.isArray(answer.company_lines)) throw new AiError("Offer details answer was not in the expected format");
   const text = (value: unknown, max: number) => (typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null);
   const lines = (value: unknown, max: number) =>
@@ -339,13 +324,24 @@ export async function draftPaymentReminder(
   return { body, usage: result };
 }
 
-/** Does this reply say the invoice was paid? Anything but a clear "yes" is no. */
-export async function checkPaymentNotice(ai: AiClient, input: PaymentNoticeInput): Promise<{ paid: boolean; usage: AiUsage }> {
-  const prompt = paymentNoticePrompt({ ...input, body: clip(stripQuotedHistory(input.body), MAX_BODY_CHARS) });
-  const result = await ai.complete({ job: "payment-notice", ...prompt, maxTokens: 2000 });
-  const answer = firstJson(result.text).paid;
-  if (answer !== "yes" && answer !== "no") throw new AiError("Payment notice answer was not in the expected format");
-  return { paid: answer === "yes", usage: result };
+/**
+ * Does this reply say an invoice was paid, and which? Anything but a clear "yes" is no.
+ * `numbers` holds only invoice numbers we asked about that are also written in the message;
+ * it is empty when the sender named none.
+ */
+export async function checkPaymentNotice(
+  ai: AiClient,
+  input: PaymentNoticeInput,
+): Promise<{ paid: boolean; numbers: string[]; usage: AiUsage }> {
+  const body = clip(stripQuotedHistory(input.body), MAX_BODY_CHARS);
+  const result = await ai.complete({ job: "payment-notice", ...paymentNoticePrompt({ ...input, body }), maxTokens: 2000 });
+  const answer = outerJson(result.text);
+  if (answer.paid !== "yes" && answer.paid !== "no") throw new AiError("Payment notice answer was not in the expected format");
+  const plain = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const written = plain(`${input.subject}\n${body}`);
+  const named = (Array.isArray(answer.invoices) ? answer.invoices : []).filter((n): n is string => typeof n === "string").map(plain);
+  const numbers = input.invoiceNumbers.filter((n) => plain(n).length >= 2 && named.includes(plain(n)) && written.includes(plain(n)));
+  return { paid: answer.paid === "yes", numbers, usage: result };
 }
 
 export interface ProposedColumns {
@@ -366,7 +362,7 @@ export async function proposePriceListColumns(
   input: PriceListColumnsInput,
 ): Promise<{ columns: ProposedColumns; usage: AiUsage }> {
   const result = await ai.complete({ job: "price-list-columns", ...priceListColumnsPrompt(input), maxTokens: 2000 });
-  const answer = firstJson(result.text);
+  const answer = outerJson(result.text);
   const column = (value: unknown) => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null);
   if (!("name" in answer) || !("price" in answer)) {
     throw new AiError("Price list columns answer was not in the expected format");

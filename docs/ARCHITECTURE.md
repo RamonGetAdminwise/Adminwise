@@ -1,6 +1,6 @@
 # Architecture, in plain language
 
-This is the codebase after phase 3: sign-in, settings, the Microsoft 365 connection, the forwarding address, reply drafts, the follow-up chaser, filing of attachments to OneDrive, the full daily brief, operator alerts, and offers and order confirmations from the customer's own price list. Nothing is ever sent to a customer's contacts; the product only writes drafts.
+This is the codebase after phase 5: sign-in, settings, the Microsoft 365 connection, the forwarding address, reply drafts, the follow-up chaser, filing of attachments to OneDrive, the full daily brief, operator alerts, and offers and order confirmations from the customer's own price list. Nothing is ever sent to a customer's contacts; the product only writes drafts.
 
 ## The two programs
 
@@ -210,6 +210,29 @@ AWS allows a limited number of model requests a minute. `withPatience` (`package
 `pnpm check:golden` runs every decision the model makes for the two company packs through the real model and compares it with what the fixtures expect: sorting, hostile or not, quote requests and the price list items they lead to, acceptances, "paid" replies, whether a sent mail expects an answer, document types and invoice reading. About 250 decisions; a run takes some minutes and costs well under a euro. What the model answered is saved in `golden/<company>.json` and committed, so that after a change to a prompt `git diff golden/` shows exactly which answers moved. Run it after every prompt change, together with `check:quotes`, `check:invoices`, `check:setup` and `check:security` for the first company. It is run by hand for now; running it automatically on every prompt change needs an AWS key at GitHub.
 
 Two things the golden set taught, now built in: a model answer is read as its LAST complete JSON object (the model sometimes answers, reconsiders and answers again), and the model's "a colleague" about a sender outside the company's own addresses is treated as business mail.
+
+## When a step fails (review of 24 Nov 2026)
+
+The rule: a step that fails once must never lose work, and must never be retried without end.
+
+- **Queue retries.** A failed job is tried again after about 30 seconds, 1, 2, 4, 8 and 16 minutes, then every 30 minutes: ten tries over some two hours (`packages/core/src/queue.ts`).
+- **Mail that fell through.** Every five minutes `pollTick` looks for inbound mail that still has its text, was stored more than 20 minutes ago and has no finished run, and queues it again (at most 14 runs per mail). This covers a crash between storing and queueing, and retries that ran out.
+- **Once-a-day jobs** (follow-ups, payment reminders, brief) are not retried by the queue. Their scheduler starts them again, at most five times a day, waiting 5, 10, 20 and 40 minutes (`mayTryAgain` in `apps/worker/src/deps.ts`).
+- **Mark after sending.** Anything that must reach the owner (account mails, the brief's one-time questions) is marked as done only after the mail has gone out.
+- **Resume, do not restart.** A retry finds what an earlier attempt already made (an invoice noted but not read, an order confirmation stored but not drafted) and carries on from there.
+- **Mailbox check.** Inbox, Sent Items, waiting attachments and the notification subscription are four independent steps. A message that cannot be read is skipped for now and listed again next time; a bookmark Microsoft rejects is replaced by a restart from three days back.
+- **Whose fault.** `invalid_grant` and its kind: the customer must reconnect, the connection is marked and the brief says so. `invalid_client`: our own app secret is wrong; jobs fail, the operator is alerted, no customer is touched.
+
+Not built yet: an alarm from outside when the worker itself is down (see `docs/TO_VERIFY.md`).
+
+## Reading other people's input (review of 24 Nov 2026)
+
+- **Price cells**: exactly one number, optionally a currency and "/unit". Two numbers, words around the number, or a price that rounding to cents would change by more than 1% make the row unreadable; it is left out and shown.
+- **Price column**: a title that names a weight, a quantity, a stock level or a VAT rate is never the price. Net before gross; a gross-only column is used with a red warning in the preview. Hidden sheets are skipped.
+- **Item codes**: a code of digits only never matches by itself (it could be a size or a year); the model decides with the item names.
+- **Model answers**: one parser for every job, taking the last complete JSON object.
+- **Forwarded mail**: "the owner forwarded this" needs their address in the From line and a passed sender check (SPF) for that domain.
+- **Payment notices**: only invoice numbers we asked about and that are written in the mail count.
 
 ## Tests
 

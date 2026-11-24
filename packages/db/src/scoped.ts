@@ -281,13 +281,16 @@ export function forCustomer(db: Db, customerId: string) {
     // ---- offers and order confirmations ----------------------------------------
 
     /**
-     * Takes the next offer number for a year. The counter restarts each year and
-     * two offers can never get the same number, even when made at the same moment.
+     * Takes the next offer number for a year. The counter restarts each year, but only
+     * when the number shows the year ("OF/{YYYY}/{NNN}"): without it the numbers of a
+     * new year would repeat last year's. Two offers can never get the same number,
+     * even when made at the same moment.
      */
     async nextOfferCounter(year: number): Promise<{ counter: number; pattern: string }> {
       const { rows } = await run<{ offer_counter: number; offer_number_pattern: string }>(
         `UPDATE customers
-         SET offer_counter = CASE WHEN offer_counter_year = $2 THEN offer_counter + 1 ELSE 1 END,
+         SET offer_counter = CASE WHEN offer_counter_year = $2 OR offer_number_pattern NOT LIKE '%{YYYY}%'
+                                  THEN offer_counter + 1 ELSE 1 END,
              offer_counter_year = $2
          WHERE id = $1
          RETURNING offer_counter, offer_number_pattern`,
@@ -441,6 +444,12 @@ export function forCustomer(db: Db, customerId: string) {
       return rows[0]?.id ?? null;
     },
 
+    /** The noted file with this content, if any (a retry finds what an earlier, failed attempt noted). */
+    async getInvoiceByHash(contentHash: string): Promise<Invoice | null> {
+      const { rows } = await run(`${INVOICE_SELECT} WHERE customer_id = $1 AND content_hash = $2`, [contentHash]);
+      return rows[0] ? toInvoice(rows[0]) : null;
+    },
+
     async getInvoice(id: string): Promise<Invoice | null> {
       const { rows } = await run(`${INVOICE_SELECT} WHERE customer_id = $1 AND id = $2`, [id]);
       return rows[0] ? toInvoice(rows[0]) : null;
@@ -522,11 +531,11 @@ export function forCustomer(db: Db, customerId: string) {
       return rowCount === 1;
     },
 
-    /** The owner supplied the due date that could not be read from the invoice. */
+    /** The owner supplied the due date that could not be read from the invoice. Only then: a date that was read is not changed by a link. */
     async setInvoiceDueDate(id: string, dueDate: string): Promise<boolean> {
       const { rowCount } = await run(
         `UPDATE invoices SET due_date = $3::date, status = 'open'
-         WHERE customer_id = $1 AND id = $2 AND status IN ('needs_due_date', 'open')`,
+         WHERE customer_id = $1 AND id = $2 AND status = 'needs_due_date'`,
         [id, dueDate],
       );
       return rowCount === 1;
@@ -536,10 +545,12 @@ export function forCustomer(db: Db, customerId: string) {
      * What the "overdue money" section of the brief shows for one morning:
      *   reminded: invoices that got a reminder draft since `since` (this morning's scan),
      *   paidBySender: invoices a sender said they paid in [yesterday, since), for the owner to verify,
-     *   toAsk: invoices without a readable due date, or unreadable ones, not mentioned before.
-     * The "toAsk" invoices are marked as mentioned, so each is asked about once.
+     *   toAsk: invoices without a readable due date, unreadable ones, and ones whose reading
+     *          never finished (noted before `staleBefore`), not mentioned before.
+     * Each "toAsk" invoice is asked about once: the caller marks them with
+     * markInvoicesListed AFTER the brief has gone out, so a brief that fails to send loses nothing.
      */
-    async invoicesForBrief(since: Date, yesterday: Date, localDate: string) {
+    async invoicesForBrief(since: Date, yesterday: Date, staleBefore: Date) {
       const reminded = await run(`${INVOICE_SELECT} WHERE customer_id = $1 AND last_reminder_at >= $2 ORDER BY due_date`, [
         since,
       ]);
@@ -549,24 +560,27 @@ export function forCustomer(db: Db, customerId: string) {
         [yesterday, since],
       );
       const toAsk = await run(
-        `WITH marked AS (
-           UPDATE invoices SET listed_on = $2::date
-           WHERE customer_id = $1 AND status IN ('needs_due_date', 'unreadable') AND listed_on IS NULL
-           RETURNING id
-         )
-         ${INVOICE_SELECT} WHERE customer_id = $1 AND id IN (SELECT id FROM marked) ORDER BY created_at`,
-        [localDate],
+        `${INVOICE_SELECT} WHERE customer_id = $1 AND listed_on IS NULL
+           AND (status IN ('needs_due_date', 'unreadable') OR (status = 'pending' AND created_at < $2))
+         ORDER BY created_at`,
+        [staleBefore],
       );
       return { reminded: reminded.rows.map(toInvoice), paidBySender: paid.rows.map(toInvoice), toAsk: toAsk.rows.map(toInvoice) };
     },
 
-    /** The reminder draft still waiting for an invoice's mail, if any. */
-    async getOpenReminder(messageId: string): Promise<Draft | null> {
+    /** The brief that asked about these invoices has been sent: they are not asked about again. */
+    async markInvoicesListed(ids: string[], localDate: string) {
+      if (ids.length === 0) return;
+      await run("UPDATE invoices SET listed_on = $2::date WHERE customer_id = $1 AND id = ANY($3::uuid[])", [localDate, ids]);
+    },
+
+    /** The reminder draft still waiting for an invoice, if any. */
+    async getOpenReminder(invoiceId: string): Promise<Draft | null> {
       const { rows } = await run(
         `SELECT * FROM drafts
-         WHERE customer_id = $1 AND message_id = $2 AND kind = 'reminder' AND status = 'created'
+         WHERE customer_id = $1 AND invoice_id = $2 AND kind = 'reminder' AND status = 'created'
          ORDER BY completed_at DESC LIMIT 1`,
-        [messageId],
+        [invoiceId],
       );
       return rows[0] ? camel<Draft>(rows[0]) : null;
     },
@@ -643,7 +657,7 @@ export function forCustomer(db: Db, customerId: string) {
      */
     async exportData(): Promise<Record<string, Record<string, unknown>[]>> {
       const SECRET = new Set([
-        "access_token_enc", "refresh_token_enc", "delta_link", "sent_delta_link", "subscription_id",
+        "access_token_enc", "refresh_token_enc", "delta_link", "sent_delta_link", "subscription_id", "client_state",
         "body_text", "pending_text", "raw", "content",
       ]);
       const strip = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([key]) => !SECRET.has(key)));
@@ -778,6 +792,22 @@ export function forCustomer(db: Db, customerId: string) {
         ],
       );
       return toConnection(rows[0]!);
+    },
+
+    /**
+     * The customer disconnects their Microsoft 365 mailbox: reading stops at once and the keys to
+     * the mailbox are removed here, so it cannot be read again without a new sign-in at Microsoft.
+     */
+    async disconnectConnection(id: string): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE mailbox_connections
+         SET status = 'disconnected', access_token_enc = NULL, refresh_token_enc = NULL, token_expires_at = NULL,
+             delta_link = NULL, sent_delta_link = NULL, subscription_id = NULL, subscription_expires_at = NULL,
+             client_state = NULL, last_error = NULL
+         WHERE customer_id = $1 AND id = $2 AND provider = 'microsoft'`,
+        [id],
+      );
+      return rowCount === 1;
     },
 
     async getConnection(id: string): Promise<MailboxConnection | null> {
@@ -971,7 +1001,8 @@ export function forCustomer(db: Db, customerId: string) {
     /**
      * Reserves the one reply draft that may exist for a message. Returns the draft
      * id for the caller that won, or null if a draft already exists or is being
-     * written. A failed draft, or one stuck for 10 minutes, may be claimed again.
+     * written. A failed draft, or one stuck for 20 minutes (longer than a job may run),
+     * may be claimed again. A payment reminder is one per invoice and level, not per message.
      */
     async claimDraft(d: {
       messageId: string;
@@ -982,16 +1013,24 @@ export function forCustomer(db: Db, customerId: string) {
       /** "chaser" hangs on the customer's own last message; seq 1 or 2 is which follow-up it is. */
       kind?: DraftKind;
       seq?: number;
+      /** Required for kind "reminder": the invoice it is about. */
+      invoiceId?: string;
     }): Promise<string | null> {
+      const kind = d.kind ?? "reply";
+      if ((kind === "reminder") !== Boolean(d.invoiceId)) throw new Error("A reminder draft needs its invoice, and only a reminder has one");
+      const key =
+        kind === "reminder"
+          ? "(customer_id, invoice_id, seq) WHERE kind = 'reminder'"
+          : "(customer_id, message_id, kind, seq) WHERE kind <> 'reminder'";
       const { rows } = await run<{ id: string }>(
-        `INSERT INTO drafts (customer_id, message_id, thread_id, destination, language, language_listed, kind, seq)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (customer_id, message_id, kind, seq) DO UPDATE
+        `INSERT INTO drafts (customer_id, message_id, thread_id, destination, language, language_listed, kind, seq, invoice_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT ${key} DO UPDATE
            SET status = 'pending', created_at = now(), error = NULL
            WHERE drafts.status = 'failed'
-              OR (drafts.status = 'pending' AND drafts.created_at < now() - interval '10 minutes')
+              OR (drafts.status = 'pending' AND drafts.created_at < now() - interval '20 minutes')
          RETURNING id`,
-        [d.messageId, d.threadId, d.destination, d.language, d.languageListed, d.kind ?? "reply", d.seq ?? 1],
+        [d.messageId, d.threadId, d.destination, d.language, d.languageListed, kind, d.seq ?? 1, d.invoiceId ?? null],
       );
       return rows[0]?.id ?? null;
     },
@@ -1303,10 +1342,17 @@ export function forCustomer(db: Db, customerId: string) {
       );
     },
 
-    async listJobRuns(limit = 50) {
-      const { rows } = await run("SELECT * FROM job_runs WHERE customer_id = $1 ORDER BY started_at DESC LIMIT $2", [
-        limit,
-      ]);
+    /**
+     * The latest runs. `withEmptyPolls: false` leaves out the five-minute mailbox checks that found
+     * nothing, which would otherwise push everything else off a short list within the hour.
+     */
+    async listJobRuns(limit = 50, withEmptyPolls = true) {
+      const { rows } = await run(
+        `SELECT * FROM job_runs
+         WHERE customer_id = $1 AND ($3::boolean OR NOT (job = 'sync-mailbox' AND outcome = 'new_mail:0'))
+         ORDER BY started_at DESC LIMIT $2`,
+        [limit, withEmptyPolls],
+      );
       return rows.map((r) => camel<import("./types").JobRun>(r));
     },
 

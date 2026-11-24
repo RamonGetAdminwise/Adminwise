@@ -133,6 +133,11 @@ export async function fileAttachments(deps: Deps, job: { customerId: string; mes
         at: now,
       };
 
+      // Microsoft tells the size up front: a file that is too large is not downloaded at all.
+      if (attachment.sizeBytes > MAX_FILE_BYTES) {
+        await scope.saveFiledDocument({ ...record, contentHash: null, docType: null, status: "failed", error: "too_large" });
+        continue;
+      }
       const content = await deps.outlook.downloadAttachment(scope, connection.id, message.providerMessageId, attachment.id);
       const contentHash = createHash("sha256").update(content).digest("hex");
       if (content.byteLength > MAX_FILE_BYTES) {

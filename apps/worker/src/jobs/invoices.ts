@@ -74,7 +74,8 @@ export async function readInvoice(
 /**
  * For a mail the customer sent from their connected mailbox: looks at its PDF
  * attachments and starts tracking any that is an invoice of theirs.
- * Safe to run twice: a file that was already noted (same content) is skipped.
+ * Safe to run twice: a file that was already read (same content) is skipped;
+ * one that was noted but not read, because the first attempt failed, is read.
  */
 export async function trackSentInvoices(deps: Deps, job: { customerId: string; messageId: string }): Promise<string> {
   const scope = forCustomer(deps.db, job.customerId);
@@ -109,17 +110,24 @@ export async function trackSentInvoices(deps: Deps, job: { customerId: string; m
     const counts: Record<string, number> = {};
     for (const attachment of pdfs) {
       const content = await deps.outlook.downloadAttachment(scope, connection.id, message.providerMessageId, attachment.id);
-      const invoiceId = await scope.createInvoice({
+      const contentHash = createHash("sha256").update(content).digest("hex");
+      let invoiceId = await scope.createInvoice({
         source: "sent",
         messageId: message.id,
         threadId: message.threadId,
         connectionId: connection.id,
         fileName: attachment.name,
-        contentHash: createHash("sha256").update(content).digest("hex"),
+        contentHash,
         // For sent mail the message row holds the domain it was sent to.
         debtorDomain: message.senderDomain,
       });
-      if (!invoiceId) continue; // this file is already known
+      if (!invoiceId) {
+        // The file is already known. If an earlier attempt noted it but failed before reading it,
+        // it is read now; anything else was dealt with before.
+        const known = await scope.getInvoiceByHash(contentHash);
+        if (known?.status !== "pending" || known.source !== "sent") continue;
+        invoiceId = known.id;
+      }
       const result = await readInvoice(deps, scope, customer, invoiceId, await extractPdfText(content));
       inputTokens += result.inputTokens;
       outputTokens += result.outputTokens;

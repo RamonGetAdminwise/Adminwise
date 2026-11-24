@@ -91,7 +91,9 @@ async function tokenRequest(cfg: GraphOAuthConfig, body: Record<string, string>)
   if (!response.ok || !json.access_token || !json.refresh_token) {
     const code = json.error ?? `http_${response.status}`;
     // invalid_grant / interaction_required / consent_required: only the customer can fix it.
-    if (["invalid_grant", "interaction_required", "consent_required", "invalid_client"].includes(code)) {
+    // invalid_client is NOT in this list: it means OUR app secret is wrong or has expired. That
+    // must fail loudly for us to fix, and must never mark every customer's mailbox as disconnected.
+    if (["invalid_grant", "interaction_required", "consent_required"].includes(code)) {
       throw new GraphAuthError(`Microsoft sign-in is no longer valid (${code})`, code);
     }
     throw new GraphError(`Token request failed (${code})`, response.status);
@@ -247,10 +249,12 @@ export class GraphClient {
         if (!item["@removed"]) messageIds.push(item.id);
       }
       if (result["@odata.deltaLink"]) return { messageIds, deltaLink: result["@odata.deltaLink"] };
-      if (!result["@odata.nextLink"]) break;
+      if (!result["@odata.nextLink"]) throw new GraphError("Mail folder delta did not finish", 500);
       url = result["@odata.nextLink"];
     }
-    throw new GraphError("Mail folder delta did not finish", 500);
+    // A very long list (a mailbox read again after weeks): take this much now and carry on from
+    // here at the next poll. The link to the next page works as the bookmark.
+    return { messageIds, deltaLink: url };
   }
 
   /**

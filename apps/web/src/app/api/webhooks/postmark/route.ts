@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { entitlements, ingestInbound, QUEUES } from "@adminwise/core";
 import { forCustomer, system } from "@adminwise/db";
-import { parsePostmarkInbound, type PostmarkInboundPayload } from "@adminwise/mail";
+import { parsePostmarkInbound, senderVerified, type PostmarkInboundPayload } from "@adminwise/mail";
 import { extractPdfText } from "@adminwise/offers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getConfig, getDb, getQueue } from "@/lib/server";
@@ -54,12 +54,15 @@ export async function POST(request: NextRequest) {
     if (!entitlements(await scope.getCustomer(), new Date(), config.billingEnabled).work) continue;
     const [users, connection] = await Promise.all([scope.listUsers(), scope.getConnectionByProvider("forwarding")]);
     const ownAddresses = new Set(users.map((u) => u.email));
+    // "The customer forwarded this themselves" needs more than their address in the From line,
+    // which anyone can write: the receiving server's sender check must have passed too.
+    const byOwner = ownAddresses.has(forwardedBy) && senderVerified(payload);
     // Unwrap "Forwarded message" blocks only when the customer forwarded the mail by hand.
-    const { message } = parsePostmarkInbound(payload, config.inboundDomain, (from) => ownAddresses.has(from));
+    const { message } = parsePostmarkInbound(payload, config.inboundDomain, () => byOwner);
     const { messageId } = await ingestInbound(scope, queue, connection?.id ?? null, message);
 
     // Only mail the customer forwarded themselves, and only the first time we see it.
-    if (!messageId || !ownAddresses.has(forwardedBy)) continue;
+    if (!messageId || !byOwner) continue;
     const stored = await scope.getMessage(messageId);
     const pdfs = (payload.Attachments ?? [])
       .filter((a) => /\.pdf$/i.test(a.Name ?? "") || a.ContentType === "application/pdf")

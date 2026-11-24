@@ -7,12 +7,17 @@ import { describeError, type Deps } from "../deps";
  * removed before its 24th hour ends.
  */
 export const BODY_RETENTION_HOURS = 23;
+/** The record of what ran is kept this long (failed runs twice as long). */
+export const JOB_RUN_RETENTION_DAYS = 90;
 
 export async function purgeBodies(deps: Deps): Promise<{ messages: number; drafts: number }> {
   const sys = system(deps.db);
   const runId = await sys.startJobRun("purge-bodies");
   try {
-    const result = await sys.purgeBodies(BODY_RETENTION_HOURS, deps.now?.() ?? new Date());
+    const now = deps.now?.() ?? new Date();
+    const result = await sys.purgeBodies(BODY_RETENTION_HOURS, now);
+    // Expired sign-in links and sessions, and old run records, go in the same hourly pass.
+    await sys.prune(now, JOB_RUN_RETENTION_DAYS);
     await sys.finishJobRun(runId, "succeeded");
     return result;
   } catch (error) {

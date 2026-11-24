@@ -38,3 +38,19 @@ export function describeError(error: unknown): string {
   if (error instanceof Error) return `${error.name}: ${error.message}`.slice(0, 300);
   return "Unknown error";
 }
+
+/** A once-a-day job (follow-ups, reminders, brief) that failed is tried again at most this often on one day. */
+export const DAILY_MAX_TRIES = 5;
+const DAILY_FIRST_WAIT_MS = 5 * 60_000;
+
+/**
+ * May a once-a-day job that failed earlier today run again now? The wait doubles
+ * after each failure (5, 10, 20, 40 minutes) and after five failures it is left
+ * for the day: the operator has been told by then. Without this a job that fails
+ * every time was started again every minute, with a model call each time.
+ */
+export function mayTryAgain(failed: { count: number; last: Date } | undefined, now: Date): boolean {
+  if (!failed) return true;
+  if (failed.count >= DAILY_MAX_TRIES) return false;
+  return now.getTime() - failed.last.getTime() >= DAILY_FIRST_WAIT_MS * 2 ** (failed.count - 1);
+}

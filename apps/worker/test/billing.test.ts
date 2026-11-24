@@ -152,14 +152,23 @@ describe("Scenario 33: a trial without a card", () => {
     await setBilling(own, { status: "internal", trialEndsAt: TRIAL_END });
     await setBilling(trial, { trialEndsAt: TRIAL_END });
 
-    // Billing not switched on: the sweep does not run, and an ended trial keeps working.
+    // Billing not switched on: nobody is reminded or ended, and an ended trial keeps working.
+    // The trial clock is held: the account has its whole trial ahead of it, so that switching
+    // billing on later cuts nobody off without the two-day reminder.
     expect(await billingTick({ ...world.deps, now: at("2020-06-01T00:00:00Z") })).toBe("off");
-    expect((await trial.scope.getCustomer()).billingStatus).toBe("trial");
+    expect(await trial.scope.getCustomer()).toMatchObject({ billingStatus: "trial", trialEndsAt: new Date("2020-06-15T00:00:00Z") });
+    expect(world.mailer.sent).toHaveLength(0);
     await ingestInbound(trial.scope, world.queue, trial.microsoftId, toInbound(quoteFixture("q08")));
     await world.queue.drain({ ...world.deps, now: at("2020-06-01T09:00:00Z") });
     expect(world.outlook.drafts).toHaveLength(1);
 
+    // Switched on the same day: the trial account is still on trial. It gets its reminder two days
+    // before the end and becomes read-only when the trial is over.
     await billingTick(live(world, "2020-06-01T00:00:00Z"));
+    expect((await trial.scope.getCustomer()).billingStatus).toBe("trial");
+    await billingTick(live(world, "2020-06-13T06:00:00Z"));
+    expect(mailsTo(world, trial).map((m) => m.subject)).toEqual(["Your Adminwise trial ends in 2 days"]);
+    await billingTick(live(world, "2020-06-15T00:30:00Z"));
     expect((await paying.scope.getCustomer()).billingStatus).toBe("active");
     expect((await own.scope.getCustomer()).billingStatus).toBe("internal");
     expect(mailsTo(world, paying)).toHaveLength(0);
@@ -167,7 +176,7 @@ describe("Scenario 33: a trial without a card", () => {
     // The trial account, with billing on, is now read-only: mail already taken in is not handled either.
     expect((await trial.scope.getCustomer()).billingStatus).toBe("read_only");
     const { messageId } = await ingestInbound(trial.scope, world.queue, trial.microsoftId, toInbound(quoteFixture("q10")));
-    await world.queue.drain(live(world, "2020-06-01T09:00:00Z"));
+    await world.queue.drain(live(world, "2020-06-15T09:00:00Z"));
     expect(world.outlook.drafts).toHaveLength(1);
     expect((await trial.scope.listJobRuns()).find((r) => r.ref === messageId)).toMatchObject({ status: "skipped", outcome: "read_only" });
   });

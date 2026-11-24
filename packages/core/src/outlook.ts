@@ -8,6 +8,7 @@ import {
   type GraphOAuthConfig,
   type InboundMessage,
   type OutboundAttachment,
+  GraphError,
 } from "@adminwise/mail";
 
 /**
@@ -76,6 +77,30 @@ export class ConnectionUnavailableError extends Error {
   }
 }
 
+/** When a bookmark is no longer accepted, mail from this far back is listed again. */
+const RESTART_WINDOW_MS = 3 * 24 * 3_600_000;
+
+/**
+ * Lists a folder from its bookmark. Microsoft stops accepting a bookmark that was not used for
+ * a while (after a long pause, or a reconnect): it answers 410 "sync state not found". Then we
+ * start again from three days back (never from before the mailbox was connected). Mail that
+ * was already taken in is recognised and skipped, so listing it twice does no harm.
+ */
+export async function fromBookmark<T>(
+  deltaLink: string | null,
+  connectedAt: Date,
+  list: (input: { deltaLink: string | null; since: Date }) => Promise<T>,
+): Promise<T> {
+  try {
+    return await list({ deltaLink, since: connectedAt });
+  } catch (error) {
+    const expired = deltaLink && error instanceof GraphError && (error.status === 410 || /syncstate|resync/i.test(error.message));
+    if (!expired) throw error;
+    const since = new Date(Math.max(connectedAt.getTime(), Date.now() - RESTART_WINDOW_MS));
+    return list({ deltaLink: null, since });
+  }
+}
+
 const REFRESH_MARGIN_MS = 5 * 60_000;
 const RENEW_MARGIN_MS = 24 * 3_600_000;
 
@@ -136,12 +161,12 @@ export function createOutlookGateway(options: {
 
     listNewMessageIds: (scope, connectionId) =>
       withClient(scope, connectionId, (client, connection) =>
-        client.listInboxDelta({ deltaLink: connection.deltaLink, since: connection.createdAt }),
+        fromBookmark(connection.deltaLink, connection.createdAt, (input) => client.listInboxDelta(input)),
       ),
 
     listNewSentMessageIds: (scope, connectionId) =>
       withClient(scope, connectionId, (client, connection) =>
-        client.listSentDelta({ deltaLink: connection.sentDeltaLink, since: connection.createdAt }),
+        fromBookmark(connection.sentDeltaLink, connection.createdAt, (input) => client.listSentDelta(input)),
       ),
 
     createReplyDraft: (scope, connectionId, providerMessageId, text, attachments) =>

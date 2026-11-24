@@ -100,13 +100,50 @@ Last updated: 2026-11-23.
 
 Asked for by Ramon on 23 Nov: when the whole v1 is built, and before the first outside customer, go through all of it once more with the aim of finding what is wrong, not confirming what works. Done by a fresh pair of eyes (a separate review session that did not write the code), not by the session that built it.
 
-- [ ] **Every decision in the decisions log.** For each one: is the reason still valid, did it turn out as intended, would we decide the same today? Includes the architecture cross-check already noted in `06_open_items.md`.
-- [ ] **Security and privacy review.** Customer isolation, token storage, the signed links in emails, the webhooks, what is logged, the 24-hour rule in practice (look in the live database for bodies older than a day), what an export or delete request really removes.
-- [ ] **Try to break it.** Emails with hidden or fake instructions (scenarios 28 and 29), absurd quantities and prices, a price list built to confuse the column detection, huge attachments, the same mail many times, two workers at once, an expired or revoked mailbox (30 and 31).
-- [ ] **Every number in an offer.** Take real offers from the test period and recalculate them by hand against the price list.
-- [ ] **Every promise we make to customers.** Check the website copy, the privacy statement and the Settings texts against what the software really does: drafts only, nothing sent, EU processing, the app sees only its own OneDrive folder, deleted within 24 hours.
-- [ ] **A full code review** of the repository for bugs, dead code and things that are harder than they need to be.
-- [ ] **Everything still open on this list.**
+- [x] **Every decision in the decisions log.** For each one: is the reason still valid, did it turn out as intended, would we decide the same today? Includes the architecture cross-check already noted in `06_open_items.md`.
+- [x] **Security and privacy review.** Customer isolation, token storage, the signed links in emails, the webhooks, what is logged, the 24-hour rule in practice (look in the live database for bodies older than a day), what an export or delete request really removes.
+- [x] **Try to break it.** Emails with hidden or fake instructions (scenarios 28 and 29), absurd quantities and prices, a price list built to confuse the column detection, huge attachments, the same mail many times, two workers at once, an expired or revoked mailbox (30 and 31).
+- [x] **Every number in an offer.** Take real offers from the test period and recalculate them by hand against the price list.
+- [x] **Every promise we make to customers.** Check the website copy, the privacy statement and the Settings texts against what the software really does: drafts only, nothing sent, EU processing, the app sees only its own OneDrive folder, deleted within 24 hours.
+- [x] **A full code review** of the repository for bugs, dead code and things that are harder than they need to be.
+- [x] **Everything still open on this list.**
+
+**Done on 24 Nov 2026** by five fresh reviewers. Report: `01_Project_docs/14_independent_review_2026-11-24.md`. 44 faults fixed, 36 new tests. What it left open:
+
+Needs Ramon's decision (report section B):
+- [ ] Forwarding address can be guessed (company name): random part for new accounts?
+- [ ] Brief links work 30 days without sign-in, also for "paid" and "stop reminders": ask for sign-in for money actions?
+- [ ] An invoice mailed to the accountant is tracked with the accountant as debtor: compare recipient and buyer, ask once on a mismatch?
+- [ ] "Not this time" uses up one of the two follow-ups: should a skipped one not count?
+- [ ] Reminder 2 never comes while reminder 1 sits unsent; "7, 14, 30 days" are working days: say so in brief and guide?
+- [ ] Filing saves every attachment of 10 KB or more, not only the four document kinds: intended?
+- [ ] A new free trial by closing the account and signing up again: accept?
+
+To verify live after deploying this version:
+- [ ] A mail really forwarded by the owner is still recognised as theirs (the new sender check reads Postmark's `Received-SPF` header; if Postmark does not send it, behaviour is as before). Forward one mail with an invoice PDF and check it is tracked.
+- [ ] Migration 011 on the production database (reminder drafts get their invoice; drafts unique index replaced).
+- [ ] The queue's new retry settings are applied to the existing queues (`updateQueue` at start).
+- [ ] Move a mail the follow-up is about to another folder: is the follow-up still drafted? (Microsoft changes the id on a move; we do not ask for immutable ids yet.)
+- [ ] `Disconnect` in settings with a real mailbox: reading stops, reconnecting works. Not seen in a browser yet (it needs a connected mailbox); covered by a test at the data layer.
+- [ ] Production starts with the stricter configuration check (APP_BASE_URL and POSTMARK_SERVER_TOKEN must be set on BOTH services).
+
+Before the first outside customer (report section C):
+- [ ] Outside uptime check on `/api/health` and a worker heartbeat the health route checks. Today nobody is told when the worker is down.
+- [ ] Push `phase-4` to GitHub (it exists only in OneDrive until then).
+- [ ] Replace the five leaked secrets AFTER this version is live. Microsoft: create the new secret, set it in Railway, then delete the old one.
+- [ ] Look at the production `customers` table before deploying: migration 009 makes every existing account "internal" (free, for ever).
+- [ ] Backup retention at Railway and message retention at Postmark: set, then fill the two gaps on the privacy page.
+- [ ] Tighten the invoice field checks (amount inside a larger number, sale date as due date, currency sign without code, "N days" phrases that are not payment terms).
+- [ ] A cap on mail per customer per day, and a limit on model calls shared by all customers.
+- [ ] Outlook draft in one step (today a failed middle step leaves an empty reply in Drafts, one per retry).
+- [ ] Read forwarded invoice PDFs in the worker, not in the web request.
+- [ ] Row-level security in Postgres as a second lock, and a test that walks every scoped query for two customers.
+- [ ] PDF printer as a non-root user; later its own service.
+- [ ] One page of rules each: support access to production, rotating the token key, changing the model.
+- [ ] Tests for the web app (sign-in, webhooks, export, close account).
+
+Before billing is switched on (report section D):
+- [ ] Two subscriptions on one Stripe customer; hourly re-read of Stripe for accounts past their period end and before deleting; delete the Stripe customer on closing; Stripe on the privacy page.
 
 ## Known limits, accepted for now
 

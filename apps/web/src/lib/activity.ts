@@ -19,6 +19,7 @@ const FILING_OUTCOMES: Record<string, string> = {
   filing_off: "Not filed: reconnect Microsoft 365 once to switch filing on",
   mailbox_disconnected: "Not filed: the mailbox needs to be reconnected",
   message_gone: "Not filed: the email is no longer in the mailbox",
+  no_message: "Not filed: the email is no longer available",
   "not_filed:internal": "Not filed: it came from your own company",
   "not_filed:newsletter": "Not filed: it is a newsletter or mailing list",
   "not_filed:auto_reply": "Not filed: it is an automatic reply",
@@ -47,7 +48,7 @@ export function jobName(run: Pick<JobRun, "job">): string {
 /** What a job run did, in the customer's words. Built from fixed codes only, never from mail content. */
 export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "error">): string {
   if (run.status === "running") return "In progress";
-  if (run.status === "failed") return "Failed; it will be tried again";
+  if (run.status === "failed") return "Did not work. It is tried again by itself over the next hours; if it keeps failing, we are told";
   const [code, detail] = (run.outcome ?? "").split(":");
 
   if (run.job === "reply-draft") {
@@ -68,7 +69,9 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
       return `No draft needed: ${reason}`;
     }
     if (run.outcome === "read_only") return "Not handled: your account is read-only";
-    if (run.status === "skipped") return "Skipped: already handled";
+    if (run.status === "skipped") {
+      return /purged|missing/.test(run.error ?? "") ? "Not handled: the email was no longer available" : "Skipped: already handled";
+    }
   }
   if (run.job === "sync-mailbox") {
     if (run.status === "skipped") return "Skipped: the mailbox needs to be reconnected";
@@ -89,6 +92,8 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
   }
   if (run.job === "invoice-tracking") {
     if (run.outcome === "not_in_plan") return "Not tracked: payment reminders are part of the Run plan";
+    if (run.outcome === "no_mailbox") return "Skipped: the mailbox is not connected";
+    if (run.outcome === "message_gone" || run.outcome === "no_message") return "Skipped: the email is no longer in the mailbox";
     if (run.status === "skipped" || run.outcome === "nothing_new") return "Nothing new to track";
     const c = counts(run.outcome ?? "");
     const parts = [];
@@ -126,7 +131,7 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
       if (c.filed) parts.push(`${plural(c.filed, "document", "documents")} saved to OneDrive`);
       if (c.duplicate) parts.push(`${plural(c.duplicate, "file", "files")} already filed earlier`);
       if (c.queued) parts.push(`${plural(c.queued, "file", "files")} waiting: OneDrive could not be reached`);
-      return parts.length ? parts.join("; ") : "No documents to file (only pictures or small files)";
+      return parts.length ? parts.join("; ") : "No documents to file (only pictures, or files that are very small or too large)";
     }
   }
   return run.status === "succeeded" ? "Done" : "Skipped";

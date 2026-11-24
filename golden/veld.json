@@ -373,14 +373,14 @@
    "isQuote": true,
    "items": [
     {
-     "request": "radiocommercial van 20 seconden",
+     "request": "radiocommercial van 20 seconden laten maken",
      "quantity": 1,
      "unit": null
     }
    ]
   },
   "matching": [
-   "radiocommercial van 20 seconden: none"
+   "radiocommercial van 20 seconden laten maken: none"
   ],
   "offerLines": []
  },
@@ -596,7 +596,6 @@
   }
  },
  "V044": {
-  "modelSaidInternal": true,
   "sorting": {
    "category": "business",
    "language": "nl",

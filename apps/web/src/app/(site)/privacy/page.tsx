@@ -19,7 +19,7 @@ const PROCESSORS: { name: string; what: string; sees: string; where: string }[] 
   {
     name: "Amazon Web Services (Amazon Bedrock)",
     what: "The AI models that classify mail and write drafts",
-    sees: "The text of the email or document being worked on, at that moment. Not kept by AWS, not used to train models",
+    sees: "The email or document being worked on and what is needed to answer it (see Artificial intelligence), at that moment. Not kept by AWS, not used to train models",
     where: "European Union (Frankfurt region, EU-only processing)",
   },
   {
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
   const { appName } = getConfig();
   const email = contactEmail();
   return (
-    <LegalPage title="Privacy" updated="23 November 2026">
+    <LegalPage title="Privacy" updated="24 November 2026">
       <p>
         {appName} prepares drafts and documents for small companies from their business email. This page says in plain
         words what we read, what we keep, for how long, and who else is involved.
@@ -72,10 +72,13 @@ export default function PrivacyPage() {
       <Heading>What we read</Heading>
       <ul className="list-disc space-y-1 pl-5">
         <li>
-          <strong>With a connected Microsoft 365 mailbox:</strong> new incoming mail, the mail you send (to notice
-          unanswered questions and your own invoices), and attachments of incoming mail. We ask Microsoft for permission
-          to read mail, to create drafts, and to write to one folder of our own in your OneDrive. We do not ask for
-          permission to send mail, and we cannot reach the rest of your OneDrive.
+          <strong>With a connected Microsoft 365 mailbox:</strong> new mail in your Inbox, the mail in your Sent Items
+          (to notice unanswered questions, and PDFs you send that are your own invoices), and attachments of incoming
+          mail. Other folders are not read. The permission Microsoft gives us is called &quot;read and write
+          mail&quot;: it would technically also allow changing or deleting mail. We use it only to read mail, to
+          create drafts, and to remove a draft we created ourselves once it is no longer needed. We also get your
+          name and address, and one folder of our own in your OneDrive. We do not have permission to send mail, and
+          we cannot reach the rest of your OneDrive.
         </li>
         <li>
           <strong>With the forwarding address:</strong> only the emails you forward to it.
@@ -89,13 +92,17 @@ export default function PrivacyPage() {
       <Heading>What we keep, and for how long</Heading>
       <ul className="list-disc space-y-1 pl-5">
         <li>
-          <strong>Text of emails and drafts, and the sender&apos;s address:</strong> deleted from our systems within 24
-          hours. The draft itself stays where it belongs: in your own mailbox.
+          <strong>Text of emails and drafts, and the sender&apos;s address:</strong> deleted from our running systems
+          within 24 hours. The draft itself stays where it belongs: in your own mailbox. Copies in our database
+          backups disappear as those backups expire (see below). Emails that travel through our mail provider
+          (forwarded mail, and drafts and briefs we email to you) are also kept by that provider for{" "}
+          <Gap>Postmark retention period</Gap>.
         </li>
         <li>
           <strong>About each email, for as long as you have an account:</strong> the sender&apos;s domain, the subject, the
           date, what kind of mail it was, and the names of its attachments. This is what the daily brief and the
-          follow-ups work from.
+          follow-ups work from. For a filed document we also keep the folder it was saved in; for a sender with a
+          private mailbox (such as gmail.com) that folder is named after the part of their address before the @.
         </li>
         <li>
           <strong>Documents we make or track:</strong> offers and order confirmations (with their lines and prices), and for
@@ -122,8 +129,12 @@ export default function PrivacyPage() {
       <Heading>Artificial intelligence</Heading>
       <p>
         Mail is classified and drafts are written by AI models, run for us by Amazon Web Services inside the European
-        Union. The models receive the text of the email or document being worked on and nothing else. Your data is not used
-        to train models. Drafts can contain mistakes: every draft is yours to read and to send or not.
+        Union. A model receives the email or document being worked on, and what is needed to answer it: your company
+        name, the description of your writing style, the sender&apos;s domain, earlier messages of the same
+        conversation while we still hold them, and for a quote request the names of matching items on your price list.
+        Prices from your price list are never given to a model; offers are calculated by ordinary software. A payment
+        reminder is written from the invoice&apos;s number, amount and due date. Your data is not used to train
+        models. Drafts can contain mistakes: every draft is yours to read and to send or not.
       </p>
 
       <Heading>Who else is involved</Heading>
@@ -158,7 +169,9 @@ export default function PrivacyPage() {
 
       <Heading>Cookies</Heading>
       <p>
-        One cookie keeps you signed in. There are no advertising or tracking cookies, and no analytics on this site.
+        One cookie keeps you signed in. A second one exists for ten minutes while you connect Microsoft 365, to make
+        sure the answer from Microsoft belongs to your request. There are no advertising or tracking cookies, and no
+        analytics on this site.
       </p>
 
       <Heading>Your rights</Heading>

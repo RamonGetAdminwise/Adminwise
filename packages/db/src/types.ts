@@ -115,6 +115,8 @@ export interface PriceListRaw {
   headerRow: number;
   headers: string[];
   rows: { row: number; cells: (string | number | null)[] }[];
+  /** True when the sheet had more rows than we take in. */
+  truncated?: boolean;
 }
 
 export interface PriceList {

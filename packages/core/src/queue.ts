@@ -57,6 +57,15 @@ export interface JobPayloads {
   "billing-tick": Record<string, never>;
 }
 
+/**
+ * A failed job is tried again after about 30 s, 1, 2, 4, 8, 16 and then every 30 minutes:
+ * ten tries spread over some two hours, so an outage at Microsoft, the model provider or
+ * the mail service of an hour does not lose work. (Three tries within four minutes did.)
+ */
+const RETRY = { retryLimit: 9, retryDelay: 30, retryBackoff: true, retryDelayMax: 1800 };
+/** The once-a-day jobs are started again by their scheduler, which waits longer after each failure. */
+const DAILY_QUEUES = new Set<string>([QUEUES.sendBrief, QUEUES.chaseCustomer, QUEUES.remindCustomer]);
+
 /** What the web app and jobs need: a way to hand work to the worker. */
 export interface JobQueue {
   send<Q extends QueueName>(queue: Q, data: JobPayloads[Q]): Promise<void>;
@@ -80,7 +89,10 @@ export async function startQueue(connectionString: string, role: "web" | "worker
   boss.on("error", (error) => console.error("[queue]", error.message));
   await boss.start();
   for (const name of Object.values(QUEUES)) {
-    await boss.createQueue(name, { retryLimit: 3, retryDelay: 30, retryBackoff: true });
+    const options = DAILY_QUEUES.has(name) ? { retryLimit: 0 } : RETRY;
+    await boss.createQueue(name, options);
+    // createQueue leaves a queue that already exists as it is: bring its settings up to date.
+    await boss.updateQueue(name, options);
   }
   return {
     boss,

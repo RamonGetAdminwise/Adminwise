@@ -33,9 +33,9 @@ async function act(formData: FormData) {
 
   if (action === "paid" || action === "stopped") {
     const ended = await scope.endInvoice(invoice.id, action, "owner", new Date());
-    if (ended && invoice.messageId) {
+    if (ended) {
       // A reminder draft that is still waiting is no longer wanted: take it out of the Drafts folder.
-      const waiting = await scope.getOpenReminder(invoice.messageId);
+      const waiting = await scope.getOpenReminder(invoice.id);
       if (waiting) {
         await scope.closeDraft(waiting.id);
         const outlook = getOutlook();

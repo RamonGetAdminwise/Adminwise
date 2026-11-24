@@ -11,7 +11,7 @@ import {
 } from "@adminwise/db";
 import { daysBetween, formatMoney } from "@adminwise/offers";
 import { briefStrings } from "../brief-strings";
-import { allowed, describeError, type Deps } from "../deps";
+import { allowed, describeError, mayTryAgain, type Deps } from "../deps";
 import { chaseCustomer, MAX_CHASERS } from "./chaser";
 import { APP_FOLDER } from "./filing";
 import { invoiceAmount, remindCustomer } from "./reminders";
@@ -31,11 +31,14 @@ const MAX_MONEY_LINES = 15;
 export async function briefTick(deps: Deps): Promise<number> {
   const now = deps.now?.() ?? new Date();
   let queued = 0;
-  for (const customer of await system(deps.db).listCustomerClocks()) {
+  const sys = system(deps.db);
+  const failures = await sys.dailyFailures(new Date(now.getTime() - 36 * 3_600_000));
+  for (const customer of await sys.listCustomerClocks()) {
     if (!allowed(deps, customer).work) continue;
     const clock = localClock(now, customer.timeZone);
     if (clock.minutesOfDay < BRIEF_MINUTE_OF_DAY) continue;
     if (customer.briefLastSentOn && customer.briefLastSentOn >= clock.date) continue;
+    if (!mayTryAgain(failures.get(`${customer.id}|daily-brief|${clock.date}`), now)) continue;
     await deps.queue.send(QUEUES.sendBrief, { customerId: customer.id, localDate: clock.date });
     queued++;
   }
@@ -216,7 +219,8 @@ export async function sendBrief(
     // Money: every open invoice that is overdue or due within a week, with this morning's reminders marked.
     const [openInvoices, invoiceNews] = await Promise.all([
       scope.listOpenInvoices(),
-      scope.invoicesForBrief(today, yesterday, job.localDate),
+      // An invoice noted more than two hours ago and still not read will not be read any more.
+      scope.invoicesForBrief(today, yesterday, new Date(now.getTime() - 2 * 3_600_000)),
     ]);
     const who = (i: { debtorName: string; debtorDomain: string }) => i.debtorName || i.debtorDomain || "your customer";
     const invoiceLink = (invoiceId: string) =>
@@ -258,7 +262,7 @@ export async function sendBrief(
         recipientDomain: o.recipientDomain,
         grossTotal: formatMoney(o.grossCents, o.currency, "en"),
         confirmUrl:
-          o.kind === "offer" && o.status === "prepared"
+          o.kind === "offer" && o.status === "prepared" && allowed(deps, customer).offers
             ? `${deps.appBaseUrl}/offer?token=${signLinkToken({ c: job.customerId, o: o.id }, linkExpiry, deps.db.encryptionKey)}`
             : null,
       })),
@@ -275,6 +279,8 @@ export async function sendBrief(
       driveQueuedCount: microsoft?.driveError ? queuedCount : 0,
     });
     await deps.mailer.send({ to: users.map((u) => u.email), ...brief });
+    // Only now are the one-time questions counted as asked.
+    await scope.markInvoicesListed(invoiceNews.toAsk.map((i) => i.id), job.localDate);
     await scope.finishJobRun(runId, { status: "succeeded" });
     return "sent";
   } catch (error) {

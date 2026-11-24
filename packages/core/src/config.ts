@@ -45,15 +45,28 @@ export const DEFAULT_MODEL_CLASSIFY = "eu.anthropic.claude-haiku-4-5-20251001-v1
 
 function euModel(env: NodeJS.ProcessEnv, name: string, fallback: string): string {
   const id = (env[name] || fallback).trim();
-  // The "global." profiles may process a request in any region worldwide. That breaks the EU promise.
-  if (id.startsWith("global.")) {
-    throw new Error(`${name} must not use a global inference profile (${id}). Use the "eu." profile instead.`);
+  // Only the "eu." profiles keep a request inside the EU. "global." may process it anywhere in the
+  // world, "us." in the United States, and a bare model id wherever AWS_REGION points.
+  if (!id.startsWith("eu.")) {
+    throw new Error(`${name} must be an EU inference profile, starting with "eu." (got ${id}).`);
   }
   return id;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const appName = env.APP_NAME || "Adminwise";
+  const region = env.AWS_REGION || "eu-central-1";
+  if (!region.startsWith("eu-")) throw new Error(`AWS_REGION must be a region in the EU (got ${region}).`);
+  // In production nothing falls back silently: without these, sign-in links would be printed into
+  // the logs instead of mailed, and links in emails would point at localhost.
+  if (env.NODE_ENV === "production" && env.ALLOW_INCOMPLETE_CONFIG !== "true") {
+    required(env, "APP_BASE_URL");
+    required(env, "POSTMARK_SERVER_TOKEN");
+  }
+  const concurrency = Number(env.WORKER_CONCURRENCY || 5);
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 50) {
+    throw new Error("WORKER_CONCURRENCY must be a whole number from 1 to 50");
+  }
   const classify = euModel(env, "BEDROCK_MODEL_CLASSIFY", DEFAULT_MODEL_CLASSIFY);
   return {
     appName,
@@ -72,7 +85,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl: required(env, "DATABASE_URL"),
     tokenEncryptionKey: required(env, "TOKEN_ENCRYPTION_KEY"),
     aws: {
-      region: env.AWS_REGION || "eu-central-1",
+      region,
       models: {
         default: euModel(env, "BEDROCK_MODEL_DRAFT", DEFAULT_MODEL_DRAFT),
         classify,
@@ -92,6 +105,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       serverToken: env.POSTMARK_SERVER_TOKEN || null,
       inboundSecret: env.POSTMARK_INBOUND_SECRET || null,
     },
-    workerConcurrency: Number(env.WORKER_CONCURRENCY || 5),
+    workerConcurrency: concurrency,
   };
 }

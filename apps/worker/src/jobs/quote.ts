@@ -200,18 +200,31 @@ export async function prepareOrderConfirmation(
 ): Promise<QuoteReply | null> {
   const { customer, message } = input;
   if (message.bodyText === null) return null;
-  const offer = await scope.latestOpenOfferForThread(message.threadId);
-  if (!offer) return null;
 
-  const check = await checkOfferAccepted(deps.ai, {
-    companyName: customer.name,
-    offerNumber: offer.number,
-    subject: message.subject,
-    body: message.bodyText,
-  });
-  if (!check.accepted) {
-    // The tokens of the check are small and are not carried into the ordinary reply's count.
-    return null;
+  // An earlier attempt for this same mail may have made the confirmation (and marked the offer
+  // accepted) and then failed before the draft existed: carry on from there, do not start over.
+  const started = await scope.getOfferForMessage("order_confirmation", message.id);
+  let offer = started?.sourceOfferId ? await scope.getOffer(started.sourceOfferId) : null;
+  let check = { usage: { inputTokens: 0, outputTokens: 0 } };
+  if (!offer) {
+    offer = await scope.latestOpenOfferForThread(message.threadId);
+    if (!offer) return null;
+    // An offer past its validity date is not confirmed automatically: prices may have changed.
+    // The mail gets an ordinary reply and the owner decides.
+    const today = localClock(deps.now?.() ?? new Date(), customer.timeZone).date;
+    if (offer.validUntil && offer.validUntil < today) return null;
+
+    const asked = await checkOfferAccepted(deps.ai, {
+      companyName: customer.name,
+      offerNumber: offer.number,
+      subject: message.subject,
+      body: message.bodyText,
+    });
+    if (!asked.accepted) {
+      // The tokens of the check are small and are not carried into the ordinary reply's count.
+      return null;
+    }
+    check = asked;
   }
   const { confirmation, attachment } = await makeOrderConfirmation(deps, scope, { ...input, offer });
   const reply = await draftOrderReply(deps.ai, {
@@ -247,7 +260,11 @@ export async function confirmOffer(deps: Deps, job: { customerId: string; offerI
   try {
     const offer = await scope.getOffer(job.offerId);
     if (!offer || offer.kind !== "offer" || !offer.messageId) return await skip("no_offer");
-    if (offer.status === "accepted") return await skip("already_confirmed");
+    // Accepted already: done, unless it was this very job that marked it and then failed before
+    // the draft existed (the confirmation then hangs on the same message and is finished below).
+    if (offer.status === "accepted" && !(await scope.getOfferForMessage("order_confirmation", offer.messageId))) {
+      return await skip("already_confirmed");
+    }
     const message = await scope.getMessage(offer.messageId);
     if (!message) return await skip("no_offer");
     const [customer, connection] = await Promise.all([

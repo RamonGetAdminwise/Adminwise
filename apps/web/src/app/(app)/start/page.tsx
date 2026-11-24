@@ -62,7 +62,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
     scope.getCustomer(),
     scope.listConnections(),
     scope.listUsers(),
-    scope.listJobRuns(30),
+    scope.listJobRuns(30, false),
     scope.getPriceListByStatus("active"),
   ]);
   const microsoft = connections.find((c) => c.provider === "microsoft" && c.status === "active");
@@ -92,7 +92,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
       <header>
         <h1 className="text-2xl font-semibold">Getting started</h1>
         <p className="mt-1 text-sm text-stone-600">
-          Four short steps, about ten minutes, and you see your first reply draft. {config.appName} prepares drafts and
+          A few short steps, about ten minutes, and you see your first reply draft. {config.appName} prepares drafts and
           documents for you to check; it never sends anything from your mailbox. Drafts are written by AI: always read
           them before you send.
         </p>

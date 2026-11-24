@@ -1,6 +1,7 @@
 import {
   domainOf,
   flagsFromHeaders,
+  FREE_MAIL,
   normalizeSubject,
   type InboundMessage,
   type OutboundEmail,
@@ -125,9 +126,12 @@ export function parsePostmarkInbound(
   const subject = (inner?.subject ?? payload.Subject ?? "").replace(/^(\s*(fw|fwd|pd|doorst|wg)\s*:\s*)+/i, "");
   const messageId = header("message-id") ?? null;
   const references = header("references")?.trim().split(/\s+/)[0];
+  // Without message references, a conversation is "same subject, same other party". For a company
+  // domain the party is the company; for a mailbox provider (gmail.com) it is the one address,
+  // or two strangers writing "Question" would land in one conversation.
+  const party = FREE_MAIL.has(domainOf(from.address)) ? from.address : domainOf(from.address);
   const threadKey =
-    (!inner && (references ?? header("in-reply-to")?.trim())) ||
-    `subj:${normalizeSubject(subject)}:${domainOf(from.address)}`;
+    (!inner && (references ?? header("in-reply-to")?.trim())) || `subj:${normalizeSubject(subject)}:${party}`;
 
   return {
     slugs,
@@ -145,6 +149,24 @@ export function parsePostmarkInbound(
       attachmentNames: (payload.Attachments ?? []).map((a) => a.Name ?? "").filter(Boolean),
     },
   };
+}
+
+/**
+ * Did this mail really come from the address in its From line? Anyone can write any From line,
+ * so "the customer forwarded this themselves" is only believed when the receiving mail server's
+ * sender check (SPF, which Postmark reports in a header) passed for that same domain.
+ * When the check is not reported at all we cannot tell, and say yes as before.
+ */
+export function senderVerified(payload: PostmarkInboundPayload): boolean {
+  const spf = (payload.Headers ?? []).find((h) => h.Name.toLowerCase() === "received-spf")?.Value;
+  if (!spf) return true;
+  if (!/^\s*pass\b/i.test(spf)) return false;
+  const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
+  const envelope = /envelope-from=<?([^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
+  if (!envelope) return true;
+  const a = domainOf(from);
+  const b = envelope.includes("@") ? domainOf(envelope) : envelope;
+  return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
 }
 
 /** Sends our own transactional mail through Postmark. */

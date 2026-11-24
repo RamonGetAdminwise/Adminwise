@@ -31,8 +31,8 @@ export async function endInvoiceChain(
   at: Date,
 ): Promise<boolean> {
   const ended = await scope.endInvoice(invoice.id, status, by, at);
-  if (!ended || !invoice.messageId) return ended;
-  const waiting = await scope.getOpenReminder(invoice.messageId);
+  if (!ended) return ended;
+  const waiting = await scope.getOpenReminder(invoice.id);
   if (waiting) {
     await scope.closeDraft(waiting.id);
     if (waiting.providerDraftId && invoice.connectionId) {
@@ -120,7 +120,7 @@ async function remindOne(
   const toOutlook = invoice.source === "sent" && connection?.provider === "microsoft" && connection.status === "active";
 
   // An earlier reminder that is still sitting unsent: never put a second one next to it.
-  const waiting = await scope.getOpenReminder(message.id);
+  const waiting = await scope.getOpenReminder(invoice.id);
   if (waiting) {
     try {
       if (toOutlook && waiting.providerDraftId && (await deps.outlook.isDraftWaiting(scope, connection!.id, waiting.providerDraftId))) {
@@ -158,6 +158,7 @@ async function remindOne(
     languageListed: true,
     kind: "reminder",
     seq: level,
+    invoiceId: invoice.id,
   });
   if (!draftId) return null;
 

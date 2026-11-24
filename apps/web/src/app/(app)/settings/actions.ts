@@ -171,6 +171,20 @@ export async function manageSubscription() {
  * Closes the account: deletes the customer and everything stored for them, at once.
  * Files in their own OneDrive and drafts in their own mailbox are theirs and stay.
  */
+/**
+ * Disconnects the Microsoft 365 mailbox: reading stops at once and our keys to it are removed.
+ * Drafts and filed documents already in the customer's own mailbox and OneDrive stay there.
+ */
+export async function disconnectMailbox() {
+  const session = await requireSession();
+  const scope = forCustomer(getDb(), session.customerId);
+  const connection = await scope.getConnectionByProvider("microsoft");
+  if (connection && (await scope.disconnectConnection(connection.id))) {
+    await scope.audit("mailbox.disconnected", { connectionId: connection.id }, session.userId);
+  }
+  redirect("/settings?saved=disconnected#mailbox");
+}
+
 export async function closeAccount(formData: FormData) {
   const session = await requireSession();
   const scope = forCustomer(getDb(), session.customerId);
@@ -178,7 +192,8 @@ export async function closeAccount(formData: FormData) {
   // A typed confirmation, so this cannot happen by a stray click.
   if (text(formData.get("confirm"), 20).toUpperCase() !== "DELETE") redirect("/settings?error=close_confirm#close");
   // A running subscription is ended at Stripe first, so nobody keeps paying for a deleted account.
-  if (customer.stripeSubscriptionId) {
+  // Only a subscription that is still running: one that already ended has nothing to cancel.
+  if (customer.stripeSubscriptionId && customer.billingStatus === "active") {
     const stripe = getStripe();
     let cancelled = false;
     try {

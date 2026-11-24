@@ -72,14 +72,14 @@
    "isQuote": true,
    "items": [
     {
-     "request": "prowadzenie księgowości (KPiR), około 25 dokumentów miesięcznie, jednoosobowa działalność gospodarcza, bez pracowników",
+     "request": "prowadzenie księgi przychodów i rozchodów, około 25 dokumentów miesięcznie, jednoosobowa działalność, bez pracowników",
      "quantity": null,
      "unit": null
     }
    ]
   },
   "matching": [
-   "prowadzenie księgowości (KPiR), około 25 dokumentów miesięcznie, jednoosobowa działalność gospodarcza, bez pracowników: KPIR-30"
+   "prowadzenie księgi przychodów i rozchodów, około 25 dokumentów miesięcznie, jednoosobowa działalność, bez pracowników: KPIR-30"
   ],
   "offerLines": [
    {
@@ -735,7 +735,6 @@
   }
  },
  "L065": {
-  "modelSaidInternal": true,
   "sorting": {
    "category": "business",
    "language": "pl",

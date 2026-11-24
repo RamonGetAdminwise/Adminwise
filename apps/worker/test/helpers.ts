@@ -280,7 +280,10 @@ export class RecordedAi implements AiClient {
     }
     if (request.job === "payment-notice") {
       const match = bySubject(request.user, payments);
-      return { text: JSON.stringify({ paid: match?.expected.paid ? "yes" : "no" }), inputTokens: 100, outputTokens: 6 };
+      // Like the real model: it names the invoices from the list that the sender wrote.
+      const asked = /waiting for payment of: (.*)\.$/m.exec(request.system)?.[1]?.split(", ") ?? [];
+      const invoices = match?.expected.paid ? asked.filter((n) => request.user.includes(n)) : [];
+      return { text: JSON.stringify({ paid: match?.expected.paid ? "yes" : "no", invoices }), inputTokens: 100, outputTokens: 6 };
     }
     if (request.job === "offer-acceptance") {
       const match = bySubject(request.user, quotes);

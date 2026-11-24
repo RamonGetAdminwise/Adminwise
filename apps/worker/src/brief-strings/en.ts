@@ -49,7 +49,7 @@ export const en = {
     askDueDate: (number: string, who: string, amount: string, url: string) =>
       `- Invoice ${number} to ${who} (${amount}): no due date could be read from it, so no reminders are planned. Set the due date here: ${url}`,
     unreadable: (fileName: string) =>
-      `- "${fileName}" looks like an invoice you sent, but it could not be read (a scan or a picture), so it is not tracked.`,
+      `- "${fileName}", a PDF you sent, could not be read (a scan, a picture, or it took too long). If it is an invoice, it is not tracked: no reminders will be prepared for it.`,
     paidBySender: (number: string, who: string, amount: string) =>
       `- Invoice ${number} to ${who} (${amount}): the customer wrote that it has been paid. Reminders have stopped; please check your bank.`,
   },

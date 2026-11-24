@@ -5,7 +5,17 @@ import { describeRun, jobName } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
 import { PLANS } from "@/lib/site";
-import { choosePlan, closeAccount, generateVoiceProfile, manageSubscription, saveBilling, saveSettings, saveVoiceProfile, signOutAction } from "./actions";
+import {
+  choosePlan,
+  closeAccount,
+  disconnectMailbox,
+  generateVoiceProfile,
+  manageSubscription,
+  saveBilling,
+  saveSettings,
+  saveVoiceProfile,
+  signOutAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +40,7 @@ const ERRORS: Record<string, string> = {
 };
 const SAVED: Record<string, string> = {
   settings: "Settings saved.",
+  disconnected: "Your Microsoft 365 mailbox is disconnected. It is no longer read, and our access to it has been removed.",
   voice: "Voice profile saved.",
   subscribed: "Thank you. Your plan is active.",
   billing_none: "Billing details saved.",
@@ -65,7 +76,7 @@ export default async function SettingsPage({
   const [customer, connections, runs, queuedFiling] = await Promise.all([
     scope.getCustomer(),
     scope.listConnections(),
-    scope.listJobRuns(10),
+    scope.listJobRuns(10, false),
     scope.countQueuedFiling(),
   ]);
   const microsoft = connections.find((c) => c.provider === "microsoft");
@@ -243,7 +254,7 @@ export default async function SettingsPage({
         </form>
       </section>
 
-      <section className="card">
+      <section className="card" id="mailbox">
         <h2 className="text-lg font-semibold">Mailbox</h2>
         <div className="mt-4 space-y-5 text-sm">
           <div>
@@ -258,15 +269,29 @@ export default async function SettingsPage({
                 )}
               </p>
             )}
-            {microsoft && microsoft.status !== "active" && (
+            {microsoft && microsoft.status === "disconnected" && (
+              <p className="mt-1 text-stone-600">
+                You disconnected {microsoft.emailAddress}. It is not being read, and our access to it has been removed.
+              </p>
+            )}
+            {microsoft && microsoft.status !== "active" && microsoft.status !== "disconnected" && (
               <p className="mt-1">
                 <span className="mr-2 inline-block h-2 w-2 rounded-full bg-red-600" />
                 Disconnected: {microsoft.emailAddress}. New mail is not being read until you reconnect.
               </p>
             )}
-            <a className="btn mt-3" href="/api/microsoft/connect">
-              {microsoft ? "Reconnect Microsoft 365" : "Connect Microsoft 365"}
-            </a>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <a className="btn" href="/api/microsoft/connect">
+                {!microsoft ? "Connect Microsoft 365" : microsoft.status === "disconnected" ? "Connect Microsoft 365 again" : "Reconnect Microsoft 365"}
+              </a>
+              {microsoft?.status === "active" && (
+                <form action={disconnectMailbox}>
+                  <button className="text-sm text-stone-600 underline" type="submit">
+                    Disconnect
+                  </button>
+                </form>
+              )}
+            </div>
             <p className="hint">Drafts appear in your Outlook Drafts folder. Nothing is ever sent for you.</p>
           </div>
           <div className="border-t border-stone-200 pt-5">
@@ -298,7 +323,8 @@ export default async function SettingsPage({
               </p>
             )}
             <p className="hint">
-              Invoices, orders, contracts and offers from incoming mail go to {APP_FOLDER}/&lt;sender&gt;/&lt;year-month&gt;.
+              Documents attached to incoming mail (invoices, orders, contracts, offers and anything else that is not a
+              picture or a tiny file) go to {APP_FOLDER}/&lt;sender&gt;/&lt;year-month&gt;.
               {" "}
               {config.appName} can only see that one folder, nothing else in your OneDrive. The same file is never saved
               twice.
@@ -313,8 +339,8 @@ export default async function SettingsPage({
             </p>
             <p className="hint">
               Forward an email to this address and the draft reply comes back to you by email within a minute or two.
-              With the forwarding address you get reply drafts only: follow-ups and filing need a connected Microsoft
-              365 mailbox.
+              Forward one of your own invoices (as a PDF) and it is tracked for payment reminders. Follow-ups on
+              unanswered mail and filing to OneDrive need a connected Microsoft 365 mailbox.
             </p>
           </div>
         </div>

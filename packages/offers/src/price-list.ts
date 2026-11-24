@@ -19,6 +19,8 @@ export interface SheetTable {
   headers: string[];
   /** Data rows below the header, each with its 1-based sheet row number. */
   rows: { row: number; cells: Cell[] }[];
+  /** True when the sheet had more rows than we take in: the rest was left out. */
+  truncated?: boolean;
 }
 
 export interface ColumnMapping {
@@ -49,6 +51,25 @@ export interface SkippedRow {
 
 export const MAX_PRICE_LIST_ROWS = 5000;
 export const MAX_PRICE_LIST_BYTES = 5 * 1024 * 1024;
+/** An .xlsx is a zip file: a small one can unpack to gigabytes. More than this is not a price list. */
+const MAX_UNPACKED_BYTES = 150 * 1024 * 1024;
+
+/**
+ * What the zip file says its contents unpack to, from its table of contents. A first line of
+ * defence only: the table can lie, so the size limit on rows still applies while reading.
+ */
+function unpackedSize(bytes: Uint8Array): number {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let total = 0;
+  for (let i = 0; i + 46 <= bytes.byteLength; i++) {
+    // "PK\x01\x02": one entry of the table of contents; its unpacked size is 24 bytes in.
+    if (view.getUint32(i, true) === 0x02014b50) {
+      total += view.getUint32(i + 24, true);
+      i += 45;
+    }
+  }
+  return total;
+}
 
 /** Header words per column, in the languages our customers keep their lists in (pl, en, de, nl, cs). */
 const HEADER_WORDS: Record<"code" | "name" | "unit" | "price" | "aliases", RegExp> = {
@@ -59,6 +80,19 @@ const HEADER_WORDS: Record<"code" | "name" | "unit" | "price" | "aliases", RegEx
   aliases: /\b(alias\w*|synonim\w*|inne\s*nazwy|other\s*names|also\s*known|keywords?|s[łl]owa\s*kluczowe|trefwoorden|zoekwoorden|ook\s*bekend\w*|stichw[oö]rter)\b/i,
 };
 const GROSS = /\b(brutto|gross|incl|inkl|z\s*vat|with\s*vat)\b/i;
+/** Words that name a price outright; "netto" alone may also be a weight. */
+const PRICE_WORD = /\b(cena|stawka|price|rate|preis|tarif|prijs|tarief)\b/i;
+/** A VAT rate column: "Stawka VAT", "VAT rate", "BTW-tarief", "VAT %", or just "VAT". */
+const VAT_RATE = /\b(stawka\s*vat|vat\s*rate|btw[\s-]*tarief|mwst[\s.-]*satz|sazba\s*dph)\b|^\s*(vat|btw|mwst|dph)\s*$|%/i;
+/** A number that is not money: a weight, a quantity, a stock level. */
+const NOT_MONEY = /\b(waga|masa|weight|gewicht|kg|ilo[śs][ćc]|qty|quantity|menge|aantal|stan|stock|voorraad|lager)\b/i;
+/** True for a title that matches a price word by accident: "Stawka VAT", "Waga netto", "Net weight". */
+const notAPrice = (header: string) => VAT_RATE.test(header) || (NOT_MONEY.test(header) && !PRICE_WORD.test(header));
+
+/** True when a column title says the prices include VAT. Offers are calculated from net prices. */
+export function looksGross(header: string): boolean {
+  return GROSS.test(header);
+}
 
 function cellValue(value: ExcelJS.CellValue): Cell {
   if (value === null || value === undefined) return null;
@@ -91,7 +125,7 @@ function headerScore(cells: Cell[]): number {
  * the file is not a readable workbook or has no table.
  */
 export async function readPriceListFile(bytes: Uint8Array): Promise<SheetTable> {
-  if (bytes.byteLength > MAX_PRICE_LIST_BYTES) throw new PriceListError("too_large");
+  if (bytes.byteLength > MAX_PRICE_LIST_BYTES || unpackedSize(bytes) > MAX_UNPACKED_BYTES) throw new PriceListError("too_large");
   const workbook = new ExcelJS.Workbook();
   try {
     // exceljs wants a Node Buffer; the cast only bridges its older type declarations.
@@ -101,6 +135,8 @@ export async function readPriceListFile(bytes: Uint8Array): Promise<SheetTable> 
   }
 
   for (const sheet of workbook.worksheets) {
+    // A hidden sheet is one the customer does not see or keep up to date (old prices, working copies).
+    if (sheet.state && sheet.state !== "visible") continue;
     const all: { row: number; cells: Cell[] }[] = [];
     sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (all.length > MAX_PRICE_LIST_ROWS + 50) return;
@@ -120,7 +156,8 @@ export async function readPriceListFile(bytes: Uint8Array): Promise<SheetTable> 
     if (headerScore(header.cells) === 0) {
       header = top.find((r) => r.cells.filter((c) => typeof c === "string").length >= 2) ?? top[0]!;
     }
-    const rows = all.filter((r) => r.row > header.row).slice(0, MAX_PRICE_LIST_ROWS);
+    const below = all.filter((r) => r.row > header.row);
+    const rows = below.slice(0, MAX_PRICE_LIST_ROWS);
     if (rows.length === 0) continue;
     const width = Math.max(header.cells.length, ...rows.map((r) => r.cells.length));
     const pad = (cells: Cell[]) => Array.from({ length: width }, (_, i) => cells[i] ?? null);
@@ -129,6 +166,7 @@ export async function readPriceListFile(bytes: Uint8Array): Promise<SheetTable> 
       headerRow: header.row,
       headers: pad(header.cells).map((c, i) => text(c) || `Column ${i + 1}`),
       rows: rows.map((r) => ({ row: r.row, cells: pad(r.cells) })),
+      ...(below.length > rows.length ? { truncated: true } : {}),
     };
   }
   throw new PriceListError("no_table");
@@ -173,8 +211,10 @@ export function proposeMapping(table: SheetTable): ColumnMapping | null {
   // Price first: a column titled like a price whose cells are amounts; a net price before a gross one.
   const priceColumns = table.headers
     .map((h, i) => ({ i, h }))
-    .filter(({ i, h }) => HEADER_WORDS.price.test(h) && amountShare(table, i) >= 0.8);
-  const price = (priceColumns.find(({ h }) => !GROSS.test(h)) ?? priceColumns[0])?.i ?? -1;
+    .filter(({ i, h }) => HEADER_WORDS.price.test(h) && !notAPrice(h) && amountShare(table, i) >= 0.8);
+  // A net price named as a price first, then any net column, then (shown with a warning) a gross one.
+  const net = priceColumns.filter(({ h }) => !GROSS.test(h));
+  const price = (net.find(({ h }) => PRICE_WORD.test(h)) ?? net[0] ?? priceColumns[0])?.i ?? -1;
   if (price < 0) return null;
 
   const code = find("code", [price]);

@@ -4,8 +4,9 @@ import type { Provider, SessionInfo } from "./types";
 /**
  * Queries that are not tied to one customer: sign-in, routing an incoming
  * webhook to its customer, and the schedulers that fan out per customer.
- * They return ids and routing data only; all customer data is then read
- * through forCustomer().
+ * Apart from sign-in and the account mails (which need an email address), they
+ * return ids and routing data only; all customer data is then read through
+ * forCustomer().
  */
 export function system(db: Db) {
   return {
@@ -25,6 +26,15 @@ export function system(db: Db) {
         `UPDATE login_tokens SET used_at = now()
          WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
          RETURNING email`,
+        [tokenHash],
+      );
+      return rows[0]?.email ?? null;
+    },
+
+    /** Whose link this is, without using it up (shown on the "sign in as ..." page). Null when it is no longer valid. */
+    async peekLoginToken(tokenHash: string): Promise<string | null> {
+      const { rows } = await db.pool.query<{ email: string }>(
+        "SELECT email FROM login_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()",
         [tokenHash],
       );
       return rows[0]?.email ?? null;
@@ -147,39 +157,68 @@ export function system(db: Db) {
     },
 
     // ---- trial and read-only accounts -----------------------------------------
-    // Each step is one UPDATE that only succeeds once, so two workers never send the same mail twice.
+    // Each step is two calls: list who is due, then mark one account once its mail has gone out.
+    // A mail that could not be sent is therefore tried again next hour, never silently skipped.
 
-    /** Trials ending at or before `before` that have not had their reminder: marks them and returns them. */
-    async claimTrialReminders(before: Date, now: Date): Promise<{ id: string; trialEndsAt: Date }[]> {
+    /**
+     * While billing is switched off no trial runs out: every trial keeps its full length ahead of it.
+     * On the day billing is switched on, each account then still has the whole trial and gets its reminder.
+     */
+    async holdTrialClocks(now: Date, trialDays: number): Promise<number> {
+      const { rowCount } = await db.pool.query(
+        `UPDATE customers SET trial_ends_at = $1::timestamptz + make_interval(days => $2), trial_reminder_sent_at = NULL
+         WHERE billing_status = 'trial' AND trial_ends_at < $1::timestamptz + make_interval(days => $2) - interval '1 hour'`,
+        [now, trialDays],
+      );
+      return rowCount ?? 0;
+    },
+
+    /** Trials ending at or before `before` that have not had their reminder. */
+    async listTrialReminders(before: Date, now: Date): Promise<{ id: string; trialEndsAt: Date }[]> {
       const { rows } = await db.pool.query(
-        `UPDATE customers SET trial_reminder_sent_at = $2
-         WHERE billing_status = 'trial' AND trial_reminder_sent_at IS NULL AND trial_ends_at <= $1 AND trial_ends_at > $2
-         RETURNING id, trial_ends_at`,
+        `SELECT id, trial_ends_at FROM customers
+         WHERE billing_status = 'trial' AND trial_reminder_sent_at IS NULL AND trial_ends_at <= $1 AND trial_ends_at > $2`,
         [before, now],
       );
       return rows.map((r) => camel(r));
     },
 
-    /** Trials that have run out: made read-only from `now`. */
-    async endExpiredTrials(now: Date): Promise<{ id: string }[]> {
-      const { rows } = await db.pool.query(
-        `UPDATE customers SET billing_status = 'read_only', read_only_since = $1
-         WHERE billing_status = 'trial' AND trial_ends_at <= $1
-         RETURNING id`,
-        [now],
-      );
+    async markTrialReminderSent(customerId: string, now: Date) {
+      await db.pool.query("UPDATE customers SET trial_reminder_sent_at = $2 WHERE id = $1 AND billing_status = 'trial'", [customerId, now]);
+    },
+
+    /** Trials that have run out and are not yet marked read-only. (They already count as read-only: see entitlements.) */
+    async listExpiredTrials(now: Date): Promise<{ id: string }[]> {
+      const { rows } = await db.pool.query("SELECT id FROM customers WHERE billing_status = 'trial' AND trial_ends_at <= $1", [now]);
       return rows.map((r) => ({ id: r.id as string }));
     },
 
-    /** Accounts read-only since `since` or longer that have not been warned about deletion: marks and returns them. */
-    async claimDeletionWarnings(since: Date, now: Date): Promise<{ id: string; readOnlySince: Date }[]> {
+    /** Makes one run-out trial read-only from `now`. False when it is no longer a run-out trial (it subscribed meanwhile). */
+    async endTrial(customerId: string, now: Date): Promise<boolean> {
+      const { rowCount } = await db.pool.query(
+        `UPDATE customers SET billing_status = 'read_only', read_only_since = $2
+         WHERE id = $1 AND billing_status = 'trial' AND trial_ends_at <= $2`,
+        [customerId, now],
+      );
+      return (rowCount ?? 0) > 0;
+    },
+
+    /** Accounts read-only since `since` or longer that have not been warned about deletion. */
+    async listDeletionWarnings(since: Date): Promise<{ id: string; readOnlySince: Date }[]> {
       const { rows } = await db.pool.query(
-        `UPDATE customers SET deletion_warning_sent_at = $2
-         WHERE billing_status = 'read_only' AND deletion_warning_sent_at IS NULL AND read_only_since <= $1
-         RETURNING id, read_only_since`,
-        [since, now],
+        `SELECT id, read_only_since FROM customers
+         WHERE billing_status = 'read_only' AND deletion_warning_sent_at IS NULL AND read_only_since <= $1`,
+        [since],
       );
       return rows.map((r) => camel(r));
+    },
+
+    /** The warning mail has gone out: the week until deletion counts from `now`. */
+    async markDeletionWarned(customerId: string, now: Date) {
+      await db.pool.query(
+        "UPDATE customers SET deletion_warning_sent_at = $2 WHERE id = $1 AND billing_status = 'read_only' AND deletion_warning_sent_at IS NULL",
+        [customerId, now],
+      );
     },
 
     /** Read-only accounts due for deletion: read-only since `since` or longer AND warned at `warnedBefore` or earlier. */
@@ -197,6 +236,7 @@ export function system(db: Db) {
      * Safe to call any number of times and in any order of events:
      *   - a running subscription (also while a failed payment is being retried)
      *     makes the account active on that plan and clears the read-only clock;
+     *     a price we do not recognise gives the smaller plan, never silently the larger;
      *   - an ended one makes it read-only, but only if it is the subscription the
      *     account is on, so a late event about an old subscription changes nothing;
      *   - our own ("internal") accounts keep their status.
@@ -217,7 +257,7 @@ export function system(db: Db) {
         const { rows } = await db.pool.query(
           `UPDATE customers SET
              billing_status = CASE WHEN billing_status = 'internal' THEN 'internal' ELSE 'active' END,
-             plan = COALESCE($3, plan), stripe_subscription_id = $2, current_period_end = $4, cancel_at_period_end = $5,
+             plan = COALESCE($3, 'start'), stripe_subscription_id = $2, current_period_end = $4, cancel_at_period_end = $5,
              read_only_since = NULL, deletion_warning_sent_at = NULL
            WHERE stripe_customer_id = $1 RETURNING id`,
           [sub.stripeCustomerId, sub.id, sub.plan, sub.currentPeriodEnd, sub.cancelAtPeriodEnd],
@@ -248,11 +288,91 @@ export function system(db: Db) {
      * the meantime is not touched.
      */
     async deleteCustomer(customerId: string, onlyIfReadOnly = false): Promise<boolean> {
-      const { rowCount } = await db.pool.query(
-        `DELETE FROM customers WHERE id = $1 AND ($2::boolean = false OR billing_status = 'read_only')`,
-        [customerId, onlyIfReadOnly],
+      const client = await db.pool.connect();
+      try {
+        await client.query("BEGIN");
+        // Sign-in links are kept by email address, not by customer: collect the addresses first.
+        const users = await client.query<{ email: string }>("SELECT email FROM users WHERE customer_id = $1", [customerId]);
+        const { rowCount } = await client.query(
+          `DELETE FROM customers WHERE id = $1 AND ($2::boolean = false OR billing_status = 'read_only')`,
+          [customerId, onlyIfReadOnly],
+        );
+        const deleted = (rowCount ?? 0) > 0;
+        if (deleted && users.rows.length > 0) {
+          await client.query("DELETE FROM login_tokens WHERE email = ANY($1::text[])", [users.rows.map((u) => u.email)]);
+        }
+        await client.query("COMMIT");
+        return deleted;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    /**
+     * Housekeeping, hourly: sign-in links and sessions that have expired, and the
+     * record of routine runs older than `keepDays` (failed runs are kept twice as long).
+     */
+    async prune(now: Date, keepDays: number): Promise<void> {
+      await db.pool.query("DELETE FROM login_tokens WHERE expires_at < $1::timestamptz - interval '1 day'", [now]);
+      await db.pool.query("DELETE FROM sessions WHERE expires_at < $1", [now]);
+      await db.pool.query(
+        `DELETE FROM job_runs
+         WHERE started_at < $1::timestamptz - make_interval(days => CASE WHEN status = 'failed' THEN $2 * 2 ELSE $2 END)`,
+        [now, keepDays],
       );
-      return (rowCount ?? 0) > 0;
+    },
+
+    /** How many sign-in links were requested for this address since `since`. */
+    async countLoginTokens(email: string, since: Date): Promise<number> {
+      const { rows } = await db.pool.query<{ n: string }>(
+        "SELECT count(*) AS n FROM login_tokens WHERE email = $1 AND created_at >= $2",
+        [email, since],
+      );
+      return Number(rows[0]!.n);
+    },
+
+    /**
+     * Inbound mail that was stored but never handled: its job was never queued (a crash between
+     * storing and queueing), or every retry failed. Only mail that still has its text, with no run
+     * that finished or that started after `quietSince`, and not tried more than `maxRuns` times.
+     */
+    async listUnhandledMessages(
+      storedBefore: Date,
+      storedAfter: Date,
+      quietSince: Date,
+      maxRuns: number,
+    ): Promise<{ customerId: string; messageId: string }[]> {
+      const { rows } = await db.pool.query(
+        `SELECT m.customer_id, m.id AS message_id FROM messages m
+         WHERE m.direction = 'inbound' AND m.body_text IS NOT NULL AND m.created_at < $1 AND m.created_at > $2
+           AND NOT EXISTS (
+             SELECT 1 FROM job_runs r
+             WHERE r.customer_id = m.customer_id AND r.job = 'reply-draft' AND r.ref = m.id::text
+               AND (r.status IN ('succeeded', 'skipped') OR r.started_at > $3))
+           AND (SELECT count(*) FROM job_runs r
+                WHERE r.customer_id = m.customer_id AND r.job = 'reply-draft' AND r.ref = m.id::text) < $4
+         ORDER BY m.created_at LIMIT 200`,
+        [storedBefore, storedAfter, quietSince, maxRuns],
+      );
+      return rows.map((r) => camel(r));
+    },
+
+    /**
+     * Failed runs of the once-a-day jobs since `since`, per customer, job and day:
+     * how often, and when last. The schedulers use it to wait longer after each failure.
+     */
+    async dailyFailures(since: Date): Promise<Map<string, { count: number; last: Date }>> {
+      const { rows } = await db.pool.query<{ customer_id: string; job: string; ref: string; n: string; last: Date }>(
+        `SELECT customer_id, job, ref, count(*) AS n, max(finished_at) AS last FROM job_runs
+         WHERE status = 'failed' AND started_at >= $1 AND job IN ('chaser', 'payment-reminders', 'daily-brief')
+           AND customer_id IS NOT NULL AND ref IS NOT NULL
+         GROUP BY 1, 2, 3`,
+        [since],
+      );
+      return new Map(rows.map((r) => [`${r.customer_id}|${r.job}|${r.ref}`, { count: Number(r.n), last: r.last }]));
     },
 
     // ---- operator alerts -------------------------------------------------------

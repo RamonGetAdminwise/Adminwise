@@ -1,3 +1,4 @@
+import { FREE_MAIL } from "@adminwise/mail";
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { localClock } from "@adminwise/core";
@@ -19,8 +20,18 @@ export function normalizeEmail(value: unknown): string | null {
 /** Emails a single-use sign-in link. Only the hash of the token is stored. */
 export async function sendSignInLink(email: string): Promise<void> {
   const config = getConfig();
+  const sys = system(getDb());
+  // At most three links per address in a quarter of an hour and ten in a day. More is not a person
+  // signing in; it is someone using this form to flood a mailbox. The page answers the same either way.
+  const now = Date.now();
+  if (
+    (await sys.countLoginTokens(email, new Date(now - 15 * 60_000))) >= 3 ||
+    (await sys.countLoginTokens(email, new Date(now - 24 * 3_600_000))) >= 10
+  ) {
+    return;
+  }
   const token = randomBytes(32).toString("base64url");
-  await system(getDb()).createLoginToken(email, sha256(token), new Date(Date.now() + LINK_MINUTES * 60_000));
+  await sys.createLoginToken(email, sha256(token), new Date(Date.now() + LINK_MINUTES * 60_000));
   const link = `${config.appBaseUrl}/auth/verify?token=${token}`;
   await getMailer().send({
     to: [email],
@@ -54,7 +65,8 @@ export async function completeSignIn(token: string): Promise<boolean> {
   let user = await sys.findUserByEmail(email);
   if (!user) {
     const [local = "", domain = ""] = email.split("@");
-    const base = slugify(domain.split(".")[0] && !/^(gmail|outlook|hotmail|yahoo|wp|o2|onet|interia)$/.test(domain.split(".")[0]!) ? domain.split(".")[0]! : local);
+    // A company domain names the company; with a mailbox provider (gmail.com) the name before the @ does.
+    const base = slugify(domain.split(".")[0] && !FREE_MAIL.has(domain) ? domain.split(".")[0]! : local);
     let slug = base;
     while (await sys.slugExists(slug)) slug = `${base}-${randomBytes(2).toString("hex")}`;
     const timeZone = "Europe/Warsaw";
@@ -79,6 +91,11 @@ export async function completeSignIn(token: string): Promise<boolean> {
     expires,
   });
   return true;
+}
+
+/** The address a sign-in link belongs to, for the confirmation page. Does not use the link up. */
+export function signInLinkOwner(token: string): Promise<string | null> {
+  return system(getDb()).peekLoginToken(sha256(token));
 }
 
 export async function getSession(): Promise<SessionInfo | null> {

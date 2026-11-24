@@ -3,8 +3,9 @@ import { emailData, SHARED_RULES } from "./shared-rules";
 /**
  * Job: decide whether a reply says that an invoice has been paid.
  * Used by: the reply-draft job, only when the conversation has an invoice that
- * is being chased. A "yes" stops the reminders for it; the owner sees in the
- * next brief that the sender said so and can check their bank.
+ * is being chased. A "yes" stops the reminders for the invoices the sender
+ * names (or for the only one being chased); the owner sees in the next brief
+ * that the sender said so and can check their bank.
  */
 export interface PaymentNoticeInput {
   companyName: string;
@@ -29,8 +30,12 @@ Task: decide whether the message below says that the payment has been made.
 
 If you are unsure, answer "no".
 
+"invoices": the invoice numbers from the list above that the sender says are paid,
+written exactly as in the list. Leave it empty when the sender names no invoice
+number ("we paid", "payment sent"). Never add a number the sender did not write.
+
 Answer with one line of JSON and nothing else:
-{"paid":"yes|no"}
+{"paid":"yes|no","invoices":["..."]}
 `.trim();
 
   const user = [emailData("subject", input.subject), emailData("message", input.body)].join("\n\n");

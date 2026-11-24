@@ -282,7 +282,7 @@ describe("What is tracked and what is not", () => {
     // The brief mentions the unreadable file once, and lists the open invoice while it is due soon.
     await sendBrief({ ...world.deps, now: at("2026-11-12T06:30:00Z") }, { customerId: nordpart.customerId, localDate: "2026-11-12" });
     const brief = world.mailer.sent.at(-1)!.textBody;
-    expect(brief).toContain('- "skan_faktury.pdf" looks like an invoice you sent, but it could not be read');
+    expect(brief).toContain('- "skan_faktury.pdf", a PDF you sent, could not be read');
     expect(brief).toContain("- Invoice FV/2026/11/0457 to Rolmet sp. z o.o.: 26 372,43 PLN, due 2026-11-17.");
     expect(brief).not.toContain("T/7781/2026");
     expect(brief).not.toContain("overdue");

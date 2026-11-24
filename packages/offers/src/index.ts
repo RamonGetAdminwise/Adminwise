@@ -20,6 +20,7 @@ export type { OfferStrings } from "./strings/en";
 export { formatMoney, parseAmount, percentOf } from "./money";
 export {
   applyMapping,
+  looksGross,
   MAX_PRICE_LIST_BYTES,
   MAX_PRICE_LIST_ROWS,
   PriceListError,

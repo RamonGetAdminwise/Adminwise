@@ -182,7 +182,8 @@ describe("Scenarios 30 and 31: mailbox access expires or is revoked", () => {
     expect(after).toMatchObject({ id: nordpart.microsoftId, status: "active", lastError: null });
 
     expect(await syncMailbox(world.deps, job)).toBe(1);
-    const [filing] = world.queue.of(QUEUES.fileAttachments);
+    // Filing is queued by the reply-draft job for the same message.
+    const [filing] = world.queue.of(QUEUES.processMessage).filter((j) => j.customerId === nordpart.customerId).slice(-1);
     expect(await fileAttachments({ ...world.deps, now: at("2026-11-18T10:00:00Z") }, filing!)).toMatchObject({ filed: 1 });
     expect([...world.outlook.drive.keys()]).toEqual(["rolmet.example/2026-11/2026-11-17_invoice_FV_2026_11_0457.pdf"]);
   });

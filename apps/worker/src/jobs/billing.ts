@@ -2,6 +2,7 @@ import {
   daysAfter,
   DELETE_AFTER_DAYS,
   DELETE_WARNING_DAYS_BEFORE,
+  TRIAL_DAYS,
   TRIAL_REMINDER_DAYS_BEFORE,
   trialDaysLeft,
 } from "@adminwise/core";
@@ -25,13 +26,21 @@ const day = (date: Date) => date.toISOString().slice(0, 10);
  *   3. a week before a read-only account is deleted: one warning mail,
  *   4. 60 days read-only, and warned at least a week ago: the account and
  *      everything stored for it is deleted.
- * Each step marks the account in the same statement that selects it, so a mail
- * is never sent twice. Our own ("internal") and paying accounts are never touched.
+ * Each account is marked only after its mail has gone out: a mail that fails is
+ * tried again next hour, and one account's failure does not hold up the others.
+ * Nobody is deleted who was not warned. Our own ("internal") and paying
+ * accounts are never touched.
+ *
+ * While billing is off, the only thing done is to keep every trial's full
+ * length ahead of it, so that switching billing on cuts nobody off.
  */
 export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
-  if (!deps.billingEnabled) return "off";
   const sys = system(deps.db);
   const now = deps.now?.() ?? new Date();
+  if (!deps.billingEnabled) {
+    await sys.holdTrialClocks(now, TRIAL_DAYS);
+    return "off";
+  }
   const runId = await sys.startJobRun("billing-sweep");
   const result: BillingSweep = { reminders: 0, ended: 0, warnings: 0, deleted: 0 };
   const plans = `${deps.appBaseUrl}/settings#plan`;
@@ -40,8 +49,20 @@ export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
     if (to.length > 0) await deps.mailer.send({ to, subject, textBody: `${lines.join("\n")}\n` });
   };
 
+  let firstFailure: unknown = null;
+  /** One account's step; a failure is remembered and the next account still gets its turn. */
+  const each = async <T>(accounts: T[], step: (account: T) => Promise<void>) => {
+    for (const account of accounts) {
+      try {
+        await step(account);
+      } catch (error) {
+        firstFailure ??= error;
+      }
+    }
+  };
+
   try {
-    for (const c of await sys.claimTrialReminders(daysAfter(now, TRIAL_REMINDER_DAYS_BEFORE), now)) {
+    await each(await sys.listTrialReminders(daysAfter(now, TRIAL_REMINDER_DAYS_BEFORE), now), async (c) => {
       const left = trialDaysLeft(c.trialEndsAt, now);
       await mail(c.id, `Your ${deps.appName} trial ends in ${left} ${left === 1 ? "day" : "days"}`, [
         `Your free trial of ${deps.appName} ends on ${day(c.trialEndsAt)}.`,
@@ -52,10 +73,11 @@ export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
         "If you do nothing, your account becomes read-only on that day: nothing new is prepared and your mailbox is no",
         "longer read. Your settings are kept, and choosing a plan later switches everything back on.",
       ]);
+      await sys.markTrialReminderSent(c.id, now);
       result.reminders++;
-    }
+    });
 
-    for (const c of await sys.endExpiredTrials(now)) {
+    await each(await sys.listExpiredTrials(now), async (c) => {
       await mail(c.id, `Your ${deps.appName} trial has ended`, [
         `Your free trial of ${deps.appName} has ended, so your account is now read-only.`,
         "",
@@ -66,11 +88,11 @@ export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
         "",
         `An account that stays read-only is deleted after ${DELETE_AFTER_DAYS} days. We will warn you a week before.`,
       ]);
-      result.ended++;
-    }
+      if (await sys.endTrial(c.id, now)) result.ended++;
+    });
 
     const warnFrom = daysAfter(now, -(DELETE_AFTER_DAYS - DELETE_WARNING_DAYS_BEFORE));
-    for (const c of await sys.claimDeletionWarnings(warnFrom, now)) {
+    await each(await sys.listDeletionWarnings(warnFrom), async (c) => {
       // Never earlier than a full week from this warning, also when the warning itself went out late.
       const deleteOn = new Date(
         Math.max(daysAfter(c.readOnlySince, DELETE_AFTER_DAYS).getTime(), daysAfter(now, DELETE_WARNING_DAYS_BEFORE).getTime()),
@@ -84,8 +106,9 @@ export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
         "To keep the account, choose a plan before that date:",
         plans,
       ]);
+      await sys.markDeletionWarned(c.id, now);
       result.warnings++;
-    }
+    });
 
     const readOnlyBefore = daysAfter(now, -DELETE_AFTER_DAYS);
     const warnedBefore = daysAfter(now, -DELETE_WARNING_DAYS_BEFORE);
@@ -106,6 +129,7 @@ export async function billingTick(deps: Deps): Promise<BillingSweep | "off"> {
       }
     }
 
+    if (firstFailure) throw firstFailure;
     await sys.finishJobRun(runId, "succeeded");
     return result;
   } catch (error) {

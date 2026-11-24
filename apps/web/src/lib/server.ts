@@ -45,7 +45,15 @@ export function getDb(): Db {
 
 /** The web app only hands jobs to the worker; it never runs them. */
 export function getQueue(): Promise<StartedQueue> {
-  return (store.queue ??= startQueue(getConfig().databaseUrl, "web"));
+  if (!store.queue) {
+    const starting = startQueue(getConfig().databaseUrl, "web");
+    store.queue = starting;
+    // A start that failed (database briefly unreachable) must not be remembered: the next request tries again.
+    starting.catch(() => {
+      if (store.queue === starting) store.queue = undefined;
+    });
+  }
+  return store.queue;
 }
 
 export function getAi(): AiClient {

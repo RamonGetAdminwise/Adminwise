@@ -135,3 +135,12 @@ One-time, per Stripe account (sandbox and live each):
 3. In Stripe, Settings, Payment methods: leave only cards switched on (decision of 2026-11-23; the app cannot restrict this itself).
 
 Test in the sandbox: sign in with an address that has no account yet, open Settings, choose a plan, pay with Stripe's test card 4242 4242 4242 4242 (any future date, any CVC). You should come back to Settings with "Your plan is active". Then open "Manage subscription", switch plan and cancel, and check Settings follows.
+
+## Deploying the review fixes (24 Nov 2026)
+
+1. Before deploying, look once at who is in the production `customers` table: every account that exists at that moment becomes "internal" (free, everything on) by migration 009.
+2. Both services must have `APP_BASE_URL` and `POSTMARK_SERVER_TOKEN` set: in production the app now refuses to start without them. (`ALLOW_INCOMPLETE_CONFIG=true` switches this check off; do not use it in production.)
+3. `BEDROCK_MODEL_DRAFT` and `BEDROCK_MODEL_CLASSIFY`, if set, must start with `eu.`, and `AWS_REGION` with `eu-`. Anything else stops the start.
+4. Migration 011 runs by itself at start. It is small and safe while the old version still serves.
+5. After the deploy: forward one mail with an invoice PDF to the forwarding address and check that the invoice is tracked (the new sender check).
+6. Replacing the Microsoft client secret, now safe to do: create the new secret in Entra, set `MS_CLIENT_SECRET` on both services, wait for the redeploy, then delete the old secret. Never delete first. Note the new secret's expiry date in the calendar.

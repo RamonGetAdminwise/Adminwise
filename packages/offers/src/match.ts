@@ -68,8 +68,9 @@ export function matchByCode<T extends MatchableItem>(request: string, items: T[]
   });
   const found = items.filter((item) => {
     const code = compact(item.code);
-    // Very short codes ("A1") would match by accident; those go to the model with the item names.
-    return code.length >= 3 && /\d/.test(code) && spoken.has(code);
+    // Very short codes ("A1") would match by accident, and so would codes of digits only
+    // ("100" in "hose 100 mm", "2026" in a date): those go to the model with the item names.
+    return code.length >= 3 && /\d/.test(code) && /[A-Z]/.test(code) && spoken.has(code);
   });
   if (found.length === 0) return null;
   return found.length === 1 ? found[0]! : "ambiguous";

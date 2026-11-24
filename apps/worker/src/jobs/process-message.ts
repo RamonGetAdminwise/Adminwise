@@ -1,4 +1,5 @@
 import { checkPaymentNotice, classifyMessage, draftReply } from "@adminwise/ai";
+import { QUEUES } from "@adminwise/core";
 import { forCustomer } from "@adminwise/db";
 import { allowed, describeError, type Deps } from "../deps";
 import { ownDomains, prefilter } from "./prefilter";
@@ -75,6 +76,11 @@ export async function processMessage(
       }
       await scope.setClassification(message.id, classification, language, suspicious);
     }
+    // Filing waits for the sorting above: newsletters, automatic replies and mail from colleagues
+    // are not filed. Queued on every run; the filing job skips what it already filed.
+    if (message.connectionId && message.attachmentNames.length > 0) {
+      await deps.queue.send(QUEUES.fileAttachments, { customerId: job.customerId, messageId: message.id });
+    }
     if (classification !== "business") {
       await finish("succeeded", null, `no_draft:${classification}`);
       return "no_draft";
@@ -100,8 +106,14 @@ export async function processMessage(
       inputTokens += notice.usage.inputTokens;
       outputTokens += notice.usage.outputTokens;
       if (notice.paid) {
+        // Only the invoices the sender names end. "We paid" without a number is clear when one
+        // invoice is being chased; with several it is not, and then none ends: the owner reads
+        // the mail (it still gets its draft) and marks the right one from the brief.
+        const named = chased.filter((i) => i.number && notice.numbers.includes(i.number));
+        const paidOnes = named.length > 0 ? named : chased.length === 1 ? chased : [];
         const at = deps.now?.() ?? new Date();
-        for (const invoice of chased) await endInvoiceChain(deps, scope, invoice, "paid", "sender", at);
+        for (const invoice of paidOnes) await endInvoiceChain(deps, scope, invoice, "paid", "sender", at);
+        if (paidOnes.length === 0) await scope.audit("invoice.paid_unclear", { messageId: message.id, open: chased.length });
       }
     }
 
@@ -157,8 +169,9 @@ export async function processMessage(
           voiceProfile: customer.voiceProfile,
           language: draftLanguage,
           latest: { senderDomain: message.senderDomain, subject: message.subject, body: message.bodyText },
+          // A mail that was flagged as trying to instruct an assistant is not background either.
           history: earlier
-            .filter((m) => m.bodyText)
+            .filter((m) => m.bodyText && !m.suspicious)
             .map((m) => ({
               direction: m.direction,
               date: m.receivedAt.toISOString().slice(0, 10),

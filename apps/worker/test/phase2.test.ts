@@ -330,8 +330,9 @@ describe("Scenario 21: an invoice PDF is attached", () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db, { briefStartDate: "2026-11-01" });
     const messageId = await receive(world, nordpart, "f01");
-    // Taking in the mail queued the filing job.
-    expect(world.queue.of(QUEUES.fileAttachments)).toEqual([{ customerId: nordpart.customerId, messageId }]);
+    // Filing is queued once the mail has been sorted (a newsletter is not filed), not when it is taken in.
+    // (review.test.ts shows the reply-draft job queueing it.)
+    expect(world.queue.of(QUEUES.fileAttachments)).toEqual([]);
 
     const result = await file(world, nordpart, messageId);
     expect(result).toMatchObject({ filed: 1, duplicates: 0, queued: 0 });
@@ -462,9 +463,9 @@ describe("Scenario 24: the drive is disconnected", () => {
     // Not retried within half an hour, then retried by the mailbox sync.
     const filingJobs = () => world.queue.of(QUEUES.fileAttachments).filter((j) => j.messageId === messageId);
     await syncMailbox({ ...world.deps, now: at("2026-11-17T16:10:00Z") }, { customerId: nordpart.customerId, connectionId: nordpart.microsoftId });
-    expect(filingJobs()).toHaveLength(1);
+    expect(filingJobs()).toHaveLength(0);
     await syncMailbox({ ...world.deps, now: at("2026-11-17T16:31:00Z") }, { customerId: nordpart.customerId, connectionId: nordpart.microsoftId });
-    expect(filingJobs()).toHaveLength(2);
+    expect(filingJobs()).toHaveLength(1);
 
     // The drive is back: nothing was lost.
     world.outlook.driveDown = false;
