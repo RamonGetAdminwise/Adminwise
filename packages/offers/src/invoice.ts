@@ -54,7 +54,30 @@ const isIsoDate = (value: string | null): value is string => {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 
-/** Is this date printed in the text in a numeric form? 2026-11-30, 30.11.2026, 30-11-2026, 30/11/2026, 30.11.26. */
+/**
+ * The months as words, January first: English, Dutch, German, Polish (also "8 grudnia") and Czech.
+ * Each entry matches the full word and its usual short form ("Dec", "Dec.", "gru").
+ */
+const MONTH_WORDS = [
+  "jan(?:uary|uari|uar)?|stycz(?:eń|nia)|sty|led(?:en|na)",
+  "feb(?:ruary|ruari|ruar)?|lut(?:y|ego)?|únor(?:a)?",
+  "mar(?:ch)?|maart|mrt|märz|mär|mar(?:zec|ca)|břez(?:en|na)",
+  "apr(?:il)?|kwi(?:ecień|etnia)?|dub(?:en|na)",
+  "may|mei|mai|maj(?:a)?|květ(?:en|na)",
+  "june?|juni|cze(?:rwiec|rwca)?|červ(?:en|na)",
+  "july?|juli|lip(?:iec|ca)?|červen(?:ec|ce)",
+  "aug(?:ust|ustus)?|sie(?:rpień|rpnia)?|srp(?:en|na)",
+  "sep(?:t|tember)?|wrz(?:esień|eśnia)?|září",
+  "o[ck]t(?:ober)?|paź(?:dziernik|dziernika)?|říj(?:en|na)",
+  "nov(?:ember)?|lis(?:topad|topada)?",
+  "de[cz](?:ember)?|gru(?:dzień|dnia)?|prosin(?:ec|ce)",
+];
+
+/**
+ * Is this date printed in the text? In numbers (2026-11-30, 30.11.2026, 30-11-2026, 30/11/2026,
+ * 30.11.26) or with the month as a word ("30 November 2026", "30. November 2026",
+ * "November 30, 2026", "30 listopada 2026", "30 Nov 2026").
+ */
 export function dateAppears(text: string, iso: string): boolean {
   const [year, month, day] = iso.split("-") as [string, string, string];
   const d = `0?${Number(day)}`;
@@ -65,7 +88,14 @@ export function dateAppears(text: string, iso: string): boolean {
     `${d}${sep}${m}${sep}${year}`,
     `${d}${sep}${m}${sep}${year.slice(2)}`,
   ];
-  return forms.some((form) => new RegExp(`(?<!\\d)${form}(?!\\d)`).test(text));
+  if (forms.some((form) => new RegExp(`(?<!\\d)${form}(?!\\d)`).test(text))) return true;
+  const word = `(?:${MONTH_WORDS[Number(month) - 1]})\\.?`;
+  const edge = "(?![\\p{L}\\d])";
+  const worded = [
+    `(?<!\\d)${d}(?:st|nd|rd|th|\\.)?[ \\-]+${word}${edge}[ ,\\-]*${year}(?!\\d)`,
+    `(?<![\\p{L}])${word}${edge} +${d}(?:st|nd|rd|th)?,? +${year}(?!\\d)`,
+  ];
+  return worded.some((form) => new RegExp(form, "iu").test(text));
 }
 
 export function addDaysIso(iso: string, days: number): string {

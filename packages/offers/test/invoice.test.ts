@@ -52,6 +52,19 @@ describe("checking what was read against the invoice itself", () => {
     expect(dateAppears("Termin: 3.11.2026", "2026-11-03")).toBe(true);
     expect(dateAppears("Termin: 2026-11-18", "2026-11-17")).toBe(false);
     expect(dateAppears("nr 1117112026", "2026-11-17")).toBe(false);
+    // The month as a word, in the languages invoices arrive in.
+    for (const printed of [
+      "Due date: 8 December 2026", "due 8th December 2026", "December 8, 2026", "Dec 8 2026", "8 Dec. 2026", "08-Dec-2026",
+      "Fällig am 8. Dezember 2026", "Vervaldatum: 8 december 2026", "Termin płatności: 8 grudnia 2026", "8 prosince 2026",
+    ]) {
+      expect(dateAppears(printed, "2026-12-08"), printed).toBe(true);
+    }
+    expect(dateAppears("18 December 2026", "2026-12-08")).toBe(false);
+    expect(dateAppears("8 December 2027", "2026-12-08")).toBe(false);
+    expect(dateAppears("8 November 2026", "2026-12-08")).toBe(false);
+    expect(dateAppears("8 marca 2026", "2026-03-08")).toBe(true);
+    expect(dateAppears("8 czerwca 2026", "2026-07-08")).toBe(false);
+    expect(dateAppears("8. července 2026", "2026-06-08")).toBe(false);
   });
 
   it("reads each Nordpart invoice as expected", async () => {
