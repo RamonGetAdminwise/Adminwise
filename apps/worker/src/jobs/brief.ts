@@ -224,9 +224,9 @@ export async function sendBrief(
       scope.listUsers(),
       scope.countJobOutcomes("filing", "filing_off", yesterday, today),
       scope.countQueuedFiling(),
-      // Every refusal, whatever its reason ("refused_sender:not_listed", "refused_sender:check_failed").
+      // Every refusal, whatever its reason ("refused_sender:not_listed", "refused_sender:check_not_passed", ...).
       Promise.all(
-        ["refused_sender", "refused_sender:not_listed", "refused_sender:check_failed"].map((outcome) =>
+        ["refused_sender", "refused_sender:not_listed", "refused_sender:check_not_passed", "refused_sender:check_other_domain"].map((outcome) =>
           scope.countJobOutcomes("forwarding-intake", outcome, yesterday, today),
         ),
       ).then((counts) => counts.reduce((sum, n) => sum + n, 0)),

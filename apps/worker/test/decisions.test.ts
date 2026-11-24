@@ -47,9 +47,22 @@ describe("who may send to the forwarding address", () => {
   it("refuses a stranger who writes the owner's address in the From line", () => {
     const forged = { FromFull: { Email: "owner@nordpart.example" }, Headers: pass("evil@attacker.example") };
     // The refusal says why, so the owner is not left guessing.
-    expect(acceptedForward(forged, own)).toEqual({ accepted: false, byHand: false, why: "check_failed" });
+    expect(acceptedForward(forged, own)).toEqual({ accepted: false, byHand: false, why: "check_other_domain" });
     const failed = { FromFull: { Email: "owner@nordpart.example" }, Headers: spf("Fail (not authorized) identity=mailfrom; envelope-from=owner@nordpart.example") };
-    expect(acceptedForward(failed, own).accepted).toBe(false);
+    expect(acceptedForward(failed, own)).toMatchObject({ accepted: false, why: "check_not_passed" });
+  });
+
+  it("judges by the receiving server's own check, not by older ones the mail carries from an earlier journey", () => {
+    // A forwarded mail: the line at the top is from the mail's first journey (to the owner's own
+    // mailbox) and did not pass; the receiving server's own line, for the owner's forward, did.
+    const forwarded = {
+      FromFull: { Email: "owner@nordpart.example" },
+      Headers: [
+        ...spf("None (protection.outlook.com: unknown.example does not designate permitted sender hosts)"),
+        ...pass("owner@nordpart.example"),
+      ],
+    };
+    expect(acceptedForward(forwarded, own)).toEqual({ accepted: true, byHand: true, why: null });
   });
 
   it("takes mail an automatic forwarding rule of a listed mailbox passed on, and knows it was not by hand", () => {
@@ -80,7 +93,7 @@ describe("who may send to the forwarding address", () => {
   it("refused mail is told to the owner in the brief, with where to add an address", async () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db, { briefStartDate: "2026-11-01" });
-    for (const why of ["not_listed", "check_failed"]) {
+    for (const why of ["not_listed", "check_not_passed"]) {
       const runId = await nordpart.scope.startJobRun("forwarding-intake");
       await nordpart.scope.finishJobRun(runId, { status: "skipped", outcome: `refused_sender:${why}` });
     }

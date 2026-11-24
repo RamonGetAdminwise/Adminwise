@@ -152,21 +152,42 @@ export function parsePostmarkInbound(
 }
 
 /**
- * Did this mail really come from the address in its From line? Anyone can write any From line,
- * so "the customer forwarded this themselves" is only believed when the receiving mail server's
- * sender check (SPF, which Postmark reports in a header) passed for that same domain.
- * When the check is not reported at all we cannot tell, and say yes as before.
+ * The sender check (SPF) as the server that received the mail for us reported it. A mail can
+ * carry several such lines: every server it passed through may have added one, and a mail that
+ * was forwarded carries the ones from its first journey. Only the receiving server's own line
+ * says anything about who handed the mail to us; Postmark writes "identity=mailfrom" and names
+ * itself as receiver. Failing that, the topmost line is the most recent one.
  */
-export function senderVerified(payload: PostmarkInboundPayload): boolean {
-  const spf = (payload.Headers ?? []).find((h) => h.Name.toLowerCase() === "received-spf")?.Value;
-  if (!spf) return true;
-  if (!/^\s*pass\b/i.test(spf)) return false;
+function receivedSpf(payload: PostmarkInboundPayload): string | null {
+  const lines = (payload.Headers ?? []).filter((h) => h.Name.toLowerCase() === "received-spf").map((h) => h.Value);
+  return lines.find((v) => /identity=mailfrom|postmarkapp\.com/i.test(v)) ?? lines[0] ?? null;
+}
+
+/**
+ * Did this mail really come from the address in its From line? Anyone can write any From line,
+ * so "the customer sent this themselves" is only believed when the receiving server's sender
+ * check passed for that same domain.
+ *   pass          the check passed, for the domain in the From line
+ *   unknown       no check was reported, or it does not say for whom: we cannot tell, and
+ *                 believe the From line as before
+ *   not_passed    the check failed or gave no result
+ *   other_domain  the check passed, but for another domain than the one in the From line
+ */
+export function senderCheck(payload: PostmarkInboundPayload): "pass" | "unknown" | "not_passed" | "other_domain" {
+  const spf = receivedSpf(payload);
+  if (!spf) return "unknown";
+  if (!/^\s*pass\b/i.test(spf)) return "not_passed";
   const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
   const envelope = /envelope-from=<?([^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
-  if (!envelope) return true;
+  if (!envelope) return "unknown";
   const a = domainOf(from);
   const b = envelope.includes("@") ? domainOf(envelope) : envelope;
-  return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+  return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`) ? "pass" : "other_domain";
+}
+
+export function senderVerified(payload: PostmarkInboundPayload): boolean {
+  const check = senderCheck(payload);
+  return check === "pass" || check === "unknown";
 }
 
 /**
@@ -177,7 +198,7 @@ export function senderVerified(payload: PostmarkInboundPayload): boolean {
  * "name+caf_=target@gmail.com", so a "+tag" is dropped.
  */
 export function envelopeSender(payload: PostmarkInboundPayload): string | null {
-  const spf = (payload.Headers ?? []).find((h) => h.Name.toLowerCase() === "received-spf")?.Value;
+  const spf = receivedSpf(payload);
   if (!spf || !/^\s*pass\b/i.test(spf)) return null;
   const envelope = /envelope-from=<?([^\s;>]+@[^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
   if (!envelope) return null;
@@ -192,21 +213,25 @@ export function envelopeSender(payload: PostmarkInboundPayload): string | null {
  * automatic forwarding rule). `byHand` is true in the first case: the customer forwarded or
  * wrote it themselves.
  *
- * When refused, `why` says which of two things happened, so the owner can be told what to do:
- *   not_listed    the sender is simply not one of their addresses (add it, or it was a stranger);
- *   check_failed  the From line names one of their addresses, but the receiving server could not
- *                 confirm the mail really came from it (a forgery, or their mail set-up).
+ * When refused, `why` says what happened, so the owner (or we) can tell what to do:
+ *   not_listed          the sender is simply not one of their addresses (add it, or a stranger);
+ *   check_not_passed    the From line names one of their addresses, but the sender check failed;
+ *   check_other_domain  ...or the check passed for another domain than the one in the From line.
  */
+export type RefusalReason = "not_listed" | "check_not_passed" | "check_other_domain";
+
 export function acceptedForward(
   payload: PostmarkInboundPayload,
   accepted: Set<string>,
-): { accepted: boolean; byHand: boolean; why: "not_listed" | "check_failed" | null } {
+): { accepted: boolean; byHand: boolean; why: RefusalReason | null } {
   const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
   const listed = accepted.has(from);
-  const byHand = listed && senderVerified(payload);
+  const check = senderCheck(payload);
+  const byHand = listed && (check === "pass" || check === "unknown");
   const via = envelopeSender(payload);
   const ok = byHand || (via !== null && accepted.has(via));
-  return { accepted: ok, byHand, why: ok ? null : listed ? "check_failed" : "not_listed" };
+  const why: RefusalReason | null = ok ? null : !listed ? "not_listed" : check === "other_domain" ? "check_other_domain" : "check_not_passed";
+  return { accepted: ok, byHand, why };
 }
 
 /** Sends our own transactional mail through Postmark. */
