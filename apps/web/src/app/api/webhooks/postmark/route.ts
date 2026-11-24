@@ -61,10 +61,11 @@ export async function POST(request: NextRequest) {
     // customer's own addresses sent or forwarded: their sign-in addresses and the ones they listed.
     // Anything else is refused and counted; the brief tells the owner, in case an address is missing.
     const ownAddresses = new Set([...users.map((u) => u.email), ...extra.map((a) => a.address)]);
-    const { accepted, byHand: byOwner } = acceptedForward(payload, ownAddresses);
+    const { accepted, byHand: byOwner, why } = acceptedForward(payload, ownAddresses);
     if (!accepted) {
+      // The reason is a fixed code; nothing of the mail (not even its sender) is kept.
       const runId = await scope.startJobRun("forwarding-intake");
-      await scope.finishJobRun(runId, { status: "skipped", outcome: "refused_sender" });
+      await scope.finishJobRun(runId, { status: "skipped", outcome: `refused_sender:${why}` });
       continue;
     }
     // Unwrap "Forwarded message" blocks only when the customer forwarded the mail by hand.

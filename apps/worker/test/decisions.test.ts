@@ -34,19 +34,20 @@ describe("who may send to the forwarding address", () => {
 
   it("takes mail one of the customer's own addresses wrote or forwarded by hand", () => {
     const mail = { FromFull: { Email: "Owner@nordpart.example" }, Headers: pass("owner@nordpart.example") };
-    expect(acceptedForward(mail, own)).toEqual({ accepted: true, byHand: true });
+    expect(acceptedForward(mail, own)).toEqual({ accepted: true, byHand: true, why: null });
     // An address the customer added in settings counts the same.
     expect(acceptedForward({ FromFull: { Email: "office@nordpart.example" }, Headers: pass("office@nordpart.example") }, own).accepted).toBe(true);
   });
 
   it("refuses a stranger who guessed the address", () => {
     const mail = { FromFull: { Email: "someone@elsewhere.example" }, Headers: pass("someone@elsewhere.example") };
-    expect(acceptedForward(mail, own)).toEqual({ accepted: false, byHand: false });
+    expect(acceptedForward(mail, own)).toEqual({ accepted: false, byHand: false, why: "not_listed" });
   });
 
   it("refuses a stranger who writes the owner's address in the From line", () => {
     const forged = { FromFull: { Email: "owner@nordpart.example" }, Headers: pass("evil@attacker.example") };
-    expect(acceptedForward(forged, own)).toEqual({ accepted: false, byHand: false });
+    // The refusal says why, so the owner is not left guessing.
+    expect(acceptedForward(forged, own)).toEqual({ accepted: false, byHand: false, why: "check_failed" });
     const failed = { FromFull: { Email: "owner@nordpart.example" }, Headers: spf("Fail (not authorized) identity=mailfrom; envelope-from=owner@nordpart.example") };
     expect(acceptedForward(failed, own).accepted).toBe(false);
   });
@@ -55,7 +56,7 @@ describe("who may send to the forwarding address", () => {
     // Gmail forwards with the original writer in the From line and itself as the envelope sender.
     const auto = { FromFull: { Email: "buyer@rolmet.example" }, Headers: pass("owner.private+caf_=nordpart=in.getadminwise.com@gmail.com") };
     expect(envelopeSender(auto)).toBe("owner.private@gmail.com");
-    expect(acceptedForward(auto, own)).toEqual({ accepted: true, byHand: false });
+    expect(acceptedForward(auto, own)).toEqual({ accepted: true, byHand: false, why: null });
     // The same rule in a mailbox that is not on the list: refused.
     const other = { FromFull: { Email: "buyer@rolmet.example" }, Headers: pass("stranger+caf_=nordpart=in.getadminwise.com@gmail.com") };
     expect(acceptedForward(other, own).accepted).toBe(false);
@@ -79,9 +80,9 @@ describe("who may send to the forwarding address", () => {
   it("refused mail is told to the owner in the brief, with where to add an address", async () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db, { briefStartDate: "2026-11-01" });
-    for (let i = 0; i < 2; i++) {
+    for (const why of ["not_listed", "check_failed"]) {
       const runId = await nordpart.scope.startJobRun("forwarding-intake");
-      await nordpart.scope.finishJobRun(runId, { status: "skipped", outcome: "refused_sender" });
+      await nordpart.scope.finishJobRun(runId, { status: "skipped", outcome: `refused_sender:${why}` });
     }
     await db.pool.query("UPDATE job_runs SET started_at = '2026-11-17T10:00:00Z' WHERE customer_id = $1 AND job = 'forwarding-intake'", [nordpart.customerId]);
     await sendBrief({ ...world.deps, now: at("2026-11-18T06:30:00Z") }, { customerId: nordpart.customerId, localDate: "2026-11-18" });

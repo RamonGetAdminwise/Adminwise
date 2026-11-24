@@ -75,7 +75,10 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     }
   }
   if (run.job === "forwarding-intake") {
-    return "Refused: an email to your forwarding address did not come from one of your own addresses";
+    if (run.outcome === "refused_sender:check_failed") {
+      return "Refused: the email names one of your addresses as its sender, but the receiving mail server could not confirm it really came from there";
+    }
+    return "Refused: the sender is not on your list. Add the address under Mailbox, \"Who may send to this address\", exactly as it appears as sender";
   }
   if (run.job === "sync-mailbox") {
     if (run.status === "skipped") return "Skipped: the mailbox needs to be reconnected";

@@ -224,7 +224,12 @@ export async function sendBrief(
       scope.listUsers(),
       scope.countJobOutcomes("filing", "filing_off", yesterday, today),
       scope.countQueuedFiling(),
-      scope.countJobOutcomes("forwarding-intake", "refused_sender", yesterday, today),
+      // Every refusal, whatever its reason ("refused_sender:not_listed", "refused_sender:check_failed").
+      Promise.all(
+        ["refused_sender", "refused_sender:not_listed", "refused_sender:check_failed"].map((outcome) =>
+          scope.countJobOutcomes("forwarding-intake", outcome, yesterday, today),
+        ),
+      ).then((counts) => counts.reduce((sum, n) => sum + n, 0)),
     ]);
     const microsoft = connections.find((c) => c.provider === "microsoft");
     const linkExpiry = new Date(now.getTime() + LINK_DAYS * 86_400_000);

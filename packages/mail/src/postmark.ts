@@ -191,12 +191,22 @@ export function envelopeSender(payload: PostmarkInboundPayload): string | null {
  * the sender check does not contradict it), or the mailbox that handed it over is one (an
  * automatic forwarding rule). `byHand` is true in the first case: the customer forwarded or
  * wrote it themselves.
+ *
+ * When refused, `why` says which of two things happened, so the owner can be told what to do:
+ *   not_listed    the sender is simply not one of their addresses (add it, or it was a stranger);
+ *   check_failed  the From line names one of their addresses, but the receiving server could not
+ *                 confirm the mail really came from it (a forgery, or their mail set-up).
  */
-export function acceptedForward(payload: PostmarkInboundPayload, accepted: Set<string>): { accepted: boolean; byHand: boolean } {
+export function acceptedForward(
+  payload: PostmarkInboundPayload,
+  accepted: Set<string>,
+): { accepted: boolean; byHand: boolean; why: "not_listed" | "check_failed" | null } {
   const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
-  const byHand = accepted.has(from) && senderVerified(payload);
+  const listed = accepted.has(from);
+  const byHand = listed && senderVerified(payload);
   const via = envelopeSender(payload);
-  return { accepted: byHand || (via !== null && accepted.has(via)), byHand };
+  const ok = byHand || (via !== null && accepted.has(via));
+  return { accepted: ok, byHand, why: ok ? null : listed ? "check_failed" : "not_listed" };
 }
 
 /** Sends our own transactional mail through Postmark. */
