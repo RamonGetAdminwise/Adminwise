@@ -34,6 +34,8 @@ export const QUEUES = {
   remindCustomer: "remind-customer",
   /** Hourly: trial reminders, trials that ended, and read-only accounts due for deletion. */
   billingTick: "billing-tick",
+  /** Every minute: the worker notes that it is alive (read by the status page). */
+  heartbeat: "worker-heartbeat",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -55,6 +57,7 @@ export interface JobPayloads {
   "read-invoice": { customerId: string; invoiceId: string };
   "remind-customer": { customerId: string; localDate: string };
   "billing-tick": Record<string, never>;
+  "worker-heartbeat": Record<string, never>;
 }
 
 /**

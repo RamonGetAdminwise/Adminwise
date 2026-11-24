@@ -144,3 +144,18 @@ Test in the sandbox: sign in with an address that has no account yet, open Setti
 4. Migration 011 runs by itself at start. It is small and safe while the old version still serves.
 5. After the deploy: forward one mail with an invoice PDF to the forwarding address and check that the invoice is tracked (the new sender check).
 6. Replacing the Microsoft client secret, now safe to do: create the new secret in Entra, set `MS_CLIENT_SECRET` on both services, wait for the redeploy, then delete the old secret. Never delete first. Note the new secret's expiry date in the calendar.
+
+## The alarm from outside
+
+`https://app.getadminwise.com/api/status` answers `200` with `{"ok":true,...}` when everything works, and `503` when the database is down, the worker has not shown a sign of life for 5 minutes, or a job has been waiting more than 20 minutes. Something outside our own systems must call it, or nobody hears the alarm.
+
+1. Open an account at an uptime monitoring service (any that can call a web address every few minutes and warn by email or text; several have a free plan that is enough). Use a private email address for the account and for the warnings, not one that depends on Adminwise.
+2. Add one monitor: type HTTP(S), address `https://app.getadminwise.com/api/status`, every 5 minutes, "up" means status 200. If the service can also look for a text, let it look for `"ok":true`.
+3. Warn after 2 failed checks in a row, not after one: a deployment restarts the worker and may take a minute or two.
+4. Add a second monitor on `https://getadminwise.com` (the public site), same settings.
+5. Test it once: in Railway, stop the `worker` service for ten minutes. The warning must arrive. Start the worker again and the monitor must turn green by itself.
+
+What each answer means when the warning comes:
+- `"worker":"silent"`: the worker has stopped or cannot start. Look at the worker's deploy log in Railway.
+- `"queue":"behind"`: the worker runs but work is waiting too long: a burst of mail, or the AI provider refusing requests. Look at the hourly alert mail and the worker log.
+- `"database":"down"`, or no answer at all: the database or the web app is down. Look at Railway's status.

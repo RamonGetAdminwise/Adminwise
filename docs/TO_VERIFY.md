@@ -128,7 +128,9 @@ To verify live after deploying this version:
 - [ ] Production starts with the stricter configuration check (APP_BASE_URL and POSTMARK_SERVER_TOKEN must be set on BOTH services).
 
 Before the first outside customer (report section C):
-- [ ] Outside uptime check on `/api/health` and a worker heartbeat the health route checks. Today nobody is told when the worker is down.
+- [x] Worker heartbeat and status page `/api/status` (built 24 Nov; seen in a browser in both states with the local database).
+- [ ] After deploying: open `https://app.getadminwise.com/api/status`. It must say `"ok":true`. This is the first time the real worker writes its sign of life through the queue; locally only the job itself was run.
+- [ ] Ramon: create the uptime monitor (steps in `docs/DEPLOY.md`, "The alarm from outside") and test it once: stop the worker in Railway for ten minutes and wait for the warning.
 - [ ] Push `phase-4` to GitHub (it exists only in OneDrive until then).
 - [ ] Replace the five leaked secrets AFTER this version is live. Microsoft: create the new secret, set it in Railway, then delete the old one.
 - [ ] Look at the production `customers` table before deploying: migration 009 makes every existing account "internal" (free, for ever).

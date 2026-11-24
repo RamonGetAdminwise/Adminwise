@@ -223,7 +223,7 @@ The rule: a step that fails once must never lose work, and must never be retried
 - **Mailbox check.** Inbox, Sent Items, waiting attachments and the notification subscription are four independent steps. A message that cannot be read is skipped for now and listed again next time; a bookmark Microsoft rejects is replaced by a restart from three days back.
 - **Whose fault.** `invalid_grant` and its kind: the customer must reconnect, the connection is marked and the brief says so. `invalid_client`: our own app secret is wrong; jobs fail, the operator is alerted, no customer is touched.
 
-Not built yet: an alarm from outside when the worker itself is down (see `docs/TO_VERIFY.md`).
+**When the worker itself stops.** The worker's own alert mail cannot warn about that. So the worker notes every minute that it is alive (a scheduled job, `apps/worker/src/jobs/heartbeat.ts`, one row in `heartbeats`), and `/api/status` answers 503 when that note is older than 5 minutes, when a job has been waiting more than 20 minutes, or when the database cannot be reached. An uptime monitor outside our systems calls that page and warns the operator. The page is public and says one word per part, nothing else. `/api/health` is unchanged: the hosting platform uses it to see that the web app has started, and it must not fail because the worker is down.
 
 ## Reading other people's input (review of 24 Nov 2026)
 

@@ -3,6 +3,7 @@ import { createOutlookGateway, loadConfig, startQueue } from "@adminwise/core";
 import { createDb, migrate } from "@adminwise/db";
 import { ConsoleMailer, PostmarkMailer } from "@adminwise/mail";
 import type { Deps } from "./deps";
+import { heartbeat } from "./jobs/heartbeat";
 import { createPdfRenderer } from "./pdf";
 import { registerSchedules, registerWorkers } from "./register";
 
@@ -44,6 +45,8 @@ const deps: Deps = {
 
 await registerWorkers(queue.boss, deps, config.workerConcurrency);
 await registerSchedules(queue.boss);
+// Alive from the first second; after this the note is renewed every minute through the queue.
+await heartbeat(deps);
 console.log(`[worker] running (drafts: ${config.aws.models.default}, classification: ${config.aws.models.classify}, region ${config.aws.region})`);
 
 async function shutdown(signal: string) {

@@ -6,6 +6,7 @@ import { billingTick } from "./jobs/billing";
 import { briefTick, sendBrief } from "./jobs/brief";
 import { chaseCustomer, chaseTick } from "./jobs/chaser";
 import { fileAttachments } from "./jobs/filing";
+import { heartbeat } from "./jobs/heartbeat";
 import { readForwardedInvoice, trackSentInvoices } from "./jobs/invoices";
 import { remindCustomer } from "./jobs/reminders";
 import { processMessage } from "./jobs/process-message";
@@ -43,6 +44,7 @@ export async function registerWorkers(boss: PgBoss, deps: Deps, concurrency: num
   await on(QUEUES.chaseTick, 1, () => chaseTick(deps));
   await on(QUEUES.alertTick, 1, () => sendOperatorAlert(deps));
   await on(QUEUES.billingTick, 1, () => billingTick(deps));
+  await on(QUEUES.heartbeat, 1, () => heartbeat(deps));
 }
 
 /** The recurring schedules (stored in Postgres by pg-boss; one worker fires each tick). */
@@ -53,4 +55,5 @@ export async function registerSchedules(boss: PgBoss): Promise<void> {
   await boss.schedule(QUEUES.chaseTick, "* * * * *");
   await boss.schedule(QUEUES.alertTick, "3 * * * *");
   await boss.schedule(QUEUES.billingTick, "11 * * * *");
+  await boss.schedule(QUEUES.heartbeat, "* * * * *");
 }

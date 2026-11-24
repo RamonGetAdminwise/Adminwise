@@ -463,6 +463,21 @@ export function system(db: Db) {
       );
     },
 
+    /** A service says "I am alive". One row per service, overwritten each time. */
+    async beat(name: string, at: Date) {
+      await db.pool.query(
+        `INSERT INTO heartbeats (name, beat_at) VALUES ($1, $2)
+         ON CONFLICT (name) DO UPDATE SET beat_at = GREATEST(heartbeats.beat_at, EXCLUDED.beat_at)`,
+        [name, at],
+      );
+    },
+
+    /** When a service last said it was alive; null when it never did. */
+    async lastBeat(name: string): Promise<Date | null> {
+      const { rows } = await db.pool.query<{ beat_at: Date }>("SELECT beat_at FROM heartbeats WHERE name = $1", [name]);
+      return rows[0]?.beat_at ?? null;
+    },
+
     async ping(): Promise<boolean> {
       await db.pool.query("SELECT 1");
       return true;
