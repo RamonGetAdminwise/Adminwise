@@ -52,8 +52,22 @@ describe("who may send to the forwarding address", () => {
     expect(acceptedForward(failed, own)).toMatchObject({ accepted: false, why: "check_not_passed" });
   });
 
-  it("takes genuine mail from a large provider, which hands mail over under another domain but signs it", () => {
-    // Hotmail: the technical return address is Microsoft's, the signature is hotmail.com's own.
+  it("reads the sender check as the receiving server really writes it, with the address in quotes", () => {
+    // A mail with a larger attachment gets no signature report at all, so this line is all there is.
+    const line =
+      "pass (gmail.com: Sender is authorized to use 'owner.private@gmail.com' in 'mfrom' identity (mechanism 'include:x' matched)) " +
+      'receiver=inbound-1; identity=mailfrom; envelope-from="owner.private@gmail.com"; helo=out.provider.example; client-ip=1.2.3.4';
+    const mail = { FromFull: { Email: "owner.private@gmail.com" }, Headers: spf(line) };
+    expect(acceptedForward(mail, own)).toEqual({ accepted: true, byHand: true, why: null });
+    const forged = { FromFull: { Email: "owner.private@gmail.com" }, Headers: spf(line.replace(/owner\.private@gmail\.com"/, 'evil@attacker.example"')) };
+    expect(acceptedForward(forged, own)).toEqual({ accepted: false, byHand: false, why: "check_other_domain" });
+    // An automatic forwarding rule of a listed mailbox, written the same way.
+    const rule = { FromFull: { Email: "buyer@customer.example" }, Headers: spf(line) };
+    expect(acceptedForward(rule, own)).toEqual({ accepted: true, byHand: false, why: null });
+  });
+
+  it("takes genuine mail from a provider that hands mail over under another domain but signs it", () => {
+    // The technical return address is the provider's, the signature is the sender's own domain's.
     const tests = (value: string) => [{ Name: "X-Spam-Tests", Value: value }];
     const hotmail = {
       FromFull: { Email: "owner.private@gmail.com" },

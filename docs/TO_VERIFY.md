@@ -120,7 +120,8 @@ Ramon's decisions on report section B (taken and built 24 Nov; see the decisions
 - [ ] Repeated free trials: accepted for now; look again when billing is switched on.
 
 To verify live after deploying this version:
-- [x] Seen live on 24 Nov: mail from a listed hotmail address is taken in, after the sender check was changed to also accept a valid signature of the sender's domain (hotmail hands mail over under another domain).
+- [x] Seen live on 24 Nov: mail from a listed hotmail address is taken in, after the sender check was changed to also accept a valid signature of the sender's domain.
+- [ ] A mail with a larger attachment (490 kB PDF) from the same address was refused at 17:53 UTC: such mails get no signature report, and the handover check was misread (address in quotes). Fixed; send it again after the next deploy.
 - [ ] Still to try: a mail from an address that is NOT listed (must be refused and mentioned in the next brief); an invoice PDF sent to the forwarding address (must be tracked); if a Gmail or Outlook forwarding RULE is used, add that mailbox in settings and check that rule-forwarded mail comes in. The rule case rests on the envelope sender Postmark reports and was not tried against a real mailbox.
 - [ ] A money link from a real brief while signed out: sign-in is asked, and after signing in the link opens. If the sign-in mail is opened in another browser or on the phone, the way back is lost and the link must be clicked again (accepted).
 - [ ] An invoice mailed to an address that is not the buyer's: the question appears in the next brief, both answers work.

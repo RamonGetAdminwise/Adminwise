@@ -186,16 +186,18 @@ function signedByFromDomain(payload: PostmarkInboundPayload): boolean {
  *                 one in the From line
  */
 export function senderCheck(payload: PostmarkInboundPayload): "pass" | "unknown" | "not_passed" | "other_domain" {
-  // A valid signature of the From line's own domain settles it. Large providers (hotmail.com,
-  // Microsoft 365, Google) hand mail over under a technical return address of another domain, so
-  // the handover check alone would refuse their genuine mail; the signature is what says "this
-  // really is from that domain". The receiving server reports it as DKIM_VALID_AU.
+  // A valid signature of the From line's own domain settles it. Some providers hand mail over
+  // under a technical return address of another domain, so the handover check alone would refuse
+  // their genuine mail; the signature is what says "this really is from that domain". The
+  // receiving server reports it as DKIM_VALID_AU, but only for smaller mails: with a larger
+  // attachment it reports no signature result at all, and the handover check below decides.
   if (signedByFromDomain(payload)) return "pass";
   const spf = receivedSpf(payload);
   if (!spf) return "unknown";
   if (!/^\s*pass\b/i.test(spf)) return "not_passed";
   const from = (payload.FromFull?.Email ?? EMAIL.exec(payload.From ?? "")?.[0] ?? "").toLowerCase();
-  const envelope = /envelope-from=<?([^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
+  // The receiving server writes the address in quotes: envelope-from="name@domain".
+  const envelope = /envelope-from=["'<]*([^\s;>"']+)/i.exec(spf)?.[1]?.toLowerCase();
   if (!envelope) return "unknown";
   const a = domainOf(from);
   const b = envelope.includes("@") ? domainOf(envelope) : envelope;
@@ -217,7 +219,7 @@ export function senderVerified(payload: PostmarkInboundPayload): boolean {
 export function envelopeSender(payload: PostmarkInboundPayload): string | null {
   const spf = receivedSpf(payload);
   if (!spf || !/^\s*pass\b/i.test(spf)) return null;
-  const envelope = /envelope-from=<?([^\s;>]+@[^\s;>]+)>?/i.exec(spf)?.[1]?.toLowerCase();
+  const envelope = /envelope-from=["'<]*([^\s;>"']+@[^\s;>"']+)/i.exec(spf)?.[1]?.toLowerCase();
   if (!envelope) return null;
   const [local = "", domain = ""] = envelope.split("@");
   return `${local.split("+")[0]}@${domain}`;
