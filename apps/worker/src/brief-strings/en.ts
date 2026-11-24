@@ -44,10 +44,14 @@ export const en = {
       `- Invoice ${number} to ${who}: ${amount}, due ${dueDate}.`,
     reminderInOutlook: (level: number) => `  Reminder ${level} of 3 is in your Outlook Drafts.`,
     reminderByEmail: (level: number) => `  Reminder ${level} of 3 was emailed to you.`,
-    paidLink: (url: string) => `  Paid already, or stop reminders for it: ${url}`,
+    reminderWaiting: (level: number) =>
+      `  Reminder ${level} of 3 is still in your Outlook Drafts, unsent. The next one is prepared once it has been sent or deleted.`,
+    paidLink: (url: string) => `  Paid already, or stop reminders for it (you may be asked to sign in): ${url}`,
     more: (count: number) => `- ...and ${count} more open invoice(s).`,
     askDueDate: (number: string, who: string, amount: string, url: string) =>
       `- Invoice ${number} to ${who} (${amount}): no due date could be read from it, so no reminders are planned. Set the due date here: ${url}`,
+    askConfirm: (number: string, who: string, amount: string, sentTo: string, url: string) =>
+      `- Invoice ${number} for ${who} (${amount}) was mailed to ${sentTo}, which does not look like the buyer (your accountant, perhaps?). It is not tracked yet. Say here whether reminders should go to the people that mail went to: ${url}`,
     unreadable: (fileName: string) =>
       `- "${fileName}", a PDF you sent, could not be read (a scan, a picture, or it took too long). If it is an invoice, it is not tracked: no reminders will be prepared for it.`,
     paidBySender: (number: string, who: string, amount: string) =>
@@ -82,6 +86,8 @@ export const en = {
       `- Your Microsoft 365 mailbox ${emailAddress} is disconnected, so new mail is not being read. Reconnect it here: ${settingsUrl}`,
     filingOff: (count: number, settingsUrl: string) =>
       `- ${count} attachment(s) arrived yesterday and were not filed, because your Microsoft 365 connection was made before filing existed. Reconnect once to switch filing on: ${settingsUrl}`,
+    forwardRefused: (count: number, settingsUrl: string) =>
+      `- ${count} email(s) sent to your forwarding address yesterday were refused, because they did not come from one of your own addresses. If they were yours, add the address here: ${settingsUrl}`,
     driveUnreachable: (count: number, settingsUrl: string) =>
       `- Your OneDrive could not be reached. ${count} attachment(s) are waiting and will be filed automatically once it works again. If this stays, reconnect here: ${settingsUrl}`,
   },

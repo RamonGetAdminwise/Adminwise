@@ -7,6 +7,7 @@ export {
   dateAppears,
   daysBetween,
   MIN_DAYS_BETWEEN_REMINDERS,
+  recipientLooksLikeBuyer,
   REMINDER_DAYS,
   reminderDue,
   type CheckedInvoice,

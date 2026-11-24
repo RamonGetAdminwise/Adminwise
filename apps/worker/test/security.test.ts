@@ -201,7 +201,7 @@ describe("Scenario 32: export and delete", () => {
     const data = await nordpart.scope.exportData();
     expect(Object.keys(data)).toEqual([
       "customer", "users", "mailbox_connections", "threads", "messages", "drafts", "filed_documents", "customer_logos",
-      "price_lists", "price_items", "sender_discounts", "offers", "offer_lines", "invoices", "job_runs", "audit_events",
+      "price_lists", "price_items", "sender_discounts", "accepted_senders", "offers", "offer_lines", "invoices", "job_runs", "audit_events",
     ]);
     expect(data.customer).toHaveLength(1);
     expect(data.customer![0]).toMatchObject({ id: nordpart.customerId, name: "Nordpart sp. z o.o." });

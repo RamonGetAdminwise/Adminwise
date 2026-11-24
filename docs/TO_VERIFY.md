@@ -110,16 +110,19 @@ Asked for by Ramon on 23 Nov: when the whole v1 is built, and before the first o
 
 **Done on 24 Nov 2026** by five fresh reviewers. Report: `01_Project_docs/14_independent_review_2026-11-24.md`. 44 faults fixed, 36 new tests. What it left open:
 
-Needs Ramon's decision (report section B):
-- [ ] Forwarding address can be guessed (company name): random part for new accounts?
-- [ ] Brief links work 30 days without sign-in, also for "paid" and "stop reminders": ask for sign-in for money actions?
-- [ ] An invoice mailed to the accountant is tracked with the accountant as debtor: compare recipient and buyer, ask once on a mismatch?
-- [ ] "Not this time" uses up one of the two follow-ups: should a skipped one not count?
-- [ ] Reminder 2 never comes while reminder 1 sits unsent; "7, 14, 30 days" are working days: say so in brief and guide?
-- [ ] Filing saves every attachment of 10 KB or more, not only the four document kinds: intended?
-- [ ] A new free trial by closing the account and signing up again: accept?
+Ramon's decisions on report section B (taken and built 24 Nov; see the decisions log):
+- [x] Forwarding address: only mail from the customer's own listed addresses is taken in.
+- [x] Money links in the brief need sign-in.
+- [x] Invoice mailed to someone who is not the buyer: asked once in the brief.
+- [x] A skipped follow-up does not count.
+- [x] Reminder timing said honestly in brief, guide and pages.
+- [x] Filing: everything of 10 KB or more, as before.
+- [ ] Repeated free trials: accepted for now; look again when billing is switched on.
 
 To verify live after deploying this version:
+- [ ] Forwarding with the allow-list: forward a mail by hand from the sign-in address (must be taken in); send one from an address that is not listed (must be refused and mentioned in the next brief); if a Gmail or Outlook forwarding RULE is used, add that mailbox in settings and check that rule-forwarded mail comes in. The rule case rests on the envelope sender Postmark reports and was not tried against a real mailbox.
+- [ ] A money link from a real brief while signed out: sign-in is asked, and after signing in the link opens. If the sign-in mail is opened in another browser or on the phone, the way back is lost and the link must be clicked again (accepted).
+- [ ] An invoice mailed to an address that is not the buyer's: the question appears in the next brief, both answers work.
 - [ ] A mail really forwarded by the owner is still recognised as theirs (the new sender check reads Postmark's `Received-SPF` header; if Postmark does not send it, behaviour is as before). Forward one mail with an invoice PDF and check it is tracked.
 - [ ] Migration 011 on the production database (reminder drafts get their invoice; drafts unique index replaced).
 - [ ] The queue's new retry settings are applied to the existing queues (`updateQueue` at start).

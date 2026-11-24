@@ -284,7 +284,7 @@ ${testMail.textBody}`}
           <li>New customer mail gets a reply draft. In settings you choose for which mail: all, only sales mail, or none.</li>
           <li>Every morning at 07:30 you get a brief: what needs you today, money due, and what went quiet.</li>
           {microsoft && <li>Invoices, orders and contracts from incoming mail are filed in your OneDrive, in the folder Apps/{config.appName}.</li>}
-          {microsoft && <li>When you send an invoice as a PDF, it is tracked, and a payment reminder is drafted 7, 14 and 30 days after its due date.</li>}
+          {microsoft && <li>When you send an invoice as a PDF, it is tracked, and payment reminders are drafted from 7, 14 and 30 days after its due date: on working days, one at a time, the next only after you sent or deleted the previous one.</li>}
         </ul>
         <form action={finishSetup} className="mt-5">
           <button className={done.test ? "btn" : "btn-secondary"} type="submit">

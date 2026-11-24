@@ -84,7 +84,8 @@ export default function PrivacyPage() {
           <strong>With the forwarding address:</strong> only the emails you forward to it.
         </li>
         <li>
-          <strong>What you give us in settings:</strong> your company details, signature, price list, logo, discounts, a
+          <strong>What you give us in settings:</strong> your company details, signature, price list, logo, discounts, the
+          addresses that may use your forwarding address, a
           description of your writing style, and sample documents you upload (read once, not stored).
         </li>
       </ul>

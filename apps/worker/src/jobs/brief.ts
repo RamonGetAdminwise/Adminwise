@@ -64,9 +64,15 @@ export interface BriefInput {
       daysOverdue: number;
       /** The reminder drafted this morning, if any. */
       reminder: { level: number; inOutlook: boolean } | null;
+      /** Set when the next reminder was due this morning but this one still sits unsent in Drafts. */
+      waitingLevel?: number | null;
       manageUrl: string;
     }[];
-    toAsk: ({ kind: "due_date"; number: string; who: string; amount: string; url: string } | { kind: "unreadable"; fileName: string })[];
+    toAsk: (
+      | { kind: "due_date"; number: string; who: string; amount: string; url: string }
+      | { kind: "confirm"; number: string; who: string; amount: string; sentTo: string; url: string }
+      | { kind: "unreadable"; fileName: string }
+    )[];
     paidBySender: { number: string; who: string; amount: string }[];
   };
   /** Threads that went quiet, each with how long and the two links for the customer. */
@@ -81,6 +87,8 @@ export interface BriefInput {
   filingOffCount?: number;
   /** Attachments waiting because OneDrive cannot be reached; 0 = no problem. */
   driveQueuedCount?: number;
+  /** Mails to the forwarding address yesterday that were refused: not from one of the customer's own addresses. */
+  refusedForwardCount?: number;
   /** Language of the brief's own texts. Only "en" exists for now. */
   language?: string;
 }
@@ -125,10 +133,17 @@ export function composeBrief(input: BriefInput): { subject: string; textBody: st
           ? t.money.overdue(m.number, m.who, m.amount, m.dueDate, m.daysOverdue)
           : t.money.dueSoon(m.number, m.who, m.amount, m.dueDate),
         ...(m.reminder ? [m.reminder.inOutlook ? t.money.reminderInOutlook(m.reminder.level) : t.money.reminderByEmail(m.reminder.level)] : []),
+        ...(m.waitingLevel ? [t.money.reminderWaiting(m.waitingLevel)] : []),
         ...(m.daysOverdue > 0 ? [t.money.paidLink(m.manageUrl)] : []),
       ]),
       ...(money.invoices.length > shown.length ? [t.money.more(money.invoices.length - shown.length)] : []),
-      ...money.toAsk.map((a) => (a.kind === "due_date" ? t.money.askDueDate(a.number, a.who, a.amount, a.url) : t.money.unreadable(a.fileName))),
+      ...money.toAsk.map((a) =>
+        a.kind === "due_date"
+          ? t.money.askDueDate(a.number, a.who, a.amount, a.url)
+          : a.kind === "confirm"
+            ? t.money.askConfirm(a.number, a.who, a.amount, a.sentTo, a.url)
+            : t.money.unreadable(a.fileName),
+      ),
       ...money.paidBySender.map((p) => t.money.paidBySender(p.number, p.who, p.amount)),
     ];
     const count = money.invoices.length + money.toAsk.length + money.paidBySender.length;
@@ -171,6 +186,7 @@ export function composeBrief(input: BriefInput): { subject: string; textBody: st
     ...input.problems.map((p) => t.problems.mailboxDisconnected(p.emailAddress, settingsUrl)),
     ...(input.filingOffCount ? [t.problems.filingOff(input.filingOffCount, settingsUrl)] : []),
     ...(input.driveQueuedCount ? [t.problems.driveUnreachable(input.driveQueuedCount, settingsUrl)] : []),
+    ...(input.refusedForwardCount ? [t.problems.forwardRefused(input.refusedForwardCount, settingsUrl)] : []),
   ];
   if (problems.length > 0) sections.push([t.problems.heading, ...problems].join("\n"));
 
@@ -198,7 +214,7 @@ export async function sendBrief(
     const customer = await scope.getCustomer();
     const today = startOfLocalDay(job.localDate, customer.timeZone);
     const yesterday = startOfLocalDay(addDays(job.localDate, -1), customer.timeZone);
-    const [drafts, suspicious, offers, quiet, filed, connections, users, filingOffCount, queuedCount] = await Promise.all([
+    const [drafts, suspicious, offers, quiet, filed, connections, users, filingOffCount, queuedCount, refusedCount] = await Promise.all([
       scope.listDraftSummaries(yesterday, today),
       scope.listSuspiciousBetween(yesterday, today),
       scope.listOffersBetween(yesterday, today),
@@ -208,6 +224,7 @@ export async function sendBrief(
       scope.listUsers(),
       scope.countJobOutcomes("filing", "filing_off", yesterday, today),
       scope.countQueuedFiling(),
+      scope.countJobOutcomes("forwarding-intake", "refused_sender", yesterday, today),
     ]);
     const microsoft = connections.find((c) => c.provider === "microsoft");
     const linkExpiry = new Date(now.getTime() + LINK_DAYS * 86_400_000);
@@ -239,12 +256,15 @@ export async function sendBrief(
           reminder: remindedToday.has(invoice.id)
             ? { level: invoice.remindersMade, inOutlook: invoice.source === "sent" && microsoft?.status === "active" }
             : null,
+          waitingLevel: invoice.reminderBlockedOn === job.localDate ? invoice.remindersMade : null,
           manageUrl: invoiceLink(invoice.id),
         })),
       toAsk: invoiceNews.toAsk.map((i) =>
         i.status === "needs_due_date"
           ? { kind: "due_date" as const, number: i.number ?? "", who: who(i), amount: invoiceAmount(i), url: invoiceLink(i.id) }
-          : { kind: "unreadable" as const, fileName: i.fileName },
+          : i.status === "needs_confirm"
+            ? { kind: "confirm" as const, number: i.number ?? "", who: who(i), amount: invoiceAmount(i), sentTo: i.debtorDomain, url: invoiceLink(i.id) }
+            : { kind: "unreadable" as const, fileName: i.fileName },
       ),
       paidBySender: invoiceNews.paidBySender.map((i) => ({ number: i.number ?? "", who: who(i), amount: invoiceAmount(i) })),
     };
@@ -277,6 +297,7 @@ export async function sendBrief(
       // Asked only on days it mattered, and only while the mailbox still lacks the permission.
       filingOffCount: microsoft && microsoft.status === "active" && !canFile(microsoft) ? filingOffCount : 0,
       driveQueuedCount: microsoft?.driveError ? queuedCount : 0,
+      refusedForwardCount: refusedCount,
     });
     await deps.mailer.send({ to: users.map((u) => u.email), ...brief });
     // Only now are the one-time questions counted as asked.

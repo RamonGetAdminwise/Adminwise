@@ -2,6 +2,7 @@ import { QUEUES } from "@adminwise/core";
 import { forCustomer, verifyLinkToken } from "@adminwise/db";
 import { formatMoney } from "@adminwise/offers";
 import { redirect } from "next/navigation";
+import { ownerOfLink } from "@/lib/auth";
 import { getConfig, getDb, getQueue } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ async function confirm(formData: FormData) {
   "use server";
   const target = readToken(formData.get("token"));
   if (!target) redirect("/offer?done=invalid");
+  // An order confirmation is a commitment: only for someone signed in to this account.
+  if ((await ownerOfLink(target.customerId, `/offer?token=${String(formData.get("token"))}`)) !== "ok") redirect("/offer?done=other");
   const scope = forCustomer(getDb(), target.customerId);
   const offer = await scope.getOffer(target.offerId);
   if (!offer || offer.kind !== "offer") redirect("/offer?done=invalid");
@@ -32,6 +35,7 @@ const DONE: Record<string, string> = {
   confirmed:
     "Done. The order confirmation is being prepared. In a minute it is in your Outlook Drafts, attached to a reply on the original request (or in your inbox if you use the forwarding address). Nothing is sent for you.",
   already: "This offer already has its order confirmation.",
+  other: "This link belongs to another account than the one you are signed in to. Sign out and use the address this brief was sent to.",
   invalid: "This link is no longer valid. Links in the daily brief work for 30 days.",
 };
 
@@ -54,8 +58,10 @@ export default async function OfferPage({ searchParams }: { searchParams: Promis
   }
 
   const target = readToken(params.token);
-  const offer = target ? await forCustomer(getDb(), target.customerId).getOffer(target.offerId) : null;
-  if (!target || !offer || offer.kind !== "offer") redirect("/offer?done=invalid");
+  if (!target) redirect("/offer?done=invalid");
+  if ((await ownerOfLink(target.customerId, `/offer?token=${params.token}`)) !== "ok") redirect("/offer?done=other");
+  const offer = await forCustomer(getDb(), target.customerId).getOffer(target.offerId);
+  if (!offer || offer.kind !== "offer") redirect("/offer?done=invalid");
   if (offer.status === "accepted") redirect("/offer?done=already");
 
   return (

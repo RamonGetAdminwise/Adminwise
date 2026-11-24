@@ -223,6 +223,8 @@ export class PackAi implements AiClient {
       case "payment-notice":
         return answer({ paid: mail?.expected.paid ? "yes" : "no" });
       case "chaser-check": {
+        // A follow-up the owner sent is itself a mail that expects an answer.
+        if (Object.values(CANNED).some((text) => request.user.includes(text))) return answer({ expects_reply: "yes" });
         const sent = this.pack.sent.find((s) => request.user.includes(s.body));
         if (!sent) throw new Error("Asked about a sent mail that is not in the pack");
         return answer({ expects_reply: sent.expectsReply ? "yes" : "no" });
@@ -380,7 +382,26 @@ export async function runMonth(db: Db, pack: Pack): Promise<MonthResult> {
     await remindCustomer(depsAt(nightly), { customerId, localDate: date });
     await sendBrief(depsAt(new Date(dayStart.getTime() + 7.5 * 3_600_000)), { customerId, localDate: date });
     briefs.push({ date, text: mailer.sent.at(-1)!.textBody });
-    // The owner reads the brief and sends (or deletes) what was waiting in Drafts.
+    // The owner reads the brief and sends what was waiting in Drafts. A sent follow-up shows up in
+    // Sent Items like any other mail (one that is deleted instead would not count as a follow-up).
+    for (const open of await scope.listOpenChasers()) {
+      const draft = outlook.chaserDrafts.find((d) => d.id === open.providerDraftId);
+      const original = draft ? outlook.mailbox.get(draft.sentMessageId) : undefined;
+      if (!draft || !original || !outlook.waitingDrafts.has(draft.id)) continue;
+      const followUp: InboundMessage = {
+        ...original,
+        providerMessageId: `sent-${customerId}-${draft.id}`,
+        internetMessageId: `<sent-${draft.id}@${c.domain}>`,
+        subject: /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`,
+        receivedAt: new Date(dayStart.getTime() + 8.5 * 3_600_000),
+        bodyText: draft.text,
+        attachmentNames: [],
+        to: draft.to,
+        cc: draft.cc,
+      };
+      outlook.mailbox.set(followUp.providerMessageId, followUp);
+      await ingestOutbound(scope, microsoft.id, followUp);
+    }
     outlook.waitingDrafts.clear();
 
     const dayEnd = startOfLocalDay(addDays(date, 1), c.timeZone);

@@ -73,6 +73,10 @@ const invoicesOf = async (nordpart: Nordpart, messageId: string) => {
   const { rows } = await db.pool.query("SELECT id FROM invoices WHERE customer_id = $1 AND message_id = $2 ORDER BY number", [nordpart.customerId, messageId]);
   return Promise.all(rows.map(async (r) => (await nordpart.scope.getInvoice(r.id as string))!));
 };
+/** The owner answers "yes, track it" for invoices that went to someone other than the buyer. */
+const confirmAll = async (nordpart: Nordpart, messageId: string) => {
+  for (const invoice of await invoicesOf(nordpart, messageId)) await nordpart.scope.confirmInvoice(invoice.id);
+};
 const remind = (world: World, nordpart: Nordpart, localDate: string) =>
   remindCustomer({ ...world.deps, now: at(`${localDate}T05:30:00Z`) }, { customerId: nordpart.customerId, localDate });
 
@@ -91,7 +95,9 @@ describe("Two invoices in one mail", () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db);
     const messageId = await sendPdfs(world, nordpart, "two", ["i01", "i02"]);
-    expect(await trackSentInvoices(world.deps, { customerId: nordpart.customerId, messageId })).toBe("open:2");
+    // The second invoice is made out to another company than the mail went to: the owner is asked, and says yes.
+    expect(await trackSentInvoices(world.deps, { customerId: nordpart.customerId, messageId })).toBe("open:1,needs_confirm:1");
+    await confirmAll(nordpart, messageId);
     const [fv, inv] = await invoicesOf(nordpart, messageId); // FV/2026/11/0457 and INV-2026-118, both due 2026-11-17
 
     // Both are a week late: each gets its own first reminder (before the fix only one did).
@@ -112,6 +118,7 @@ describe("Two invoices in one mail", () => {
     const nordpart = await createNordpart(db);
     const messageId = await sendPdfs(world, nordpart, "named", ["i01", "i02"]);
     await trackSentInvoices(world.deps, { customerId: nordpart.customerId, messageId });
+    await confirmAll(nordpart, messageId);
     const [fv, inv] = await invoicesOf(nordpart, messageId);
 
     // "Faktura FV/2026/11/0457 została zapłacona wczoraj": says nothing about INV-2026-118.
@@ -128,6 +135,7 @@ describe("Two invoices in one mail", () => {
     const nordpart = await createNordpart(db);
     const messageId = await sendPdfs(world, nordpart, "unclear", ["i01", "i02"]);
     await trackSentInvoices(world.deps, { customerId: nordpart.customerId, messageId });
+    await confirmAll(nordpart, messageId);
     const real = world.ai.complete.bind(world.ai);
     world.ai.complete = async (request) =>
       request.job === "payment-notice" ? { text: '{"paid":"yes","invoices":["INV-2026-118"]}', inputTokens: 1, outputTokens: 1 } : real(request);

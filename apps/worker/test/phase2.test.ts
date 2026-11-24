@@ -210,10 +210,18 @@ describe("Scenario 9: the customer said \"don't chase\"", () => {
     expect(world.ai.requests).toHaveLength(0);
   });
 
-  it("treats a deleted draft as \"not this time\", writes at most two chasers, then only lists the thread", async () => {
+  it("a deleted draft is \"not this time\" and does not count; after two SENT follow-ups the thread is only listed", async () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db);
-    const { threadId } = await send(world, nordpart, "s02");
+    const { threadId, message } = await send(world, nordpart, "s02");
+    /** The owner sends the follow-up that is waiting: it lands in Sent Items like any other mail. */
+    const sendDraft = async (draftId: string, iso: string) => {
+      const draft = world.outlook.chaserDrafts.find((d) => d.id === draftId)!;
+      world.outlook.waitingDrafts.delete(draftId);
+      const sent = { ...message, providerMessageId: `graph-sent-${draftId}`, internetMessageId: `<sent-${draftId}@nordpart.example>`, receivedAt: new Date(iso), bodyText: draft.text };
+      world.outlook.mailbox.set(sent.providerMessageId, sent);
+      await ingestOutbound(nordpart.scope, nordpart.microsoftId, sent);
+    };
 
     // First follow-up.
     expect((await chase(world, nordpart, DUE)).chasers).toBe(1);
@@ -226,22 +234,29 @@ describe("Scenario 9: the customer said \"don't chase\"", () => {
     expect((await chase(world, nordpart, "2026-11-19")).chasers).toBe(0);
     expect(await nordpart.scope.getOpenChaser(threadId)).toBeNull();
     expect((await chase(world, nordpart, "2026-11-25")).chasers).toBe(0); // 4 working days after the 19th
-    expect((await chase(world, nordpart, "2026-11-26")).chasers).toBe(1); // 5 working days: second and last follow-up
-    expect(world.ai.of("chaser-draft")[1]!.system).toContain("second follow-up");
+    expect((await chase(world, nordpart, "2026-11-26")).chasers).toBe(1); // 5 working days
+    // The deleted one never reached anyone, so this is again a FIRST follow-up (decision of 2026-11-24).
+    expect(world.ai.of("chaser-draft")[1]!.system).not.toContain("second follow-up");
     // The model was asked only once whether this message expects an answer.
     expect(world.ai.of("chaser-check")).toHaveLength(1);
 
-    // Deleted again; after another period the thread is only listed, no third draft.
-    world.outlook.waitingDrafts.delete("chaser-draft-2");
-    expect((await chase(world, nordpart, "2026-11-27")).chasers).toBe(0);
-    expect(await chase(world, nordpart, "2026-12-04")).toMatchObject({ chasers: 0, listed: 1 });
-    expect(world.outlook.chaserDrafts).toHaveLength(2);
+    // This one is sent. A period later the second follow-up is drafted, on the follow-up that was sent.
+    await sendDraft("chaser-draft-2", "2026-11-26T09:00:00Z");
+    expect((await chase(world, nordpart, "2026-12-02")).chasers).toBe(0);
+    expect((await chase(world, nordpart, "2026-12-03")).chasers).toBe(1);
+    expect(world.ai.of("chaser-draft")[2]!.system).toContain("second follow-up");
+    expect(world.outlook.chaserDrafts[2]!.sentMessageId).toBe("graph-sent-chaser-draft-2");
+
+    // Sent as well: two follow-ups went out. After another period the thread is only listed, no third one.
+    await sendDraft("chaser-draft-3", "2026-12-03T09:00:00Z");
+    expect(await chase(world, nordpart, "2026-12-10")).toMatchObject({ chasers: 0, listed: 1 });
+    expect(world.outlook.chaserDrafts).toHaveLength(3);
     expect((await nordpart.scope.getThread(threadId))!.chaseMode).toBe("done");
-    expect((await nordpart.scope.listQuietThreads(new Date("2026-12-03T23:00:00Z"), "2026-12-04"))).toEqual([
+    expect((await nordpart.scope.listQuietThreads(new Date("2026-12-09T23:00:00Z"), "2026-12-10"))).toEqual([
       expect.objectContaining({ threadId, chaserReady: false, counterpartDomain: "rolmet.example" }),
     ]);
     // And never again after that.
-    expect(await chase(world, nordpart, "2026-12-11")).toMatchObject({ chasers: 0, listed: 0 });
+    expect(await chase(world, nordpart, "2026-12-17")).toMatchObject({ chasers: 0, listed: 0 });
   });
 
   it("\"not this time\" from the brief link postpones the follow-up by one period", async () => {

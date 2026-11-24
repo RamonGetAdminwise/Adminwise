@@ -6,11 +6,13 @@ import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
 import { PLANS } from "@/lib/site";
 import {
+  addAcceptedSender,
   choosePlan,
   closeAccount,
   disconnectMailbox,
   generateVoiceProfile,
   manageSubscription,
+  removeAcceptedSender,
   saveBilling,
   saveSettings,
   saveVoiceProfile,
@@ -40,6 +42,8 @@ const ERRORS: Record<string, string> = {
 };
 const SAVED: Record<string, string> = {
   settings: "Settings saved.",
+  sender: "Address added. Mail it sends or forwards to your forwarding address is now taken in.",
+  sender_removed: "Address removed.",
   disconnected: "Your Microsoft 365 mailbox is disconnected. It is no longer read, and our access to it has been removed.",
   voice: "Voice profile saved.",
   subscribed: "Thank you. Your plan is active.",
@@ -73,11 +77,13 @@ export default async function SettingsPage({
   const params = await searchParams;
   const config = getConfig();
   const scope = forCustomer(getDb(), session.customerId);
-  const [customer, connections, runs, queuedFiling] = await Promise.all([
+  const [customer, connections, runs, queuedFiling, users, acceptedSenders] = await Promise.all([
     scope.getCustomer(),
     scope.listConnections(),
     scope.listJobRuns(10, false),
     scope.countQueuedFiling(),
+    scope.listUsers(),
+    scope.listAcceptedSenders(),
   ]);
   const microsoft = connections.find((c) => c.provider === "microsoft");
   const timeZones = Intl.supportedValuesOf("timeZone");
@@ -342,6 +348,46 @@ export default async function SettingsPage({
               Forward one of your own invoices (as a PDF) and it is tracked for payment reminders. Follow-ups on
               unanswered mail and filing to OneDrive need a connected Microsoft 365 mailbox.
             </p>
+            <div className="mt-4" id="forwarding">
+              <p className="font-medium">Who may send to this address</p>
+              <p className="hint">
+                Only mail sent or forwarded by one of your own addresses is taken in; anything else is refused, and
+                the daily brief tells you how many were. Your sign-in address is always accepted.
+              </p>
+              {params.error === "sender" && <p className="mt-1 text-sm text-red-700">Enter a valid email address.</p>}
+              {params.error === "sender_max" && <p className="mt-1 text-sm text-red-700">The list is full. Remove an address first.</p>}
+              <ul className="mt-2 space-y-1">
+                {users.map((u) => (
+                  <li key={u.id}>
+                    {u.email} <span className="text-stone-500">(sign-in address)</span>
+                  </li>
+                ))}
+                {acceptedSenders.map((a) => (
+                  <li key={a.id} className="flex items-center gap-3">
+                    {a.address}
+                    <form action={removeAcceptedSender}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <button className="text-stone-600 underline" type="submit">
+                        Remove
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+              <form action={addAcceptedSender} className="mt-3 flex flex-wrap items-end gap-3">
+                <div>
+                  <label htmlFor="address">Add an address</label>
+                  <input id="address" name="address" type="email" required placeholder="office@company.com" />
+                </div>
+                <button className="btn-secondary" type="submit">
+                  Add
+                </button>
+              </form>
+              <p className="hint">
+                For example a second mailbox of yours, or a colleague who forwards mail for you. If you forward
+                automatically with a rule, add the mailbox that has the rule.
+              </p>
+            </div>
           </div>
         </div>
       </section>

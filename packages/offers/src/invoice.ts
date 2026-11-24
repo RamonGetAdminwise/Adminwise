@@ -131,3 +131,44 @@ export function reminderDue(invoice: { dueDate: string; remindersMade: number; l
   if (invoice.lastReminderOn && daysBetween(invoice.lastReminderOn, today) < MIN_DAYS_BETWEEN_REMINDERS) return null;
   return next as 1 | 2 | 3;
 }
+
+/** Words in a company name that say what kind of company it is, not which one. */
+const NOT_A_NAME = new Set([
+  "sp", "zoo", "spolka", "sa", "sk", "sc", "ska", "ltd", "limited", "gmbh", "ag", "bv", "nv", "vof", "as", "ab", "oy", "aps", "inc", "llc",
+  "sro", "co", "company", "phu", "pphu", "fhu", "puh", "firma", "przedsiebiorstwo", "zaklad", "uslugi", "uslugowe", "handel", "handlowe",
+  "handlowo", "produkcyjno", "biuro", "group", "grupa", "holding", "polska", "poland", "international", "the", "and", "und", "van", "der",
+]);
+
+const plainLetters = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/ł/g, "l")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9 ]+/g, " ");
+
+/**
+ * Was the invoice mailed to the company it is made out to? Compared loosely: a distinctive
+ * word of the buyer's name appears in the recipient's domain ("Rolmet sp. z o.o." and
+ * rolmet.example), the domain name appears in the buyer's name, or the domain is the name's
+ * initials. Returns null when there is nothing to compare (no buyer read, no domain, or a
+ * mailbox provider such as gmail.com, where the domain says nothing).
+ *
+ * "false" is not a verdict, only a reason to ask the owner once: the invoice may have gone to
+ * their accountant, or the buyer simply uses a domain unlike its name.
+ */
+export function recipientLooksLikeBuyer(buyerName: string, recipientDomain: string, isMailboxProvider: boolean): boolean | null {
+  if (!buyerName.trim() || !recipientDomain.trim() || isMailboxProvider) return null;
+  const labels = recipientDomain.toLowerCase().split(".").filter(Boolean);
+  // Drop the country or type endings: "rolmet.com.pl" is about "rolmet".
+  while (labels.length > 1 && (labels[labels.length - 1]!.length <= 3 || ["example", "info"].includes(labels[labels.length - 1]!))) labels.pop();
+  const domain = plainLetters(labels.join(" ")).replace(/ /g, "");
+  const words = plainLetters(buyerName).split(" ").filter((w) => w.length >= 2 && !NOT_A_NAME.has(w));
+  if (domain.length < 3 || words.length === 0) return null;
+  if (words.some((w) => w.length >= 4 && domain.includes(w))) return true;
+  // The first letters of a long word are enough: "Tandartspraktijk Wit" and tandartswit.
+  if (words.some((w) => w.length >= 6 && domain.includes(w.slice(0, 5)))) return true;
+  if (words.join("").includes(domain)) return true;
+  const initials = words.map((w) => w[0]).join("");
+  return initials.length >= 2 && domain.startsWith(initials);
+}

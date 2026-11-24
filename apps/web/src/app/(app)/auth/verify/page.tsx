@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { completeSignIn, getSession, landingPath, signInLinkOwner } from "@/lib/auth";
+import { completeSignIn, getSession, landingPath, signInLinkOwner, takeNext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,9 @@ async function signIn(formData: FormData) {
   const ok = typeof token === "string" && (await completeSignIn(token));
   if (!ok) redirect("/signin?error=link");
   const session = await getSession();
-  redirect(session ? await landingPath(session) : "/settings");
+  // Back to the link from the brief that asked for the sign-in, if there was one.
+  const next = await takeNext();
+  redirect(next ?? (session ? await landingPath(session) : "/settings"));
 }
 
 /**

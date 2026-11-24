@@ -24,11 +24,12 @@ async function apply(formData: FormData) {
   const thread = await scope.getThread(target.threadId);
   if (!thread) redirect("/thread?done=invalid");
 
-  if (action === "never") await scope.setChaseMode(thread.id, "never");
-  else await scope.snoozeChase(thread.id, new Date());
-
   // The follow-up draft that was waiting is no longer wanted: take it out of the Drafts folder.
   const waiting = await scope.getOpenChaser(thread.id);
+  if (action === "never") await scope.setChaseMode(thread.id, "never");
+  // A draft that is skipped was never sent, so it does not count as one of the two follow-ups.
+  else await scope.snoozeChase(thread.id, new Date(), Boolean(waiting));
+
   if (waiting) {
     await scope.closeDraft(waiting.id);
     const connection = await scope.getConnectionByProvider("microsoft");

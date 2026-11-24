@@ -2,6 +2,7 @@ import type { JobRun } from "@adminwise/db";
 
 const JOB_NAMES: Record<string, string> = {
   "reply-draft": "Incoming mail",
+  "forwarding-intake": "Forwarding address",
   "sync-mailbox": "Mailbox check",
   "voice-profile": "Voice profile",
   "daily-brief": "Daily brief",
@@ -73,6 +74,9 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
       return /purged|missing/.test(run.error ?? "") ? "Not handled: the email was no longer available" : "Skipped: already handled";
     }
   }
+  if (run.job === "forwarding-intake") {
+    return "Refused: an email to your forwarding address did not come from one of your own addresses";
+  }
   if (run.job === "sync-mailbox") {
     if (run.status === "skipped") return "Skipped: the mailbox needs to be reconnected";
     if (code === "new_mail") {
@@ -98,6 +102,7 @@ export function describeRun(run: Pick<JobRun, "job" | "status" | "outcome" | "er
     const c = counts(run.outcome ?? "");
     const parts = [];
     if (c.open) parts.push(`${plural(c.open, "invoice", "invoices")} now tracked for payment`);
+    if (c.needs_confirm) parts.push(`${plural(c.needs_confirm, "invoice", "invoices")} sent to someone other than the buyer: you are asked in the brief`);
     if (c.needs_due_date) parts.push(`${plural(c.needs_due_date, "invoice", "invoices")} without a readable due date: you are asked in the brief`);
     if (c.unreadable) parts.push(`${plural(c.unreadable, "file", "files")} could not be read`);
     if (c.duplicate) parts.push(`${plural(c.duplicate, "invoice", "invoices")} already tracked`);

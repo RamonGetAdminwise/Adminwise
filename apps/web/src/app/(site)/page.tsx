@@ -21,7 +21,7 @@ const FEATURES: { id: string; eyebrow: string; title: string; lead: string; poin
     lead: "Your own invoices are recognised when you send them as a PDF, and followed until they are paid.",
     points: [
       "Number, amount and due date are read from the invoice. Anything unclear is asked, never guessed.",
-      "A reminder is drafted 7, 14 and 30 days after the due date: friendly, then firm, then final.",
+      "A reminder is drafted from 7, 14 and 30 days after the due date, one at a time: friendly, then firm, then final.",
       "Every morning you see what is due and what is overdue.",
     ],
     mock: <RemindersMock />,

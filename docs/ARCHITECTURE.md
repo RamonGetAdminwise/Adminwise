@@ -225,6 +225,14 @@ The rule: a step that fails once must never lose work, and must never be retried
 
 **When the worker itself stops.** The worker's own alert mail cannot warn about that. So the worker notes every minute that it is alive (a scheduled job, `apps/worker/src/jobs/heartbeat.ts`, one row in `heartbeats`), and `/api/status` answers 503 when that note is older than 5 minutes, when a job has been waiting more than 20 minutes, or when the database cannot be reached. An uptime monitor outside our systems calls that page and warns the operator. The page is public and says one word per part, nothing else. `/api/health` is unchanged: the hosting platform uses it to see that the web app has started, and it must not fail because the worker is down.
 
+## Decisions on the review (24 Nov 2026)
+
+- **Forwarding address.** `company@in.getadminwise.com` only takes mail sent or forwarded by the customer's own addresses: sign-in addresses, plus the ones in `accepted_senders`. `acceptedForward` (`packages/mail/src/postmark.ts`) accepts when the From line names one and the sender check does not contradict it ("by hand": the forward is unwrapped and a PDF may be an invoice to track), or when the envelope sender is one (an automatic forwarding rule: the mail is taken in as mail from its original writer). Anything else gets a `forwarding-intake` run with outcome `refused_sender`, which the brief counts.
+- **Money links.** `/invoice` and `/offer` check, besides the signed token, that the visitor is signed in to the account the token names (`ownerOfLink` in `apps/web/src/lib/auth.ts`). `/thread` (follow-ups) does not.
+- **Who an invoice was mailed to.** `recipientLooksLikeBuyer` (`packages/offers/src/invoice.ts`) compares the buyer's name with the recipient's domain. A clear mismatch gives status `needs_confirm`: asked once in the brief, not chased until the owner says yes.
+- **Follow-ups that were skipped.** `threads.chaser_count` counts drafts written, `chasers_unused` the ones skipped or deleted unsent; only the difference counts toward the two.
+- **Reminder waiting.** When the next reminder is due but the previous draft is still unsent, `invoices.reminder_blocked_on` gets that date and the brief says so.
+
 ## Reading other people's input (review of 24 Nov 2026)
 
 - **Price cells**: exactly one number, optionally a currency and "/unit". Two numbers, words around the number, or a price that rounding to cents would change by more than 1% make the row unreadable; it is left out and shown.

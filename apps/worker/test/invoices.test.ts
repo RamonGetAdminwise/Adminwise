@@ -232,7 +232,8 @@ describe("Scenario 20: an invoice without a readable due date", () => {
   it("asks the owner in the brief, once, and prepares nothing until they answer", async () => {
     const world = makeWorld(db);
     const nordpart = await createNordpart(db, { briefStartDate: "2026-11-01" });
-    const { messageId, outcome } = await sendInvoice(world, nordpart, "i03");
+    // Made out to Stalbud S.A. and mailed to them (mailed to anyone else, the owner is asked first whether to track it).
+    const { messageId, outcome } = await sendWithPdfs(world, nordpart, "i03", [{ name: invoiceFixture("i03").file, bytes: invoicePdf("i03") }], ["biuro@stalbud.example"]);
     expect(outcome).toBe("needs_due_date:1");
     // The recorded model offered 2026-11-19, which is not printed on the invoice: it was not used.
     const invoice = await onlyInvoice(nordpart, messageId);
@@ -320,7 +321,7 @@ describe("What is tracked and what is not", () => {
     expect(brief).toContain("MONEY DUE AND OVERDUE (1)");
     expect(brief).toContain("- Invoice FV/2026/11/0457 to Rolmet sp. z o.o.: 26 372,43 PLN, due 2026-11-17, 7 day(s) overdue.");
     expect(brief).toContain("  Reminder 1 of 3 is in your Outlook Drafts.");
-    const token = /Paid already, or stop reminders for it: https:\/\/app\.test\/invoice\?token=([\w.-]+)/.exec(brief)![1]!;
+    const token = /Paid already, or stop reminders for it \(you may be asked to sign in\): https:\/\/app\.test\/invoice\?token=([\w.-]+)/.exec(brief)![1]!;
     expect(verifyLinkToken(token, db.encryptionKey, briefTime())).toEqual({ c: nordpart.customerId, i: invoice.id });
 
     // Another customer sees none of it.

@@ -98,6 +98,46 @@ export function signInLinkOwner(token: string): Promise<string | null> {
   return system(getDb()).peekLoginToken(sha256(token));
 }
 
+const NEXT_COOKIE = "aw_next";
+/** Only our own two link pages, with a token and nothing else: never an address someone else chose. */
+const SAFE_NEXT = /^\/(invoice|offer)\?token=[A-Za-z0-9_-]{10,2000}\.[A-Za-z0-9_-]{10,200}$/;
+
+export function safeNext(value: unknown): string | null {
+  return typeof value === "string" && SAFE_NEXT.test(value) ? value : null;
+}
+
+/** Remembers, for half an hour and in this browser only, which link to go back to once signed in. */
+export async function rememberNext(next: string | null): Promise<void> {
+  if (!next) return;
+  (await cookies()).set(NEXT_COOKIE, next, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: getConfig().appBaseUrl.startsWith("https://"),
+    path: "/",
+    maxAge: 30 * 60,
+  });
+}
+
+/** The link to go back to, once; null when there is none. */
+export async function takeNext(): Promise<string | null> {
+  const jar = await cookies();
+  const next = safeNext(jar.get(NEXT_COOKIE)?.value);
+  jar.delete(NEXT_COOKIE);
+  return next;
+}
+
+/**
+ * For links in the daily brief that change money matters (an invoice paid, reminders stopped, an
+ * order confirmation): the signed link says which account and what, but anyone a brief was
+ * forwarded to has the link too, so it only works for someone signed in to that account.
+ * Not signed in: to the sign-in page and back. Signed in to another account: "other".
+ */
+export async function ownerOfLink(customerId: string, back: string): Promise<"ok" | "other"> {
+  const session = await getSession();
+  if (!session) redirect(`/signin?next=${encodeURIComponent(back)}`);
+  return session.customerId === customerId ? "ok" : "other";
+}
+
 export async function getSession(): Promise<SessionInfo | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;

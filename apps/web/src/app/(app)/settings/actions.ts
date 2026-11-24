@@ -171,6 +171,28 @@ export async function manageSubscription() {
  * Closes the account: deletes the customer and everything stored for them, at once.
  * Files in their own OneDrive and drafts in their own mailbox are theirs and stay.
  */
+const MAX_ACCEPTED_SENDERS = 20;
+
+/** Adds an address whose mail the forwarding address takes in (next to the sign-in addresses). */
+export async function addAcceptedSender(formData: FormData) {
+  const session = await requireSession();
+  const scope = forCustomer(getDb(), session.customerId);
+  const address = text(formData.get("address"), 254).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(address)) redirect("/settings?error=sender#forwarding");
+  if ((await scope.listAcceptedSenders()).length >= MAX_ACCEPTED_SENDERS) redirect("/settings?error=sender_max#forwarding");
+  await scope.addAcceptedSender(address);
+  await scope.audit("forwarding.sender_added", {}, session.userId);
+  redirect("/settings?saved=sender#forwarding");
+}
+
+export async function removeAcceptedSender(formData: FormData) {
+  const session = await requireSession();
+  const scope = forCustomer(getDb(), session.customerId);
+  await scope.removeAcceptedSender(text(formData.get("id"), 40));
+  await scope.audit("forwarding.sender_removed", {}, session.userId);
+  redirect("/settings?saved=sender_removed#forwarding");
+}
+
 /**
  * Disconnects the Microsoft 365 mailbox: reading stops at once and our keys to it are removed.
  * Drafts and filed documents already in the customer's own mailbox and OneDrive stay there.

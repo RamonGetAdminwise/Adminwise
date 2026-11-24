@@ -106,7 +106,8 @@ export function forCustomer(db: Db, customerId: string) {
   const INVOICE_SELECT = `
     SELECT id, customer_id, source, message_id, thread_id, connection_id, file_name, content_hash, status, number,
            language, debtor_domain, debtor_name, amount_cents, currency, issue_date::text AS issue_date,
-           due_date::text AS due_date, reminders_made, last_reminder_at, ended_at, ended_by, pending_text, created_at
+           due_date::text AS due_date, reminders_made, last_reminder_at, ended_at, ended_by, pending_text, created_at,
+           reminder_blocked_on::text AS reminder_blocked_on
     FROM invoices`;
 
   function toInvoice(row: QueryResultRow): Invoice {
@@ -459,7 +460,7 @@ export function forCustomer(db: Db, customerId: string) {
     async findInvoiceByNumber(number: string, exceptId: string): Promise<Invoice | null> {
       const { rows } = await run(
         `${INVOICE_SELECT} WHERE customer_id = $1 AND lower(number) = lower($2) AND id <> $3
-           AND status IN ('open', 'needs_due_date', 'paid', 'stopped')
+           AND status IN ('open', 'needs_due_date', 'needs_confirm', 'paid', 'stopped')
          LIMIT 1`,
         [number, exceptId],
       );
@@ -515,17 +516,35 @@ export function forCustomer(db: Db, customerId: string) {
 
     async recordReminder(id: string, at: Date) {
       await run(
-        `UPDATE invoices SET reminders_made = reminders_made + 1, last_reminder_at = $3
+        `UPDATE invoices SET reminders_made = reminders_made + 1, last_reminder_at = $3, reminder_blocked_on = NULL
          WHERE customer_id = $1 AND id = $2`,
         [id, at],
       );
+    },
+
+    /** The next reminder was due on this date, but the previous one still sits unsent in Drafts: the brief says so. */
+    async markReminderBlocked(id: string, localDate: string) {
+      await run("UPDATE invoices SET reminder_blocked_on = $3::date WHERE customer_id = $1 AND id = $2", [id, localDate]);
+    },
+
+    /**
+     * The owner said: yes, track this invoice although it was sent to someone who does not look
+     * like the buyer. It becomes an ordinary tracked invoice (or one that still needs its due date).
+     */
+    async confirmInvoice(id: string): Promise<boolean> {
+      const { rowCount } = await run(
+        `UPDATE invoices SET status = CASE WHEN due_date IS NULL THEN 'needs_due_date' ELSE 'open' END
+         WHERE customer_id = $1 AND id = $2 AND status = 'needs_confirm'`,
+        [id],
+      );
+      return rowCount === 1;
     },
 
     /** Ends the reminder chain: paid (said by the sender, or by the owner's click) or stopped by the owner. */
     async endInvoice(id: string, status: "paid" | "stopped", by: "owner" | "sender", at: Date): Promise<boolean> {
       const { rowCount } = await run(
         `UPDATE invoices SET status = $3, ended_by = $4, ended_at = $5
-         WHERE customer_id = $1 AND id = $2 AND status IN ('open', 'needs_due_date')`,
+         WHERE customer_id = $1 AND id = $2 AND status IN ('open', 'needs_due_date', 'needs_confirm')`,
         [id, status, by, at],
       );
       return rowCount === 1;
@@ -561,7 +580,7 @@ export function forCustomer(db: Db, customerId: string) {
       );
       const toAsk = await run(
         `${INVOICE_SELECT} WHERE customer_id = $1 AND listed_on IS NULL
-           AND (status IN ('needs_due_date', 'unreadable') OR (status = 'pending' AND created_at < $2))
+           AND (status IN ('needs_due_date', 'needs_confirm', 'unreadable') OR (status = 'pending' AND created_at < $2))
          ORDER BY created_at`,
         [staleBefore],
       );
@@ -583,6 +602,22 @@ export function forCustomer(db: Db, customerId: string) {
         [invoiceId],
       );
       return rows[0] ? camel<Draft>(rows[0]) : null;
+    },
+
+    // ---- who may send to the forwarding address -----------------------------------
+
+    /** Addresses the customer added; their sign-in addresses are accepted as well and are not in this list. */
+    async listAcceptedSenders(): Promise<{ id: string; address: string }[]> {
+      const { rows } = await run("SELECT id, address FROM accepted_senders WHERE customer_id = $1 ORDER BY address");
+      return rows.map((r) => ({ id: r.id as string, address: r.address as string }));
+    },
+
+    async addAcceptedSender(address: string) {
+      await run("INSERT INTO accepted_senders (customer_id, address) VALUES ($1, $2) ON CONFLICT DO NOTHING", [address.toLowerCase()]);
+    },
+
+    async removeAcceptedSender(id: string) {
+      await run("DELETE FROM accepted_senders WHERE customer_id = $1 AND id = $2", [id]);
     },
 
     // ---- discounts per sender --------------------------------------------------
@@ -666,7 +701,8 @@ export function forCustomer(db: Db, customerId: string) {
       // Fixed names, never taken from input.
       const tables = [
         "users", "mailbox_connections", "threads", "messages", "drafts", "filed_documents", "customer_logos",
-        "price_lists", "price_items", "sender_discounts", "offers", "offer_lines", "invoices", "job_runs", "audit_events",
+        "price_lists", "price_items", "sender_discounts", "accepted_senders", "offers", "offer_lines", "invoices", "job_runs",
+        "audit_events",
       ];
       for (const table of tables) {
         out[table] = (await run(`SELECT * FROM ${table} WHERE customer_id = $1`)).rows.map(strip);
@@ -942,7 +978,7 @@ export function forCustomer(db: Db, customerId: string) {
         // The other party answered: the conversation is alive again.
         await run(
           `UPDATE threads SET last_inbound_at = GREATEST(COALESCE(last_inbound_at, $3), $3),
-                  chaser_count = 0, chase_hold_from = NULL, went_quiet_on = NULL,
+                  chaser_count = 0, chasers_unused = 0, chase_hold_from = NULL, went_quiet_on = NULL,
                   chase_mode = CASE WHEN chase_mode = 'done' THEN 'on' ELSE chase_mode END
            WHERE customer_id = $1 AND id = $2`,
           [thread.rows[0]!.id, m.receivedAt],
@@ -1121,9 +1157,18 @@ export function forCustomer(db: Db, customerId: string) {
       );
     },
 
-    /** "Not this time": ask again after another follow-up period. */
-    async snoozeChase(threadId: string, at: Date) {
-      await run("UPDATE threads SET chase_hold_from = $3 WHERE customer_id = $1 AND id = $2", [threadId, at]);
+    /**
+     * "Not this time": ask again after another follow-up period. `draftUnused` is true when a
+     * follow-up draft had been written and was not sent: it then does not count as one of the two
+     * follow-ups, because the other party never received it.
+     */
+    async snoozeChase(threadId: string, at: Date, draftUnused = false) {
+      await run(
+        `UPDATE threads SET chase_hold_from = $3,
+                chasers_unused = CASE WHEN $4::boolean THEN LEAST(chasers_unused + 1, chaser_count) ELSE chasers_unused END
+         WHERE customer_id = $1 AND id = $2`,
+        [threadId, at, draftUnused],
+      );
     },
 
     /** "Never for this thread", or "done" once two follow-ups were used. */

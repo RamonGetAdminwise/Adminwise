@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { readInvoiceFields } from "@adminwise/ai";
 import { ConnectionUnavailableError } from "@adminwise/core";
 import { forCustomer, type Customer, type CustomerScope, type InvoiceStatus } from "@adminwise/db";
-import { GraphAuthError, GraphError, type AttachmentInfo } from "@adminwise/mail";
-import { checkInvoice, extractPdfText, offerStrings } from "@adminwise/offers";
+import { FREE_MAIL, GraphAuthError, GraphError, type AttachmentInfo } from "@adminwise/mail";
+import { checkInvoice, extractPdfText, offerStrings, recipientLooksLikeBuyer } from "@adminwise/offers";
 import { allowed, describeError, type Deps } from "../deps";
 
 /** PDFs outside these sizes are not invoices worth reading (icons, or scans of whole folders). */
@@ -28,6 +28,8 @@ function isOwnDocument(name: string): boolean {
  * PDF's text are kept (checkInvoice). The outcome is one of:
  *   open            tracked; reminders follow after the due date
  *   needs_due_date  no due date could be read: the owner is asked in the brief
+ *   needs_confirm   sent to someone who does not look like the buyer (the owner's accountant?):
+ *                   the owner is asked once in the brief whether to track it
  *   unreadable      no text (a scan), or no number or amount could be confirmed
  *   not_ours        not an invoice, or not one the customer issued
  *   duplicate       the same invoice number is already tracked
@@ -59,8 +61,15 @@ export async function readInvoice(
   if (!checked.number || checked.amountCents === null) return done("unreadable");
   if (await scope.findInvoiceByNumber(checked.number, invoiceId)) return done("duplicate");
 
-  return done(checked.dueDate ? "open" : "needs_due_date", {
-    status: "open",
+  // An invoice mailed to someone other than the company it is made out to (often the owner's own
+  // accountant) must not be chased there. We cannot know, so the owner is asked once.
+  const noted = await scope.getInvoice(invoiceId);
+  const toBuyer =
+    noted?.source === "sent" ? recipientLooksLikeBuyer(checked.buyer, noted.debtorDomain, FREE_MAIL.has(noted.debtorDomain)) : null;
+  const status: InvoiceStatus = toBuyer === false ? "needs_confirm" : checked.dueDate ? "open" : "needs_due_date";
+
+  return done(status, {
+    status,
     number: checked.number,
     language: reading.language,
     debtorName: checked.buyer,

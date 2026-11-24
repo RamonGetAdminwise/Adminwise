@@ -124,6 +124,8 @@ async function remindOne(
   if (waiting) {
     try {
       if (toOutlook && waiting.providerDraftId && (await deps.outlook.isDraftWaiting(scope, connection!.id, waiting.providerDraftId))) {
+        // The brief tells the owner that the next reminder waits for this one to leave the Drafts folder.
+        await scope.markReminderBlocked(invoice.id, localDate);
         return null;
       }
     } catch (error) {

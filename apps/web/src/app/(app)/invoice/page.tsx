@@ -1,6 +1,7 @@
 import { forCustomer, verifyLinkToken } from "@adminwise/db";
 import { formatMoney } from "@adminwise/offers";
 import { redirect } from "next/navigation";
+import { ownerOfLink } from "@/lib/auth";
 import { getConfig, getDb, getOutlook } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +20,20 @@ async function act(formData: FormData) {
   const target = readToken(formData.get("token"));
   const action = formData.get("action");
   if (!target) redirect("/invoice?done=invalid");
+  // Money matters: only for someone signed in to this account.
+  const back = `/invoice?token=${String(formData.get("token"))}`;
+  if ((await ownerOfLink(target.customerId, back)) !== "ok") redirect("/invoice?done=other");
   const scope = forCustomer(getDb(), target.customerId);
   const invoice = await scope.getInvoice(target.invoiceId);
   if (!invoice) redirect("/invoice?done=invalid");
+
+  if (action === "confirm") {
+    const ok = await scope.confirmInvoice(invoice.id);
+    if (ok) await scope.audit("invoice.tracking_confirmed", { invoiceId: invoice.id });
+    // Without a due date it is asked for next, on the same page.
+    if (ok && !invoice.dueDate) redirect(back);
+    redirect(`/invoice?done=${ok ? "confirmed" : "closed"}`);
+  }
 
   if (action === "due") {
     const dueDate = String(formData.get("dueDate") ?? "");
@@ -53,7 +65,9 @@ async function act(formData: FormData) {
 const DONE: Record<string, string> = {
   paid: "Done. The invoice is marked as paid and no more reminders will be prepared for it.",
   stopped: "Done. No more reminders will be prepared for this invoice.",
-  due: "Done. The due date is set. Reminders are prepared 7, 14 and 30 days after it, as drafts for you to send.",
+  due: "Done. The due date is set. Reminders are prepared as drafts for you to send, from 7, 14 and 30 days after it: on working days, at least a week apart, and the next one only after you sent or deleted the previous one.",
+  confirmed: "Done. The invoice is tracked. Reminders are prepared as drafts on the mail that carried it, for you to check and send.",
+  other: "This link belongs to another account than the one you are signed in to. Sign out and use the address this brief was sent to.",
   closed: "Nothing to do: this invoice was already marked as paid or stopped.",
   invalid: "This link is no longer valid. Links in the daily brief work for 30 days; use the one in a newer brief.",
 };
@@ -81,9 +95,48 @@ export default async function InvoicePage({
   }
 
   const target = readToken(params.token);
-  const invoice = target ? await forCustomer(getDb(), target.customerId).getInvoice(target.invoiceId) : null;
-  if (!target || !invoice) redirect("/invoice?done=invalid");
-  if (invoice.status !== "open" && invoice.status !== "needs_due_date") redirect("/invoice?done=closed");
+  if (!target) redirect("/invoice?done=invalid");
+  if ((await ownerOfLink(target.customerId, `/invoice?token=${params.token}`)) !== "ok") redirect("/invoice?done=other");
+  const invoice = await forCustomer(getDb(), target.customerId).getInvoice(target.invoiceId);
+  if (!invoice) redirect("/invoice?done=invalid");
+  if (!["open", "needs_due_date", "needs_confirm"].includes(invoice.status)) redirect("/invoice?done=closed");
+
+  if (invoice.status === "needs_confirm") {
+    const buyer = invoice.debtorName || "the buyer";
+    return (
+      <div className="card mx-auto max-w-md">
+        <h1 className="text-xl font-semibold">Invoice {invoice.number}</h1>
+        <p className="mt-2 text-sm">
+          Made out to {buyer}
+          {invoice.amountCents !== null && `, ${formatMoney(invoice.amountCents, invoice.currency ?? "", "en")}`}
+          {invoice.dueDate ? `, due ${invoice.dueDate}` : ""}.
+        </p>
+        <p className="mt-3 text-sm">
+          You mailed it to <strong>{invoice.debtorDomain || "another address"}</strong>, which does not look like the
+          buyer&apos;s address. Payment reminders are prepared as replies on that mail, so they would be addressed to the people it went to.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <form action={act}>
+            <input type="hidden" name="token" value={params.token} />
+            <input type="hidden" name="action" value="confirm" />
+            <button className="btn" type="submit">
+              Yes, they should be reminded
+            </button>
+          </form>
+          <form action={act}>
+            <input type="hidden" name="token" value={params.token} />
+            <input type="hidden" name="action" value="stopped" />
+            <button className="btn-secondary" type="submit">
+              No, do not track this invoice
+            </button>
+          </form>
+        </div>
+        <p className="hint">
+          Choose &quot;no&quot; when this went to your accountant or was only a copy. Nothing is sent for you either way.
+        </p>
+      </div>
+    );
+  }
 
   const who = invoice.debtorName || invoice.debtorDomain || "your customer";
   const amount = invoice.amountCents === null ? "" : formatMoney(invoice.amountCents, invoice.currency ?? "", "en");
@@ -105,7 +158,7 @@ export default async function InvoicePage({
           <div>
             <label htmlFor="dueDate">Due date</label>
             <input id="dueDate" name="dueDate" type="date" required className="mt-1 block rounded-md border border-stone-300 px-3 py-2 text-sm" />
-            <p className="hint">The due date could not be read from the invoice. Reminders are prepared 7, 14 and 30 days after it.</p>
+            <p className="hint">The due date could not be read from the invoice. Reminders are prepared from 7, 14 and 30 days after it.</p>
           </div>
           <button className="btn" type="submit">
             Set due date

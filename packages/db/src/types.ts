@@ -290,7 +290,17 @@ export interface NewMessage {
 
 export type DraftKind = "reply" | "chaser" | "order_confirmation" | "reminder";
 
-export type InvoiceStatus = "pending" | "open" | "needs_due_date" | "unreadable" | "not_ours" | "duplicate" | "paid" | "stopped";
+export type InvoiceStatus =
+  | "pending"
+  | "open"
+  | "needs_due_date"
+  /** Read, but sent to someone who does not look like the buyer: the owner is asked once whether to track it. */
+  | "needs_confirm"
+  | "unreadable"
+  | "not_ours"
+  | "duplicate"
+  | "paid"
+  | "stopped";
 
 /** An invoice the customer sent to one of their own customers, tracked for payment reminders. */
 export interface Invoice {
@@ -314,6 +324,8 @@ export interface Invoice {
   issueDate: string | null;
   dueDate: string | null;
   remindersMade: number;
+  /** Customer-local date (YYYY-MM-DD) on which the next reminder was due but the previous one was still unsent. */
+  reminderBlockedOn: string | null;
   lastReminderAt: Date | null;
   endedAt: Date | null;
   endedBy: "owner" | "sender" | null;
@@ -333,7 +345,10 @@ export interface Thread {
   lastOutboundAt: Date | null;
   chaseMode: ChaseMode;
   chaseHoldFrom: Date | null;
+  /** Follow-up drafts written since the other party last answered... */
   chaserCount: number;
+  /** ...and how many of those were skipped or deleted unsent. Only sent ones count toward the two. */
+  chasersUnused: number;
   expectsReply: boolean | null;
   expectsReplyFor: string | null;
 }

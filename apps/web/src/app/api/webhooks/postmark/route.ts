@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { entitlements, ingestInbound, QUEUES } from "@adminwise/core";
 import { forCustomer, system } from "@adminwise/db";
-import { parsePostmarkInbound, senderVerified, type PostmarkInboundPayload } from "@adminwise/mail";
+import { acceptedForward, parsePostmarkInbound, type PostmarkInboundPayload } from "@adminwise/mail";
 import { extractPdfText } from "@adminwise/offers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getConfig, getDb, getQueue } from "@/lib/server";
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   const db = getDb();
   const sys = system(db);
   const queue = await getQueue();
-  const { slugs, forwardedBy } = parsePostmarkInbound(payload, config.inboundDomain, false);
+  const { slugs } = parsePostmarkInbound(payload, config.inboundDomain, false);
 
   for (const slug of slugs) {
     const customerId = await sys.findCustomerIdBySlug(slug);
@@ -52,11 +52,21 @@ export async function POST(request: NextRequest) {
     const scope = forCustomer(db, customerId);
     // A read-only account (trial over, not paying): accept and drop, nothing is stored.
     if (!entitlements(await scope.getCustomer(), new Date(), config.billingEnabled).work) continue;
-    const [users, connection] = await Promise.all([scope.listUsers(), scope.getConnectionByProvider("forwarding")]);
-    const ownAddresses = new Set(users.map((u) => u.email));
-    // "The customer forwarded this themselves" needs more than their address in the From line,
-    // which anyone can write: the receiving server's sender check must have passed too.
-    const byOwner = ownAddresses.has(forwardedBy) && senderVerified(payload);
+    const [users, extra, connection] = await Promise.all([
+      scope.listUsers(),
+      scope.listAcceptedSenders(),
+      scope.getConnectionByProvider("forwarding"),
+    ]);
+    // The address is easy to guess (it is the company name), so it only takes mail that one of the
+    // customer's own addresses sent or forwarded: their sign-in addresses and the ones they listed.
+    // Anything else is refused and counted; the brief tells the owner, in case an address is missing.
+    const ownAddresses = new Set([...users.map((u) => u.email), ...extra.map((a) => a.address)]);
+    const { accepted, byHand: byOwner } = acceptedForward(payload, ownAddresses);
+    if (!accepted) {
+      const runId = await scope.startJobRun("forwarding-intake");
+      await scope.finishJobRun(runId, { status: "skipped", outcome: "refused_sender" });
+      continue;
+    }
     // Unwrap "Forwarded message" blocks only when the customer forwarded the mail by hand.
     const { message } = parsePostmarkInbound(payload, config.inboundDomain, () => byOwner);
     const { messageId } = await ingestInbound(scope, queue, connection?.id ?? null, message);
