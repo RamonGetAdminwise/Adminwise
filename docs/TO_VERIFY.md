@@ -143,6 +143,7 @@ Before the first outside customer (report section C):
 - [x] 25 Nov: uptime monitors created at UptimeRobot (free plan, which allows business use): `https://app.getadminwise.com/api/status` and `https://getadminwise.com`, every 5 minutes, warning by email to a private address. The status address answers 503 when something is wrong, so a plain HTTP check is enough.
 - [x] Alarm tested on 25 Nov: worker stopped in Railway at 09:47 UTC, status address answered 503 `worker: silent` at 09:52, UptimeRobot showed the monitor as down (503) by 09:58, worker started again at 09:59 and the status turned green by itself. The warning mail arrived at 09:57 UTC in Ramon's private mailbox.
 - [x] 25 Nov: `https://getadminwise.com` (without `app.`) now leads to the site. Found by the second uptime monitor: the address did not resolve. Added as custom domain of the web service in Railway (port 8080), with a CNAME `@` and a TXT `_railway-verify` record at Cloudflare (DNS only). Answers 200 since 10:21 UTC.
+- [x] Seen live on 25 Nov, 10:37 UTC: `https://getadminwise.com/signin` is sent on to `https://app.getadminwise.com/signin` with its query kept; the home page stays on the bare address; status all ok after the deploy.
 - [ ] Before the first outside customer: decide on a paid plan with phone alerts.
 - [ ] Push `phase-4` to GitHub (it exists only in OneDrive until then).
 - [ ] Replace the five leaked secrets AFTER this version is live. Microsoft: create the new secret, set it in Railway, then delete the old one.
