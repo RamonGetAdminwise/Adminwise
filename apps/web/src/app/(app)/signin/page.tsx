@@ -36,7 +36,8 @@ export default async function SignInPage({
       <div className="card mt-8">
         {params.sent ? (
           <p>
-            Check your inbox: we sent you a sign-in link. It works once and expires in 15 minutes.
+            Check your inbox: we sent you an email. If this address has an account, it holds your sign-in link, which
+            works once and expires in 15 minutes.
           </p>
         ) : (
           <form action={requestLink} className="space-y-4">
@@ -60,7 +61,13 @@ export default async function SignInPage({
             <button className="btn" type="submit">
               Email me a sign-in link
             </button>
-            <p className="hint">No password. New here? The same link creates your account.</p>
+            <p className="hint">
+              No password. New here?{" "}
+              <a className="underline" href="/request">
+                Request access
+              </a>{" "}
+              first.
+            </p>
           </form>
         )}
       </div>

@@ -245,3 +245,15 @@ The rule: a step that fails once must never lose work, and must never be retried
 ## Tests
 
 `pnpm test` starts its own throw-away Postgres and runs everything, including the acceptance scenarios against the Nordpart fixtures: 1-6 in `apps/worker/test/scenarios.test.ts`, 7-10 (chaser), 21-24 (filing) and 25-27 (brief) in `apps/worker/test/phase2.test.ts` and `jobs.test.ts`, and 11-16 (offers and order confirmations) in `apps/worker/test/quotes.test.ts` with the price list and quote request fixtures (`price-list.xlsx`, `quotes.json`). Price list reading and offer arithmetic have their own tests in `packages/offers/test`. The phase 2 fixtures (sent mail, invoices, orders, a contract, a logo, a duplicate) are in `fixtures/nordpart/phase2.json`; file contents are generated in the tests. In tests the model is replaced by a recorded stand-in, so they prove the pipeline (classification routing, what the model is asked, where drafts go, no duplicates) and not the quality of a real model's wording. That needs Bedrock access and is the job of the phase-5 golden set.
+
+## How a new customer gets in (25 Nov 2026)
+
+Nobody creates an account alone. The way in is a request that the owner of the service approves.
+
+- **Request.** `/request` on the public site (`apps/web/src/app/(site)/request`): company, name, work email, mail system and an optional note. Stored in `access_requests` (migration 014), one row per address. This table has no `customer_id`: there is no customer yet, and it is only reached through the system layer.
+- **Told by mail.** The owner (`ALERT_EMAIL`, else the public contact address) gets the request with a signed link; the requester gets a confirmation. A confirmation that cannot be delivered does not break the request. If the owner cannot be told, the form says so instead of "thank you".
+- **Decide.** `/request/decide?token=...` shows the request with Approve and Decline. Opening the page changes nothing; only the buttons do, and only once. The requester hears by mail either way.
+- **Sign in.** `sendSignInLink` mails a link only to an existing user or an approved address; anyone else gets a mail that points to `/request`. `completeSignIn` creates the account only for an approved address, with the company name from the request and the forwarding address named after it.
+- **Limits.** The page answers the same for every address. At most 40 requests a day from everyone together; a hidden field catches programs that fill in every field.
+- **Kept for.** A declined request 30 days, an undecided one 90 days, an approved one until the account is closed (all in `prune` and `deleteCustomer`).
+- **Local development.** `pnpm tsx scripts/dev-request.ts <email>` prints the decide link and a sign-in link.

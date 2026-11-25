@@ -29,8 +29,8 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
             <a href={signIn} className="rounded-lg px-3 py-2 text-stone-700 hover:bg-stone-100 hover:text-ink">
               Sign in
             </a>
-            <a href={signIn} className="btn">
-              Start free
+            <a href="/request" className="btn">
+              Request access
             </a>
           </nav>
         </div>

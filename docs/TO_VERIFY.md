@@ -168,3 +168,18 @@ Before billing is switched on (report section D):
 - "Never follow up for this sender" and "choose the item yourself" for an unclear quote are not built.
 - Reading details from a sample offer (to prefill offer settings) is not built yet.
 - Filing reads the file name and the email, not the file's own content.
+
+## The way in: request and approval (built 25 Nov 2026)
+
+Walked through locally: request sent, sign-in refused before approval, approved from the decide page, sign-in lands on the guide with the company name filled in.
+
+To verify live after deploying:
+- [ ] Send a request from `https://getadminwise.com/request` with a real address of your own: the owner's mail arrives at the alert address, the confirmation at the requester's.
+- [ ] Before approving, try to sign in with that address: no sign-in link, but a mail that points to the request form.
+- [ ] Approve from the link in the mail: the welcome mail arrives; signing in creates the account and opens the guide.
+- [ ] Decline a second test request: the polite no arrives.
+- [ ] Existing accounts still sign in as before.
+
+Seen during the local walk-through, for the first-time-user pass:
+- [ ] Step 1 of the guide shows a green tick as soon as the company name is filled in from the request, before languages, time zone and signature were looked at.
+- [ ] "Languages you work in: two-letter codes, comma-separated" is not a question a first-time user can answer; make it a choice.

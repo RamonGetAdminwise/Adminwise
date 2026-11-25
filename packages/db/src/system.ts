@@ -8,6 +8,21 @@ import type { Provider, SessionInfo } from "./types";
  * return ids and routing data only; all customer data is then read through
  * forCustomer().
  */
+export type AccessRequestStatus = "pending" | "approved" | "declined";
+
+/** A request to become a customer, sent from the public site. */
+export interface AccessRequest {
+  id: string;
+  email: string;
+  company: string;
+  contactName: string;
+  mailSystem: "microsoft365" | "gmail" | "other";
+  note: string | null;
+  status: AccessRequestStatus;
+  createdAt: Date;
+  decidedAt: Date | null;
+}
+
 export function system(db: Db) {
   return {
     // ---- sign-in ---------------------------------------------------------------
@@ -300,6 +315,8 @@ export function system(db: Db) {
         const deleted = (rowCount ?? 0) > 0;
         if (deleted && users.rows.length > 0) {
           await client.query("DELETE FROM login_tokens WHERE email = ANY($1::text[])", [users.rows.map((u) => u.email)]);
+          // The request they once sent goes too: after closing, nothing of them is kept.
+          await client.query("DELETE FROM access_requests WHERE email = ANY($1::text[])", [users.rows.map((u) => u.email)]);
         }
         await client.query("COMMIT");
         return deleted;
@@ -318,11 +335,79 @@ export function system(db: Db) {
     async prune(now: Date, keepDays: number): Promise<void> {
       await db.pool.query("DELETE FROM login_tokens WHERE expires_at < $1::timestamptz - interval '1 day'", [now]);
       await db.pool.query("DELETE FROM sessions WHERE expires_at < $1", [now]);
+      // Requests for access: a declined one is kept 30 days, one never decided 90 days.
+      await db.pool.query(
+        `DELETE FROM access_requests
+         WHERE (status = 'declined' AND decided_at < $1::timestamptz - interval '30 days')
+            OR (status = 'pending' AND created_at < $1::timestamptz - interval '90 days')`,
+        [now],
+      );
       await db.pool.query(
         `DELETE FROM job_runs
          WHERE started_at < $1::timestamptz - make_interval(days => CASE WHEN status = 'failed' THEN $2 * 2 ELSE $2 END)`,
         [now, keepDays],
       );
+    },
+
+    /**
+     * Stores a request for access. One request per address: a new one from the same address
+     * replaces the details and, after a decline, asks again. An approved request stays approved.
+     * `fresh` says whether the owner has to be told (it is new, or it is asked again after a decline).
+     */
+    async createAccessRequest(input: {
+      email: string;
+      company: string;
+      contactName: string;
+      mailSystem: "microsoft365" | "gmail" | "other";
+      note: string | null;
+    }): Promise<{ id: string; status: AccessRequestStatus; fresh: boolean }> {
+      const before = await db.pool.query<{ status: AccessRequestStatus }>("SELECT status FROM access_requests WHERE email = $1", [
+        input.email,
+      ]);
+      const was = before.rows[0]?.status ?? null;
+      const { rows } = await db.pool.query<{ id: string; status: AccessRequestStatus }>(
+        `INSERT INTO access_requests (email, company, contact_name, mail_system, note)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (email) DO UPDATE SET
+           company = CASE WHEN access_requests.status = 'approved' THEN access_requests.company ELSE EXCLUDED.company END,
+           contact_name = CASE WHEN access_requests.status = 'approved' THEN access_requests.contact_name ELSE EXCLUDED.contact_name END,
+           mail_system = CASE WHEN access_requests.status = 'approved' THEN access_requests.mail_system ELSE EXCLUDED.mail_system END,
+           note = CASE WHEN access_requests.status = 'approved' THEN access_requests.note ELSE EXCLUDED.note END,
+           status = CASE WHEN access_requests.status = 'approved' THEN 'approved' ELSE 'pending' END,
+           decided_at = CASE WHEN access_requests.status = 'approved' THEN access_requests.decided_at ELSE NULL END,
+           created_at = CASE WHEN access_requests.status = 'declined' THEN now() ELSE access_requests.created_at END
+         RETURNING id, status`,
+        [input.email, input.company, input.contactName, input.mailSystem, input.note],
+      );
+      return { id: rows[0]!.id, status: rows[0]!.status, fresh: was === null || was === "declined" };
+    },
+
+    async getAccessRequest(id: string): Promise<AccessRequest | null> {
+      const { rows } = await db.pool.query("SELECT * FROM access_requests WHERE id = $1", [id]);
+      return rows[0] ? (camel(rows[0]) as AccessRequest) : null;
+    },
+
+    async findAccessRequest(email: string): Promise<AccessRequest | null> {
+      const { rows } = await db.pool.query("SELECT * FROM access_requests WHERE email = $1", [email]);
+      return rows[0] ? (camel(rows[0]) as AccessRequest) : null;
+    },
+
+    /** Approves or declines a request that is still waiting. Null when it was already decided or is gone. */
+    async decideAccessRequest(id: string, decision: "approved" | "declined"): Promise<AccessRequest | null> {
+      const { rows } = await db.pool.query(
+        `UPDATE access_requests SET status = $2, decided_at = now()
+         WHERE id = $1 AND status = 'pending' RETURNING *`,
+        [id, decision],
+      );
+      return rows[0] ? (camel(rows[0]) as AccessRequest) : null;
+    },
+
+    /** How many requests came in since `since`, from anyone: a brake on a flood through the public form. */
+    async countAccessRequests(since: Date): Promise<number> {
+      const { rows } = await db.pool.query<{ n: string }>("SELECT count(*) AS n FROM access_requests WHERE created_at >= $1", [
+        since,
+      ]);
+      return Number(rows[0]!.n);
     },
 
     /** How many sign-in links were requested for this address since `since`. */

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getSession, landingPath } from "@/lib/auth";
 import { getConfig } from "@/lib/server";
-import { contactEmail, PLANS, signInUrl, TRIAL_DAYS } from "@/lib/site";
+import { contactEmail, PLANS, TRIAL_DAYS } from "@/lib/site";
 import { BriefMock, FilingMock, OfferMock, RemindersMock } from "./mocks";
 
 export const dynamic = "force-dynamic";
@@ -122,7 +122,6 @@ export default async function HomePage() {
   if (session) redirect(await landingPath(session));
 
   const { appName } = getConfig();
-  const signIn = signInUrl();
   const email = contactEmail();
 
   return (
@@ -139,8 +138,8 @@ export default async function HomePage() {
               every morning. You check and send; nothing is sent for you.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <a href={signIn} className="btn px-6 py-3 text-base">
-                Start free for {TRIAL_DAYS} days
+              <a href="/request" className="btn px-6 py-3 text-base">
+                Request access
               </a>
               <a href="#what" className="btn-secondary px-6 py-3 text-base">
                 See what it does
@@ -259,8 +258,8 @@ export default async function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <a href={signIn} className={`mt-7 justify-center py-2.5 ${plan.highlighted ? "btn" : "btn-secondary"}`}>
-                  Start free for {TRIAL_DAYS} days
+                <a href="/request" className={`mt-7 justify-center py-2.5 ${plan.highlighted ? "btn" : "btn-secondary"}`}>
+                  Request access
                 </a>
               </article>
             ))}
@@ -356,10 +355,10 @@ export default async function HomePage() {
         <div className="mx-auto max-w-5xl rounded-3xl bg-brand-600 px-6 py-14 text-center text-white">
           <h2 className="text-3xl font-extrabold sm:text-4xl">Run your company. We prepare the paperwork.</h2>
           <p className="mx-auto mt-3 max-w-xl text-brand-50">Try it with your own mailbox. If it does not give you your evenings back, don&apos;t pay for it.</p>
-          <a href={signIn} className="mt-7 inline-flex items-center rounded-lg bg-white px-6 py-3 font-semibold text-brand-800 shadow-sm hover:bg-brand-50">
-            Start free for {TRIAL_DAYS} days
+          <a href="/request" className="mt-7 inline-flex items-center rounded-lg bg-white px-6 py-3 font-semibold text-brand-800 shadow-sm hover:bg-brand-50">
+            Request access
           </a>
-          <p className="mt-3 text-sm text-brand-100">No card needed · Cancel any time</p>
+          <p className="mt-3 text-sm text-brand-100">{TRIAL_DAYS} days free · No card needed · Cancel any time</p>
         </div>
       </section>
     </main>

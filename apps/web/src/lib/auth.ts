@@ -30,6 +30,23 @@ export async function sendSignInLink(email: string): Promise<void> {
   ) {
     return;
   }
+  // Only a customer, or someone whose request for access was approved, gets a link. Anyone else is
+  // told by mail where to ask; the page itself answers the same for every address.
+  const known = (await sys.findUserByEmail(email)) !== null || (await sys.findAccessRequest(email))?.status === "approved";
+  if (!known) {
+    // Counted like a link (a token that is already expired), so the limits above hold here too.
+    await sys.createLoginToken(email, sha256(randomBytes(32).toString("base64url")), new Date(now - 1000));
+    await getMailer().send({
+      to: [email],
+      subject: `No ${config.appName} account for this address`,
+      textBody:
+        `Someone, probably you, tried to sign in to ${config.appName} with this address.\n\n` +
+        `There is no account for it. New customers start with a short request:\n\n${config.appBaseUrl}/request\n\n` +
+        `If you already sent one, you will hear from us within one working day. ` +
+        `If you did not try to sign in, ignore this email.\n`,
+    });
+    return;
+  }
   const token = randomBytes(32).toString("base64url");
   await sys.createLoginToken(email, sha256(token), new Date(Date.now() + LINK_MINUTES * 60_000));
   const link = `${config.appBaseUrl}/auth/verify?token=${token}`;
@@ -55,7 +72,8 @@ function slugify(text: string): string {
 
 /**
  * Finishes sign-in: turns a valid link token into a session cookie. A first
- * sign-in also creates the customer and its forwarding address.
+ * sign-in also creates the customer and its forwarding address, but only for an
+ * address whose request for access was approved.
  */
 export async function completeSignIn(token: string): Promise<boolean> {
   const sys = system(getDb());
@@ -64,15 +82,23 @@ export async function completeSignIn(token: string): Promise<boolean> {
 
   let user = await sys.findUserByEmail(email);
   if (!user) {
+    const request = await sys.findAccessRequest(email);
+    if (request?.status !== "approved") return false;
     const [local = "", domain = ""] = email.split("@");
-    // A company domain names the company; with a mailbox provider (gmail.com) the name before the @ does.
-    const base = slugify(domain.split(".")[0] && !FREE_MAIL.has(domain) ? domain.split(".")[0]! : local);
+    // The forwarding address is named after the company as they wrote it in their request. Without
+    // a usable name: a company domain names the company; with a mailbox provider (gmail.com) the
+    // name before the @ does.
+    const fromName = slugify(request.company);
+    const base =
+      fromName !== "company" ? fromName : slugify(domain.split(".")[0] && !FREE_MAIL.has(domain) ? domain.split(".")[0]! : local);
     let slug = base;
     while (await sys.slugExists(slug)) slug = `${base}-${randomBytes(2).toString("hex")}`;
     const timeZone = "Europe/Warsaw";
     const created = await sys.createCustomerWithUser({
       email,
       slug,
+      // Shown filled in on the first step of the guide, where they can still change it.
+      name: request.company,
       timeZone,
       // The first daily brief is tomorrow's: there is no "yesterday" yet.
       briefStartDate: localClock(new Date(), timeZone).date,

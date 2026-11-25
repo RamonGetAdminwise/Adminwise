@@ -320,7 +320,9 @@ describe("A once-a-day job that keeps failing", () => {
     const messageId = await sendPdfs(world, nordpart, "daily", ["i01"]);
     await trackSentInvoices(world.deps, { customerId: nordpart.customerId, messageId });
     failModel(world, "payment-reminder", 99);
-    await expect(remind(world, nordpart, "2026-11-24")).rejects.toThrow("model unavailable");
+    // Today's date in the customer's time zone: the scheduler looks for failures of today's run.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Warsaw" }).format(new Date());
+    await expect(remind(world, nordpart, today)).rejects.toThrow("model unavailable");
     // The run row is stamped with the real clock; the scheduler is asked "a minute later" and "an hour later".
     const mine = (queue: typeof QUEUES.remindCustomer) => world.queue.of(queue).filter((j) => j.customerId === nordpart.customerId);
     await chaseTick({ ...world.deps, now: () => new Date(Date.now() + 60_000) });

@@ -115,6 +115,12 @@ export default function PrivacyPage() {
           billing details.
         </li>
         <li>
+          <strong>Your request for access:</strong> the company name, your name, your email address, where your business
+          email is and what you wrote, from the form on this site. We use it to answer you. If we cannot offer you a
+          place it is deleted after 30 days; a request we never decided on, after 90 days; and when you close your
+          account, together with everything else.
+        </li>
+        <li>
           <strong>A log of what the service did:</strong> which job ran, when, and whether it worked. It never contains
           email text.
         </li>
