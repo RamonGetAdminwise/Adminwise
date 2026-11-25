@@ -141,7 +141,9 @@ Before the first outside customer (report section C):
 - [x] Worker heartbeat and status page `/api/status` (built 24 Nov; seen in a browser in both states with the local database).
 - [ ] After deploying: open `https://app.getadminwise.com/api/status`. It must say `"ok":true`. This is the first time the real worker writes its sign of life through the queue; locally only the job itself was run.
 - [x] 25 Nov: uptime monitors created at UptimeRobot (free plan, which allows business use): `https://app.getadminwise.com/api/status` and `https://getadminwise.com`, every 5 minutes, warning by email to a private address. The status address answers 503 when something is wrong, so a plain HTTP check is enough.
-- [ ] Test the alarm once: stop the worker in Railway for ten minutes and wait for the warning mail. Before the first outside customer: decide on a paid plan with phone alerts.
+- [x] Alarm tested on 25 Nov: worker stopped in Railway at 09:47 UTC, status address answered 503 `worker: silent` at 09:52, UptimeRobot showed the monitor as down (503) by 09:58, worker started again at 09:59 and the status turned green by itself. Ramon to confirm the warning mail arrived.
+- [ ] Found by the second monitor: `https://getadminwise.com` (without `app.`) does not resolve. The custom domain step in `docs/DEPLOY.md` (Railway web service, Networking, plus the DNS record) is still to do; until then the public site is only reachable at `https://app.getadminwise.com`.
+- [ ] Before the first outside customer: decide on a paid plan with phone alerts.
 - [ ] Push `phase-4` to GitHub (it exists only in OneDrive until then).
 - [ ] Replace the five leaked secrets AFTER this version is live. Microsoft: create the new secret, set it in Railway, then delete the old one.
 - [ ] Look at the production `customers` table before deploying: migration 009 makes every existing account "internal" (free, for ever).
