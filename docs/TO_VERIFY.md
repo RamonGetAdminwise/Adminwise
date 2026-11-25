@@ -125,7 +125,8 @@ To verify live after deploying this version:
 - [x] Seen live on 24 Nov, 18:26 UTC: a made-up invoice with the account's company as seller, sent to the forwarding address, is tracked for payment (after dates with the month as a word were accepted). An invoice issued by another company was rightly not tracked.
 - [x] Seen live on 24 Nov, 18:30 UTC: a mail from an address that is not listed is refused with the reason "not on your list", no draft. Tomorrow's brief must mention the refused mail.
 - [x] Seen live on 24 Nov: Disconnect in settings shows the mailbox as disconnected with access removed, and filing as off; connecting again shows it as connected. After the reconnect the mailbox was checked again (18:32 UTC) and filing is back on.
-- [ ] The first test invoice (2026-0042) waits for its due date: tomorrow's brief must ask for it.
+- [x] Seen in the brief of 25 Nov: the five refused mails of the day before are counted with a link to settings, and invoice 2026-0042 is asked about (no due date) with its link.
+- [ ] Still to try: open that invoice link in a private window (signed out): it must ask for sign-in first.
 - [ ] Still to try: a mail from an address that is NOT listed (must be refused and mentioned in the next brief); an invoice PDF sent to the forwarding address (must be tracked); if a Gmail or Outlook forwarding RULE is used, add that mailbox in settings and check that rule-forwarded mail comes in. The rule case rests on the envelope sender Postmark reports and was not tried against a real mailbox.
 - [ ] A money link from a real brief while signed out: sign-in is asked, and after signing in the link opens. If the sign-in mail is opened in another browser or on the phone, the way back is lost and the link must be clicked again (accepted).
 - [ ] An invoice mailed to an address that is not the buyer's: the question appears in the next brief, both answers work.

@@ -263,3 +263,13 @@ describe("a follow-up that was skipped", () => {
     expect(await thread()).toMatchObject({ chaserCount: 1, chasersUnused: 1 });
   });
 });
+
+describe("the language of a mail", () => {
+  it("is only taken from the model when it names a real language", async () => {
+    const { knownLanguage } = await import("../src/jobs/process-message");
+    expect(knownLanguage("pl")).toBe("pl");
+    expect(knownLanguage(" EN ")).toBe("en");
+    // A mail of a few random letters: "undetermined" is no language to write a draft in.
+    for (const none of ["un", "und", "xx", "", null, "unknown"]) expect(knownLanguage(none)).toBeNull();
+  });
+});

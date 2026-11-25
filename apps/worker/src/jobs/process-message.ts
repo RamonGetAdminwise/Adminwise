@@ -12,6 +12,23 @@ const HISTORY_LIMIT = 8;
 
 export { appendSignature };
 
+const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
+
+/**
+ * The language code the model gave, if it names a real language. For a mail with no real text
+ * (a few random letters, only an attachment) the model answers "un" or "und" (undetermined);
+ * that is no language, and the draft is then written in the customer's own first language.
+ */
+export function knownLanguage(code: string | null | undefined): string | null {
+  const c = (code ?? "").trim().toLowerCase();
+  if (!/^[a-z]{2}$/.test(c)) return null;
+  try {
+    return LANGUAGE_NAMES.of(c) !== c ? c : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The reply-draft job. For one stored inbound message:
  *   1. classify it (rules first, then the model),
@@ -71,7 +88,7 @@ export async function processMessage(
         // the model. If the model still says "a colleague" about an outside sender (an informal
         // customer), we trust the address: better one draft too many than a customer left unanswered.
         classification = result.category === "internal" ? "business" : result.category;
-        language = result.language;
+        language = knownLanguage(result.language);
         suspicious = result.suspicious;
       }
       await scope.setClassification(message.id, classification, language, suspicious);
