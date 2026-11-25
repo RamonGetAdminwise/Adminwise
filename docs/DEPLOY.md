@@ -152,7 +152,7 @@ Test in the sandbox: sign in with an address that has no account yet, open Setti
 1. Open an account at an uptime monitoring service (any that can call a web address every few minutes and warn by email or text; several have a free plan that is enough). Use a private email address for the account and for the warnings, not one that depends on Adminwise.
 2. Add one monitor: type HTTP(S), address `https://app.getadminwise.com/api/status`, every 5 minutes, "up" means status 200. If the service can also look for a text, let it look for `"ok":true`.
 3. Warn after 2 failed checks in a row, not after one: a deployment restarts the worker and may take a minute or two.
-4. Add a second monitor on `https://getadminwise.com` (the public site), same settings.
+4. Add a second monitor on `https://getadminwise.com` (the public site), same settings. This address only works once the custom domain is added in Railway and its two DNS records exist (done on 25 Nov 2026).
 5. Test it once: in Railway, stop the `worker` service for ten minutes. The warning must arrive. Start the worker again and the monitor must turn green by itself.
 
 What each answer means when the warning comes:
