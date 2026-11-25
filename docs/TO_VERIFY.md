@@ -140,7 +140,8 @@ To verify live after deploying this version:
 Before the first outside customer (report section C):
 - [x] Worker heartbeat and status page `/api/status` (built 24 Nov; seen in a browser in both states with the local database).
 - [ ] After deploying: open `https://app.getadminwise.com/api/status`. It must say `"ok":true`. This is the first time the real worker writes its sign of life through the queue; locally only the job itself was run.
-- [ ] Ramon: create the uptime monitor (steps in `docs/DEPLOY.md`, "The alarm from outside") and test it once: stop the worker in Railway for ten minutes and wait for the warning.
+- [x] 25 Nov: uptime monitors created at UptimeRobot (free plan, which allows business use): `https://app.getadminwise.com/api/status` and `https://getadminwise.com`, every 5 minutes, warning by email to a private address. The status address answers 503 when something is wrong, so a plain HTTP check is enough.
+- [ ] Test the alarm once: stop the worker in Railway for ten minutes and wait for the warning mail. Before the first outside customer: decide on a paid plan with phone alerts.
 - [ ] Push `phase-4` to GitHub (it exists only in OneDrive until then).
 - [ ] Replace the five leaked secrets AFTER this version is live. Microsoft: create the new secret, set it in Railway, then delete the old one.
 - [ ] Look at the production `customers` table before deploying: migration 009 makes every existing account "internal" (free, for ever).
