@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession, landingPath, normalizeEmail, rememberNext, safeNext, sendSignInLink } from "@/lib/auth";
 
+import { contactEmail } from "@/lib/site";
+
 export const dynamic = "force-dynamic";
 
 async function requestLink(formData: FormData) {
@@ -35,10 +37,20 @@ export default async function SignInPage({
       )}
       <div className="card mt-8">
         {params.sent ? (
-          <p>
-            Check your inbox: we sent you an email. If this address has an account, it holds your sign-in link, which
-            works once and expires in 15 minutes.
-          </p>
+          <div className="space-y-3">
+            <p>
+              Check your inbox: we sent you an email. If this address has an account, it holds your sign-in link, which
+              works once and expires in 15 minutes.
+            </p>
+            <p className="hint">
+              Nothing after a few minutes? Look in the spam folder, and check that you used the address you gave us in
+              your request. Still nothing: write to{" "}
+              <a className="underline" href={`mailto:${contactEmail()}`}>
+                {contactEmail()}
+              </a>
+              .
+            </p>
+          </div>
         ) : (
           <form action={requestLink} className="space-y-4">
             {next && (
@@ -62,7 +74,7 @@ export default async function SignInPage({
               Email me a sign-in link
             </button>
             <p className="hint">
-              No password. New here?{" "}
+              No password to remember: we email you a link that signs you in. New here?{" "}
               <a className="underline" href="/request">
                 Request access
               </a>{" "}

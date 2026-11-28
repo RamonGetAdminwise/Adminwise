@@ -5,7 +5,8 @@ import { localClock } from "@adminwise/core";
 import { forCustomer, sha256, system, type SessionInfo } from "@adminwise/db";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getConfig, getDb, getMailer } from "./server";
+import { tell } from "./notify";
+import { getConfig, getDb } from "./server";
 
 const SESSION_COOKIE = "aw_session";
 const LINK_MINUTES = 15;
@@ -36,28 +37,29 @@ export async function sendSignInLink(email: string): Promise<void> {
   if (!known) {
     // Counted like a link (a token that is already expired), so the limits above hold here too.
     await sys.createLoginToken(email, sha256(randomBytes(32).toString("base64url")), new Date(now - 1000));
-    await getMailer().send({
-      to: [email],
-      subject: `No ${config.appName} account for this address`,
-      textBody:
-        `Someone, probably you, tried to sign in to ${config.appName} with this address.\n\n` +
+    // Anyone can type any address here, so a failure is not reported to the owner.
+    await tell(
+      email,
+      `No ${config.appName} account for this address`,
+      `Someone, probably you, tried to sign in to ${config.appName} with this address.\n\n` +
         `There is no account for it. New customers start with a short request:\n\n${config.appBaseUrl}/request\n\n` +
         `If you already sent one, you will hear from us within one working day. ` +
         `If you did not try to sign in, ignore this email.\n`,
-    });
+      { warnOwner: false },
+    );
     return;
   }
   const token = randomBytes(32).toString("base64url");
   await sys.createLoginToken(email, sha256(token), new Date(Date.now() + LINK_MINUTES * 60_000));
   const link = `${config.appBaseUrl}/auth/verify?token=${token}`;
-  await getMailer().send({
-    to: [email],
-    subject: `Sign in to ${config.appName}`,
-    textBody:
-      `Open this link to sign in to ${config.appName}:\n\n${link}\n\n` +
+  // A customer who cannot get a link cannot get in at all: the owner of the service is told.
+  await tell(
+    email,
+    `Sign in to ${config.appName}`,
+    `Open this link to sign in to ${config.appName}:\n\n${link}\n\n` +
       `It works once and expires in ${LINK_MINUTES} minutes. If you did not ask for it, ignore this email.\n`,
-    devPrintBody: true,
-  });
+    { devPrintBody: true },
+  );
 }
 
 function slugify(text: string): string {

@@ -1,4 +1,5 @@
 import { DELETE_AFTER_DAYS, entitlements, EU_COUNTRIES, OTHER_COUNTRY, taxTreatment, trialDaysLeft, type TaxTreatment } from "@adminwise/core";
+import { LanguageFields } from "@/components/language-fields";
 import { canFile, forCustomer } from "@adminwise/db";
 import type { ReactNode } from "react";
 import { describeRun, jobName } from "@/lib/activity";
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
 const APP_FOLDER = "Apps/Adminwise";
 
 const ERRORS: Record<string, string> = {
-  languages: "Enter at least one language code, for example: pl, en",
+  languages: "Choose your main language.",
   timezone: "Choose a time zone from the list.",
   followup: "Follow-up days must be a whole number from 1 to 30.",
   replydrafts: "Choose one of the three options for reply drafts.",
@@ -198,14 +199,7 @@ export default async function SettingsPage({
             <label htmlFor="name">Company name</label>
             <input id="name" name="name" type="text" defaultValue={customer.name} required />
           </div>
-          <div>
-            <label htmlFor="languages">Languages you work in</label>
-            <input id="languages" name="languages" type="text" defaultValue={customer.languages.join(", ")} required />
-            <p className="hint">
-              Two-letter codes, comma-separated: pl, en, de. Mail in any other language still gets a draft, flagged in
-              your daily brief.
-            </p>
-          </div>
+          <LanguageFields current={customer.languages} />
           <div>
             <label htmlFor="timeZone">Time zone</label>
             <select id="timeZone" name="timeZone" defaultValue={customer.timeZone}>
@@ -215,7 +209,10 @@ export default async function SettingsPage({
                 </option>
               ))}
             </select>
-            <p className="hint">Your daily brief arrives at 07:30 in this time zone.</p>
+            <p className="hint">
+              Your daily brief arrives at 07:30 in this time zone. Choose the large city nearest to you, for example
+              Europe/Warsaw or Europe/Amsterdam.
+            </p>
           </div>
           <div>
             <label htmlFor="signatureText">Email signature</label>

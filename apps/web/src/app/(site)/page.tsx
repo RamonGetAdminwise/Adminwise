@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * No customer logos, numbers of users or quotes appear until they are real.
  */
 
-const FEATURES: { id: string; eyebrow: string; title: string; lead: string; points: string[]; mock: ReactNode }[] = [
+const FEATURES: { id: string; eyebrow: string; title: string; lead: string; note?: string; points: string[]; mock: ReactNode }[] = [
   {
     id: "paid",
     eyebrow: "Get paid on time",
@@ -30,7 +30,8 @@ const FEATURES: { id: string; eyebrow: string; title: string; lead: string; poin
     id: "offers",
     eyebrow: "Offers in minutes",
     title: "A quote request comes in. The offer is waiting in your Drafts.",
-    lead: "A PDF offer with your logo, built from your own price list, attached to a reply in the customer's language.",
+    lead: "If you have a price list: a PDF offer with your logo, built from your own prices, attached to a reply in the customer's language.",
+    note: "No price list? A quote request still gets a reply draft, without prices, for you to complete. Everything else on this page works without one.",
     points: [
       "Every price comes from the price list you uploaded. No price is ever estimated.",
       "If an item is unclear, the draft asks the customer instead of guessing.",
@@ -65,7 +66,7 @@ const FEATURES: { id: string; eyebrow: string; title: string; lead: string; poin
 ];
 
 const BUILT_FOR: [string, string][] = [
-  ["Traders, importers, distributors", "Quote requests answered from your price list, and overdue invoices chased while you sell."],
+  ["Traders, importers, distributors", "Quote requests answered, from your price list if you have one, and overdue invoices chased while you sell."],
   ["Machine and parts dealers", "Offers with the right item codes and prices, and a follow-up on every quote that went quiet."],
   ["Agencies and consultancies", "Polite chasing you never have to write, and client documents filed as they arrive."],
   ["Installers, workshops, service firms", "Payment reminders that go out on time, and one morning email instead of a full inbox."],
@@ -83,6 +84,14 @@ const QUESTIONS: [string, ReactNode][] = [
   [
     "Is it written by AI?",
     "Yes, the texts are drafted by AI, which is why nothing is sent for you. The numbers are not: prices, totals, amounts and dates are taken from your price list and your documents by ordinary code, and anything that cannot be found is left out and asked about.",
+  ],
+  [
+    "I have no price list. Is it still for me?",
+    "Yes. Reply drafts, follow-ups, payment reminders, filing and the daily brief need no price list. Only the offer as a PDF with prices does: without a price list a quote request gets a normal reply draft without prices, which you complete yourself.",
+  ],
+  [
+    "How do I start, and how long does it take?",
+    "You send a short request, and a person answers within one working day. After that a guide takes you through the setup one step at a time, in about ten minutes. You can stop halfway and continue later, and you can always write to us for help.",
   ],
   [
     "What does it work with?",
@@ -184,6 +193,7 @@ export default async function HomePage() {
                     </li>
                   ))}
                 </ul>
+                {feature.note && <p className="mt-5 rounded-lg bg-stone-50 px-4 py-3 text-sm text-stone-700">{feature.note}</p>}
               </div>
               <div className={`min-w-0 ${index % 2 === 1 ? "md:order-1" : ""}`}>{feature.mock}</div>
             </article>
@@ -194,11 +204,12 @@ export default async function HomePage() {
       <section id="how" className="scroll-mt-20 bg-stone-50">
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-20">
           <p className="eyebrow">How it starts</p>
-          <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Set up in one evening. No new software to learn.</h2>
-          <ol className="mt-10 grid gap-6 md:grid-cols-3">
+          <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Set up in one evening, step by step. No new software to learn.</h2>
+          <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["Connect your mailbox", "Microsoft 365 with one click. Or skip the connection and forward emails to your personal address with us."],
-              ["Show us how you work", "Paste three emails you sent, so drafts sound like you. Upload your price list and a past offer, and your details are read from them."],
+              ["Request access", "Tell us in five lines who you are. A person reads every request and answers within one working day."],
+              ["Connect your mailbox", "A guide takes you through it step by step. Microsoft 365 with one button; or skip the connection and forward emails to your personal address with us."],
+              ["Show us how you work", "Paste three emails you sent, so drafts sound like you. If you have a price list, upload it and offers are built from it."],
               ["See it work", "We send you one test email. The reply draft appears while you watch. Tomorrow at 07:30 your first brief arrives."],
             ].map(([title, text], index) => (
               <li key={title} className="card">

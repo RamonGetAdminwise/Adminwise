@@ -1,6 +1,7 @@
 import { setupTestMail, setupTestState, testMailWouldBeInternal } from "@adminwise/core";
-import { forCustomer } from "@adminwise/db";
+import { forCustomer, system } from "@adminwise/db";
 import type { ReactNode } from "react";
+import { LanguageFields } from "@/components/language-fields";
 import { describeRun } from "@/lib/activity";
 import { requireSession } from "@/lib/auth";
 import { getConfig, getDb } from "@/lib/server";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
   name: "Enter your company name.",
-  languages: "Enter at least one language code, for example: pl, en",
+  languages: "Choose your main language.",
   timezone: "Choose a time zone from the list.",
   samples: "Paste three complete sent emails (each at least a few lines).",
   ai: "Your writing style could not be worked out right now. Your emails were not stored; please try again.",
@@ -24,7 +25,7 @@ const ERRORS: Record<string, string> = {
   sample_failed: "The document could not be read right now. Nothing was stored; please try again.",
 };
 const SAVED: Record<string, string> = {
-  company: "Saved.",
+  company: "Saved. Next: your mailbox.",
   connected: "Mailbox connected.",
   voice: "Your writing style is saved. You can read and change it in settings.",
   test: "Test email sent.",
@@ -66,6 +67,8 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
     scope.getPriceListByStatus("active"),
   ]);
   const microsoft = connections.find((c) => c.provider === "microsoft" && c.status === "active");
+  // What they told us in their request, so the way that fits their mailbox is shown first.
+  const saidOtherMail = ["gmail", "other"].includes((await system(getDb()).findAccessRequest(session.email))?.mailSystem ?? "");
   const forwardingAddress = `${customer.slug}@${config.inboundDomain}`;
   const timeZones = Intl.supportedValuesOf("timeZone");
 
@@ -77,12 +80,46 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   const testMail = setupTestMail(customer.languages, config.appName);
 
   const done = {
-    company: customer.name.trim() !== "",
+    // The name comes from their request, so only their own Save counts.
+    company: customer.setupCompanyAt !== null && customer.name.trim() !== "",
     mailbox: Boolean(microsoft),
     voice: customer.voiceProfile.trim() !== "",
     test: test === "drafted",
     offers: Boolean(priceList),
   };
+
+  const needed = [done.company, done.mailbox || saidOtherMail, done.test];
+  const connectMicrosoft = (
+    <>
+      <p>
+        <strong>Microsoft 365 or Outlook for work:</strong> connect it and drafts appear in your own Drafts folder.
+        Follow-ups, filing to OneDrive and payment reminders need this connection.
+      </p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>Press the button. You go to Microsoft&apos;s own sign-in page.</li>
+        <li>Sign in with your work email, as you do for Outlook. {config.appName} never sees your password.</li>
+        <li>
+          Microsoft shows a list of what {config.appName} may do: read your mail, prepare drafts, keep one folder of its
+          own in your OneDrive, and stay connected. Sending mail is not on the list. Press Accept.
+        </li>
+        <li>You come back to this page, and the step is ticked.</li>
+      </ol>
+      <a className="btn" href="/api/microsoft/connect">
+        Connect Microsoft 365
+      </a>
+      <p className="hint">
+        A message that an administrator must approve? Then your company&apos;s IT manages this. Forward that message to
+        them, or use forwarding (below) until they have approved.
+      </p>
+    </>
+  );
+  const forwardInstead = (
+    <p>
+      <strong>Gmail or anything else:</strong> no connection needed. Forward an email to{" "}
+      <code className="rounded bg-stone-100 px-2 py-1">{forwardingAddress}</code> and the draft comes back to you by
+      email. You get reply drafts and offers this way; the other features need Microsoft 365.
+    </p>
+  );
 
   return (
     <div className="space-y-6">
@@ -96,22 +133,30 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
           documents for you to check; it never sends anything from your mailbox. Drafts are written by AI: always read
           them before you send.
         </p>
+        <p className="mt-3 text-sm font-medium text-stone-800">
+          {needed.filter(Boolean).length} of {needed.length} steps done.{" "}
+          <span className="font-normal text-stone-600">
+            {needed.every(Boolean)
+              ? "You are set. The steps marked optional can wait."
+              : "Go from top to bottom; a step marked optional can be left for later. You can stop at any moment and come back: what you saved is kept."}
+          </span>
+        </p>
       </header>
 
       {params.saved && SAVED[params.saved] && <Notice tone="ok">{SAVED[params.saved]}</Notice>}
       {params.error && ERRORS[params.error] && <Notice tone="error">{ERRORS[params.error]}</Notice>}
 
       <Step id="company" number={1} title="Your company" done={done.company}>
+        {!done.company && customer.name.trim() !== "" && (
+          <p>We filled in the name from your request. Check the four things below and press Save.</p>
+        )}
         <form action={saveCompany} className="space-y-4">
           <div>
             <label htmlFor="name">Company name</label>
             <input id="name" name="name" type="text" defaultValue={customer.name} required />
+            <p className="hint">The name your customers know you by.</p>
           </div>
-          <div>
-            <label htmlFor="languages">Languages you work in</label>
-            <input id="languages" name="languages" type="text" defaultValue={customer.languages.join(", ")} required />
-            <p className="hint">Two-letter codes, comma-separated: pl, en, de.</p>
-          </div>
+          <LanguageFields current={customer.languages} />
           <div>
             <label htmlFor="timeZone">Time zone</label>
             <select id="timeZone" name="timeZone" defaultValue={customer.timeZone}>
@@ -121,15 +166,21 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
                 </option>
               ))}
             </select>
-            <p className="hint">Your daily brief arrives at 07:30 in this time zone.</p>
+            <p className="hint">
+              Your daily brief arrives at 07:30 in this time zone. Choose the large city nearest to you, for example
+              Europe/Warsaw or Europe/Amsterdam.
+            </p>
           </div>
           <div>
             <label htmlFor="signatureText">Email signature</label>
             <textarea id="signatureText" name="signatureText" rows={4} defaultValue={customer.signatureText} />
-            <p className="hint">Added to the end of every draft. Plain text: your name, company and phone number are enough.</p>
+            <p className="hint">
+              Added to the end of every draft. Plain text: your name, company and phone number are enough. For example:
+              Anna Kowalska, Nordpart Ltd, +48 600 000 000.
+            </p>
           </div>
           <button className={done.company ? "btn-secondary" : "btn"} type="submit">
-            Save
+            {done.company ? "Save" : "Save and go to step 2"}
           </button>
         </form>
       </Step>
@@ -143,17 +194,22 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
         ) : (
           <>
             <p>
-              <strong>Microsoft 365 or Outlook for work:</strong> connect it and drafts appear in your own Drafts folder.
-              Follow-ups, filing to OneDrive and payment reminders need this connection.
+              Not sure which one you have? If you read your work mail in Outlook, it is most likely Microsoft 365.
             </p>
-            <a className="btn" href="/api/microsoft/connect">
-              Connect Microsoft 365
-            </a>
-            <p>
-              <strong>Gmail or anything else:</strong> no connection needed. Forward an email to{" "}
-              <code className="rounded bg-stone-100 px-2 py-1">{forwardingAddress}</code> and the draft comes back to you
-              by email. You get reply drafts and offers this way; the other features need Microsoft 365.
-            </p>
+            {saidOtherMail ? (
+              <>
+                {forwardInstead}
+                <details>
+                  <summary className="cursor-pointer font-medium text-brand-800">I do have Microsoft 365</summary>
+                  <div className="mt-3 space-y-4">{connectMicrosoft}</div>
+                </details>
+              </>
+            ) : (
+              <>
+                {connectMicrosoft}
+                {forwardInstead}
+              </>
+            )}
           </>
         )}
       </Step>
@@ -257,6 +313,10 @@ ${testMail.textBody}`}
         <p>
           When someone asks for a quote, {config.appName} can prepare the offer as a PDF with your prices. That needs your
           price list (Excel) and your company details.
+        </p>
+        <p>
+          <strong>No price list, or prices that differ per request?</strong> Leave this step. Everything else works
+          without it, and a quote request then gets a normal reply draft without prices, for you to complete.
         </p>
         <form action={uploadSampleOffer} className="space-y-2">
           <input type="hidden" name="from" value="start" />

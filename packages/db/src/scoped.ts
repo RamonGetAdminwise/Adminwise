@@ -715,6 +715,11 @@ export function forCustomer(db: Db, customerId: string) {
       await run("UPDATE customers SET stripe_customer_id = $2 WHERE id = $1 AND stripe_customer_id IS NULL", [stripeCustomerId]);
     },
 
+    /** The owner looked at and saved the first step of the guide ("Your company"). */
+    async confirmCompanyStep() {
+      await run("UPDATE customers SET setup_company_at = COALESCE(setup_company_at, now()) WHERE id = $1");
+    },
+
     /** The owner finished or skipped the "Getting started" guide. */
     async finishSetup() {
       await run("UPDATE customers SET setup_finished_at = COALESCE(setup_finished_at, now()) WHERE id = $1");

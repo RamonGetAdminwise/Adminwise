@@ -5,6 +5,7 @@ import { checkVatNumber, EU_COUNTRIES, isValidTimeZone, normalizeVatNumber, OTHE
 import { forCustomer, REPLY_DRAFT_MODES, system, type ReplyDraftMode } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession, signOut } from "@/lib/auth";
+import { readLanguages } from "@/lib/languages";
 import { getAi, getConfig, getDb, getMailer, getStripe } from "@/lib/server";
 
 const text = (value: FormDataEntryValue | null, max: number) =>
@@ -14,14 +15,7 @@ export async function saveSettings(formData: FormData) {
   const session = await requireSession();
   const scope = forCustomer(getDb(), session.customerId);
 
-  const languages = [
-    ...new Set(
-      text(formData.get("languages"), 100)
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter((code) => /^[a-z]{2}$/.test(code)),
-    ),
-  ];
+  const languages = readLanguages(formData);
   const timeZone = text(formData.get("timeZone"), 64);
   if (languages.length === 0) redirect("/settings?error=languages");
   if (!isValidTimeZone(timeZone)) redirect("/settings?error=timezone");

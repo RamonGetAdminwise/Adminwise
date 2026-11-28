@@ -4,6 +4,7 @@ import { isValidTimeZone, setupTestMail, testMailWouldBeInternal } from "@adminw
 import { forCustomer } from "@adminwise/db";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
+import { readLanguages } from "@/lib/languages";
 import { getConfig, getDb, getMailer } from "@/lib/server";
 
 const PAGE = "/start";
@@ -16,14 +17,7 @@ export async function saveCompany(formData: FormData) {
   const session = await requireSession();
   const scope = forCustomer(getDb(), session.customerId);
   const name = text(formData.get("name"), 200);
-  const languages = [
-    ...new Set(
-      text(formData.get("languages"), 100)
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter((code) => /^[a-z]{2}$/.test(code)),
-    ),
-  ];
+  const languages = readLanguages(formData);
   const timeZone = text(formData.get("timeZone"), 64);
   if (!name) redirect(`${PAGE}?error=name`);
   if (languages.length === 0) redirect(`${PAGE}?error=languages`);
@@ -31,6 +25,7 @@ export async function saveCompany(formData: FormData) {
 
   const customer = await scope.getCustomer();
   await scope.updateSettings({ name, languages, timeZone, signatureText: text(formData.get("signatureText"), 2000) || customer.signatureText });
+  await scope.confirmCompanyStep();
   await scope.audit("settings.updated", { languages, timeZone, from: "setup" }, session.userId);
   redirect(`${PAGE}?saved=company#mailbox`);
 }

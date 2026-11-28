@@ -182,8 +182,20 @@ To verify live after deploying:
 
 Found live on 28 Nov 2026: the owner's mail arrived, the confirmation to the requester did not. The mail service had no record of it: the Postmark account was still in test mode and may then only send to its own domain. Approval was requested from Postmark on 28 Nov. Since then a mail to a requester that cannot be sent is reported to the owner in a separate mail ("Not delivered: a mail to ..."), and the decide page says so after Approve or Decline.
 - [ ] After Postmark's approval: repeat the checks above with an address outside getadminwise.com.
-- [ ] Not yet covered: a sign-in link that cannot be sent still fails without a notice to the owner.
+- [x] Done 28 Nov: a sign-in link that cannot be sent to a customer is reported to the owner too (not for addresses without an account: anyone can type those).
 
 Seen during the local walk-through, for the first-time-user pass:
-- [ ] Step 1 of the guide shows a green tick as soon as the company name is filled in from the request, before languages, time zone and signature were looked at.
-- [ ] "Languages you work in: two-letter codes, comma-separated" is not a question a first-time user can answer; make it a choice.
+- [x] Done 28 Nov: step 1 of the guide is ticked only after the owner pressed Save themselves.
+- [x] Done 28 Nov: languages are a main language plus a tick-list, no codes to type (guide and settings).
+
+First-time-user pass of 28 Nov 2026 (walked through locally with the made-up test account). To look at live after deploying:
+- [ ] The guide shows "0 of 3 steps done" for a new account and counts up; step 1 says the name came from the request.
+- [ ] Step 2 explains in four lines what happens at Microsoft before the button; someone who said "Gmail" or "something else" in the request sees forwarding first.
+- [ ] Step 5 says what a company without a price list does (leave it; quote requests get a reply draft without prices).
+- [ ] Website: "How it starts" has four steps beginning with the request; the offers block and two new questions say what works without a price list.
+- [ ] Sign-in page: after asking for a link, it says what to do when no mail arrives.
+
+Still open from this pass:
+- [ ] The time zone is still a list of some 400 city names; a short list of countries would be easier.
+- [ ] The guide is in English only.
+- [ ] No help inside the guide beyond the contact address (the chat or status window on the action list).

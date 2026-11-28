@@ -37,6 +37,8 @@ export interface Customer {
   // ---- guided setup (phase 4) ----
   /** Null while the "Getting started" guide is still shown after sign-in. */
   setupFinishedAt: Date | null;
+  /** When the owner saved the first step of the guide themselves; the name alone comes from their request. */
+  setupCompanyAt: Date | null;
   setupTestSentAt: Date | null;
   /** Details read from an uploaded sample document, waiting for the owner's yes or no. */
   offerProposal: OfferProposal | null;
