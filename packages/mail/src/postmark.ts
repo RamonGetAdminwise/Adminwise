@@ -285,7 +285,15 @@ export class PostmarkMailer implements OutboundMailer {
       }),
     });
     if (!response.ok) {
-      throw new Error(`Postmark send failed: ${response.status}`);
+      // Only Postmark's numeric error code is kept: its message text can repeat addresses.
+      const code = await response
+        .json()
+        .then((body: unknown) => {
+          const value = (body as { ErrorCode?: unknown } | null)?.ErrorCode;
+          return typeof value === "number" ? value : null;
+        })
+        .catch(() => null);
+      throw new Error(`Postmark send failed: ${response.status}${code === null ? "" : ` (code ${code})`}`);
     }
   }
 }

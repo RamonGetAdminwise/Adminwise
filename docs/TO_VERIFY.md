@@ -180,6 +180,10 @@ To verify live after deploying:
 - [ ] Decline a second test request: the polite no arrives.
 - [ ] Existing accounts still sign in as before.
 
+Found live on 28 Nov 2026: the owner's mail arrived, the confirmation to the requester did not. The mail service had no record of it: the Postmark account was still in test mode and may then only send to its own domain. Approval was requested from Postmark on 28 Nov. Since then a mail to a requester that cannot be sent is reported to the owner in a separate mail ("Not delivered: a mail to ..."), and the decide page says so after Approve or Decline.
+- [ ] After Postmark's approval: repeat the checks above with an address outside getadminwise.com.
+- [ ] Not yet covered: a sign-in link that cannot be sent still fails without a notice to the owner.
+
 Seen during the local walk-through, for the first-time-user pass:
 - [ ] Step 1 of the guide shows a green tick as soon as the company name is filled in from the request, before languages, time zone and signature were looked at.
 - [ ] "Languages you work in: two-letter codes, comma-separated" is not a question a first-time user can answer; make it a choice.

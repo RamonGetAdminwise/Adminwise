@@ -74,25 +74,49 @@ export function readRequestForm(
   };
 }
 
+/** Where the owner of the service reads requests: the alert address, else the public contact address. */
+function ownerAddress(): string {
+  return getConfig().alertEmail ?? contactEmail();
+}
+
 /**
  * A mail to the person who asked. If it cannot be delivered (a mistyped address, a mailbox that
- * refuses us) that must not break the request: it is stored and the owner sees it either way.
+ * refuses us, a mail service that refuses the address) that must not break the request, but it
+ * must not pass unnoticed either: the owner is told, because the requester now waits for a mail
+ * that never comes. Returns whether the mail service took the mail.
  */
 async function tell(
   to: string,
   subject: string,
   textBody: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
     await getMailer().send({ to: [to], subject, textBody });
-  } catch {
-    // Nothing to do here: the address is theirs to get right, and the owner has the request.
+    return true;
+  } catch (error) {
+    const reason = (error instanceof Error ? error.message : String(error))
+      .replace(/\s+/g, " ")
+      .slice(0, 300);
+    try {
+      await getMailer().send({
+        to: [ownerAddress()],
+        subject: `Not delivered: a mail to ${to}`,
+        textBody:
+          `${getConfig().appName} could not send this mail:\n\n` +
+          `To:       ${to}\n` +
+          `Subject:  ${subject}\n\n` +
+          `What the mail service said:\n${reason}\n` +
+          (reason.includes("(code 412)")
+            ? `This code means the mail service has not yet approved our account for addresses outside our own domain.\n`
+            : "") +
+          `\n` +
+          `They are waiting for it. Check the address, or write to them yourself.\n`,
+      });
+    } catch {
+      // The owner cannot be reached either; the caller decides what the page says.
+    }
+    return false;
   }
-}
-
-/** Where the owner of the service reads requests: the alert address, else the public contact address. */
-function ownerAddress(): string {
-  return getConfig().alertEmail ?? contactEmail();
 }
 
 /**
@@ -168,9 +192,12 @@ export async function submitRequest(
   return "ok";
 }
 
-async function sendApproved(email: string, contactName: string): Promise<void> {
+async function sendApproved(
+  email: string,
+  contactName: string,
+): Promise<boolean> {
   const config = getConfig();
-  await tell(
+  return tell(
     email,
     `Welcome to ${config.appName}: your request is approved`,
     `Hello ${contactName},\n\n` +
@@ -193,30 +220,34 @@ export async function requestOfLink(
   return system(getDb()).getAccessRequest(payload.r);
 }
 
-/** Approves or declines, once, and tells the requester. Returns the request as it is afterwards. */
+/**
+ * Approves or declines, once, and tells the requester. Returns null for a link that is not ours,
+ * else whether the mail to the requester went out (true too when it was decided before: nothing
+ * is mailed twice).
+ */
 export async function decideRequest(
   token: string,
   decision: "approved" | "declined",
-): Promise<AccessRequest | null> {
+): Promise<{ told: boolean } | null> {
   const request = await requestOfLink(token);
   if (!request) return null;
   const decided = await system(getDb()).decideAccessRequest(
     request.id,
     decision,
   );
-  if (!decided) return request; // decided before: nothing is mailed twice
+  if (!decided) return { told: true };
   const config = getConfig();
   if (decision === "approved") {
-    await sendApproved(decided.email, decided.contactName);
-  } else {
-    await tell(
+    return { told: await sendApproved(decided.email, decided.contactName) };
+  }
+  return {
+    told: await tell(
       decided.email,
       `Your request for ${config.appName}`,
       `Hello ${decided.contactName},\n\n` +
         `Thank you for your interest in ${config.appName}. At the moment we cannot offer ${decided.company} a place.\n\n` +
         `If you think we missed something, reply to this email and tell us more about how you work.\n\n` +
         `${config.appName}\n`,
-    );
-  }
-  return decided;
+    ),
+  };
 }

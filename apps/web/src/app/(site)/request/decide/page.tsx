@@ -14,12 +14,12 @@ async function decide(formData: FormData) {
   "use server";
   const token = String(formData.get("token") ?? "");
   const decision = formData.get("decision") === "approved" ? "approved" : "declined";
-  await decideRequest(token, decision);
-  redirect(`/request/decide?token=${encodeURIComponent(token)}`);
+  const result = await decideRequest(token, decision);
+  redirect(`/request/decide?token=${encodeURIComponent(token)}${result && !result.told ? "&mail=failed" : ""}`);
 }
 
-export default async function DecidePage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
-  const { token = "" } = await searchParams;
+export default async function DecidePage({ searchParams }: { searchParams: Promise<{ token?: string; mail?: string }> }) {
+  const { token = "", mail } = await searchParams;
   const request = token ? await requestOfLink(token) : null;
 
   if (!request) {
@@ -63,8 +63,18 @@ export default async function DecidePage({ searchParams }: { searchParams: Promi
         ) : (
           <p className="mt-6 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">
             {request.status === "approved"
-              ? "Approved. They were sent a welcome email that explains how to sign in."
-              : "Declined. They were told by email."}
+              ? mail === "failed"
+                ? "Approved."
+                : "Approved. They were sent a welcome email that explains how to sign in."
+              : mail === "failed"
+                ? "Declined."
+                : "Declined. They were told by email."}
+          </p>
+        )}
+        {request.status !== "pending" && mail === "failed" && (
+          <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            The email to {request.email} could not be sent. The decision stands, but they do not know it yet: write to
+            them yourself. The reason is in a separate email to you.
           </p>
         )}
         {request.status === "pending" && (
